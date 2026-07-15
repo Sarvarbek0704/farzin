@@ -5,11 +5,20 @@
 
 name: CI
 
+# ⚠️  Avtomatik trigger vaqtincha o'chirilgan — bu hisobda GitHub Actions
+#     hozircha mavjud emas. Pipeline to'liq yozilgan va ishlashga tayyor;
+#     Actions yoqilgandan keyin quyidagi `push`/`pull_request` blokini
+#     qayta yoqish kifoya.
+#
+#     Hozircha qo'lda ishga tushiriladi: Actions → CI → Run workflow.
+#     Lokal ekvivalenti (CI bilan bir xil tekshiruvlar):
+#       pnpm lint && pnpm typecheck && pnpm arch:check && pnpm test:unit && pnpm build
 on:
-  push:
-    branches: [main]
-  pull_request:
-    branches: [main]
+  workflow_dispatch:
+  # push:
+  #   branches: [main]
+  # pull_request:
+  #   branches: [main]
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
