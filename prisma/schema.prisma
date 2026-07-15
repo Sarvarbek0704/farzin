@@ -1,0 +1,1562 @@
+// ============================================================================
+//  FARZIN — Ma'lumotlar modeli
+//  Spetsifikatsiya: docs/03-data-model.md
+//
+//  KONVENSIYALAR (docs/03-data-model.md da asoslangan):
+//   - Prisma model nomi: PascalCase, BIRLIK      (TournamentSection)
+//   - DB jadval nomi:    snake_case, KO'PLIK     (tournament_sections)
+//   - Barcha PK:         UUID v7 (vaqt bo'yicha tartiblanadi → B-tree index uchun yaxshi)
+//   - Barcha jadval:     created_at, updated_at
+//   - Soft delete:       deleted_at (faqat muhim entity'larda)
+//   - Pul:               BigInt, TIYINDA saqlanadi. Float HECH QACHON.
+//   - Vaqt:              DateTime @db.Timestamptz(3) — har doim TZ bilan
+//
+//  ESLATMA: @default(uuid(7)) Prisma >= 5.14 talab qiladi.
+// ============================================================================
+
+generator client {
+  provider        = "prisma-client-js"
+  previewFeatures = ["postgresqlExtensions", "relationJoins"]
+}
+
+datasource db {
+  provider   = "postgresql"
+  url        = env("DATABASE_URL")
+  extensions = [pgcrypto, pg_trgm, btree_gin]
+}
+
+// ============================================================================
+//  ENUM'lar
+// ============================================================================
+
+enum UserStatus {
+  PENDING_VERIFICATION
+  ACTIVE
+  SUSPENDED
+  BANNED
+  DELETED
+}
+
+/// RBAC rollari — docs/01-product-spec.md dagi ruxsat matritsasi bilan mos
+enum Role {
+  SUPER_ADMIN
+  FEDERATION_ADMIN
+  REGION_ADMIN
+  CLUB_ADMIN
+  ARBITER
+  COACH
+  SCHOOL_TEACHER
+  PLAYER
+  PARENT
+  SPECTATOR
+}
+
+enum Gender {
+  MALE
+  FEMALE
+}
+
+/// FIDE unvonlari
+enum ChessTitle {
+  GM // Grandmaster
+  IM // International Master
+  FM // FIDE Master
+  CM // Candidate Master
+  WGM
+  WIM
+  WFM
+  WCM
+  NM // National Master (milliy — FIDE emas)
+}
+
+/// Vaqt nazorati toifasi. Har biri uchun ALOHIDA reyting yuritiladi.
+/// docs/06-rating-system.md §5
+enum TimeCategory {
+  CLASSICAL
+  RAPID
+  BLITZ
+  BULLET
+}
+
+/// OTB (taxta ortida) va onlayn reytingi ALOHIDA — chit xavfi va sharoit farqi.
+/// docs/06-rating-system.md §5
+enum PlayEnvironment {
+  OTB
+  ONLINE
+}
+
+enum TournamentStatus {
+  DRAFT
+  REGISTRATION_OPEN
+  REGISTRATION_CLOSED
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
+}
+
+/// docs/05-pairing-engine.md §1
+enum PairingSystem {
+  SWISS_DUTCH // FIDE C.04.3 — asosiy
+  ROUND_ROBIN
+  DOUBLE_ROUND_ROBIN
+  KNOCKOUT
+  SCHEVENINGEN
+  TEAM_SWISS
+}
+
+enum RoundStatus {
+  PENDING
+  PAIRING_IN_PROGRESS
+  PAIRING_FAILED
+  PAIRED
+  IN_PROGRESS
+  COMPLETED
+}
+
+/// Juftlik natijasi. NULL = hali o'ynalmagan.
+enum PairingResult {
+  WHITE_WIN // 1-0
+  BLACK_WIN // 0-1
+  DRAW // 1/2-1/2
+  WHITE_WIN_FORFEIT // 1-0 (raqib kelmadi)
+  BLACK_WIN_FORFEIT // 0-1
+  DOUBLE_FORFEIT // 0-0 — ikkalasi kelmadi
+  BYE_FULL // 1 ochko — juftliksiz qolgan o'yinchi
+  BYE_HALF // 0.5 ochko — so'ralgan bye
+  BYE_ZERO // 0 ochko
+  UNPLAYED
+}
+
+enum Color {
+  WHITE
+  BLACK
+}
+
+/// docs/07-realtime-and-clock.md §4
+enum OnlineGameStatus {
+  PENDING
+  ACTIVE
+  CHECKMATE
+  STALEMATE
+  RESIGNATION
+  TIMEOUT
+  DRAW_AGREED
+  THREEFOLD_REPETITION
+  FIFTY_MOVE_RULE
+  INSUFFICIENT_MATERIAL
+  TIMEOUT_VS_INSUFFICIENT_MATERIAL
+  ABANDONED
+  ABORTED
+}
+
+/// docs/07-realtime-and-clock.md §3
+enum ClockType {
+  SUDDEN_DEATH
+  FISCHER_INCREMENT
+  BRONSTEIN_DELAY
+  SIMPLE_DELAY
+  MULTI_STAGE
+}
+
+/// docs/09-payments-and-billing.md §5
+enum PaymentStatus {
+  CREATED
+  PENDING
+  PAID
+  FAILED
+  EXPIRED
+  CANCELLED
+  REFUND_REQUESTED
+  REFUNDED
+}
+
+enum PaymentProvider {
+  CLICK
+  PAYME
+  UZUM
+  BANK_TRANSFER // B2G shartnomalari uchun
+  MANUAL // hakam qo'lda tasdiqlagan (naqd)
+}
+
+enum SubscriptionStatus {
+  TRIALING
+  ACTIVE
+  PAST_DUE
+  GRACE_PERIOD
+  CANCELLED
+  EXPIRED
+}
+
+/// Double-entry ledger — docs/09-payments-and-billing.md §6
+enum LedgerDirection {
+  DEBIT
+  CREDIT
+}
+
+/// docs/08-fair-play.md §4
+enum FairPlayCaseStatus {
+  OPEN
+  UNDER_REVIEW
+  CLOSED_NO_ACTION
+  CLOSED_WARNING
+  CLOSED_SANCTION
+  APPEALED
+}
+
+enum FairPlaySignalType {
+  ENGINE_CORRELATION
+  TIMING_ANOMALY
+  RATING_JUMP
+  BROWSER_FOCUS_LOSS
+  DEVICE_FINGERPRINT
+  MULTI_ACCOUNT
+  MANUAL_REPORT
+}
+
+enum AppealStatus {
+  SUBMITTED
+  UNDER_REVIEW
+  UPHELD // apellyatsiya qanoatlantirildi
+  REJECTED
+  WITHDRAWN
+}
+
+enum NotificationChannel {
+  SMS
+  PUSH
+  TELEGRAM
+  EMAIL
+  IN_APP
+}
+
+/// Transactional outbox — docs/02-architecture.md §6.2
+enum OutboxStatus {
+  PENDING
+  PROCESSING
+  PUBLISHED
+  FAILED
+}
+
+// ============================================================================
+//  IDENTITY moduli
+// ============================================================================
+
+model User {
+  id            String     @id @default(uuid(7)) @db.Uuid
+  email         String?    @unique
+  phone         String?    @unique // O'zbekistonda telefon asosiy identifikator
+  /// Argon2id hash. bcrypt EMAS — docs/10-security.md §2
+  passwordHash  String?    @map("password_hash")
+  status        UserStatus @default(PENDING_VERIFICATION)
+  emailVerified Boolean    @default(false) @map("email_verified")
+  phoneVerified Boolean    @default(false) @map("phone_verified")
+
+  /// TOTP secret — admin/arbiter uchun majburiy. Shifrlangan holda saqlanadi.
+  totpSecret      String?  @map("totp_secret")
+  totpEnabled     Boolean  @default(false) @map("totp_enabled")
+  /// Bir martalik zaxira kodlar (hash qilingan)
+  totpBackupCodes String[] @map("totp_backup_codes")
+
+  locale      String    @default("uz-Latn") // uz-Latn | uz-Cyrl | ru | en
+  lastLoginAt DateTime? @map("last_login_at") @db.Timestamptz(3)
+  lastLoginIp String?   @map("last_login_ip")
+
+  createdAt DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt DateTime  @updatedAt @map("updated_at") @db.Timestamptz(3)
+  deletedAt DateTime? @map("deleted_at") @db.Timestamptz(3)
+
+  roles         UserRole[]
+  refreshTokens RefreshToken[]
+  oauthAccounts OAuthAccount[]
+  player        Player?
+  auditLogs     AuditLog[]
+  notifications Notification[]
+  parentLinks   ParentLink[]   @relation("ParentUser")
+
+  @@index([status])
+  @@index([createdAt])
+  @@map("users")
+}
+
+/// Rol resursga bog'langan bo'lishi mumkin: klub admini FAQAT o'z klubini boshqaradi.
+/// Faqat rolni tekshirish YETARLI EMAS — docs/10-security.md §3
+model UserRole {
+  id     String @id @default(uuid(7)) @db.Uuid
+  userId String @map("user_id") @db.Uuid
+  role   Role
+
+  /// Rol qaysi resursga tegishli (NULL = global).
+  /// Masalan: CLUB_ADMIN + scopeType=CLUB + scopeId=<club_id>
+  scopeType String? @map("scope_type") // CLUB | REGION | FEDERATION | SCHOOL | TOURNAMENT
+  scopeId   String? @map("scope_id") @db.Uuid
+
+  grantedBy String?   @map("granted_by") @db.Uuid
+  expiresAt DateTime? @map("expires_at") @db.Timestamptz(3)
+
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, role, scopeType, scopeId])
+  @@index([userId])
+  @@index([scopeType, scopeId])
+  @@map("user_roles")
+}
+
+/// Refresh token rotation + reuse detection — docs/10-security.md §2
+/// familyId: bitta login sessiyasidan kelib chiqqan tokenlar zanjiri.
+/// Ishlatilgan token qayta kelsa → BUTUN oila bekor qilinadi (o'g'irlik alomati).
+model RefreshToken {
+  id        String @id @default(uuid(7)) @db.Uuid
+  userId    String @map("user_id") @db.Uuid
+  /// Token PLAINTEXT saqlanmaydi — SHA-256 hash
+  tokenHash String @unique @map("token_hash")
+  familyId  String @map("family_id") @db.Uuid
+
+  usedAt    DateTime? @map("used_at") @db.Timestamptz(3)
+  revokedAt DateTime? @map("revoked_at") @db.Timestamptz(3)
+  expiresAt DateTime  @map("expires_at") @db.Timestamptz(3)
+
+  userAgent String? @map("user_agent")
+  ipAddress String? @map("ip_address")
+
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([familyId])
+  @@index([expiresAt])
+  @@map("refresh_tokens")
+}
+
+model OAuthAccount {
+  id             String @id @default(uuid(7)) @db.Uuid
+  userId         String @map("user_id") @db.Uuid
+  provider       String // google | telegram
+  providerUserId String @map("provider_user_id")
+
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerUserId])
+  @@index([userId])
+  @@map("oauth_accounts")
+}
+
+/// Ota-ona ↔ bola bog'lanishi. Maktab moduli 7-17 yoshli bolalar bilan ishlaydi.
+/// docs/10-security.md §4 — ota-ona roziligi
+model ParentLink {
+  id            String @id @default(uuid(7)) @db.Uuid
+  parentUserId  String @map("parent_user_id") @db.Uuid
+  childPlayerId String @map("child_player_id") @db.Uuid
+
+  /// Ota-ona roziligi tasdiqlangan vaqt. NULL = rozilik yo'q → bola profili yopiq.
+  consentGivenAt DateTime? @map("consent_given_at") @db.Timestamptz(3)
+
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  parentUser  User   @relation("ParentUser", fields: [parentUserId], references: [id], onDelete: Cascade)
+  childPlayer Player @relation(fields: [childPlayerId], references: [id], onDelete: Cascade)
+
+  @@unique([parentUserId, childPlayerId])
+  @@index([childPlayerId])
+  @@map("parent_links")
+}
+
+// ============================================================================
+//  PLAYER moduli
+// ============================================================================
+
+model Player {
+  id     String  @id @default(uuid(7)) @db.Uuid
+  userId String? @unique @map("user_id") @db.Uuid
+
+  firstName    String  @map("first_name")
+  lastName     String  @map("last_name")
+  middleName   String? @map("middle_name")
+  /// Kirill yozuvidagi ism — rasmiy hujjatlar uchun
+  fullNameCyrl String? @map("full_name_cyrl")
+
+  birthDate DateTime? @map("birth_date") @db.Date
+  gender    Gender?
+  avatarUrl String?   @map("avatar_url")
+
+  /// FIDE ID — tashqi identifikator. Farzin FIDE reytingini HISOBLAMAYDI,
+  /// faqat oyna (mirror) sifatida saqlaydi. docs/06-rating-system.md §6
+  fideId String?     @unique @map("fide_id")
+  title  ChessTitle?
+
+  federationId String? @map("federation_id") @db.Uuid
+  regionId     String? @map("region_id") @db.Uuid
+
+  /// Profil ochiqmi. Voyaga yetmaganlar uchun default: false
+  isPublic Boolean @default(true) @map("is_public")
+
+  createdAt DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt DateTime  @updatedAt @map("updated_at") @db.Timestamptz(3)
+  deletedAt DateTime? @map("deleted_at") @db.Timestamptz(3)
+
+  user       User?       @relation(fields: [userId], references: [id], onDelete: SetNull)
+  federation Federation? @relation(fields: [federationId], references: [id], onDelete: SetNull)
+  region     Region?     @relation(fields: [regionId], references: [id], onDelete: SetNull)
+
+  clubMemberships ClubMembership[]
+  registrations   Registration[]
+  ratings         PlayerRating[]
+  ratingHistory   RatingHistory[]
+  fideRatings     FideRatingSnapshot[]
+  whiteGames      OnlineGame[]         @relation("WhitePlayer")
+  blackGames      OnlineGame[]         @relation("BlackPlayer")
+  puzzleAttempts  PuzzleAttempt[]
+  parentLinks     ParentLink[]
+  student         Student?
+  coach           Coach?
+  fairPlayCases   FairPlayCase[]
+  appeals         Appeal[]
+
+  @@index([lastName, firstName])
+  @@index([federationId])
+  @@index([regionId])
+  @@index([fideId])
+  @@map("players")
+}
+
+// ============================================================================
+//  ORG moduli — federatsiya → viloyat → klub ierarxiyasi
+// ============================================================================
+
+model Federation {
+  id          String  @id @default(uuid(7)) @db.Uuid
+  name        String
+  shortName   String  @map("short_name")
+  /// ISO 3166-1 alpha-3 — UZB
+  countryCode String  @map("country_code")
+  logoUrl     String? @map("logo_url")
+  website     String?
+
+  createdAt DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt DateTime  @updatedAt @map("updated_at") @db.Timestamptz(3)
+  deletedAt DateTime? @map("deleted_at") @db.Timestamptz(3)
+
+  regions     Region[]
+  players     Player[]
+  tournaments Tournament[]
+
+  @@unique([countryCode])
+  @@map("federations")
+}
+
+/// O'zbekiston viloyatlari + Toshkent shahri + Qoraqalpog'iston
+model Region {
+  id           String  @id @default(uuid(7)) @db.Uuid
+  federationId String  @map("federation_id") @db.Uuid
+  name         String
+  /// SOATO kodi (O'zbekiston ma'muriy-hududiy birliklar klassifikatori)
+  soatoCode    String? @unique @map("soato_code")
+
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  federation Federation @relation(fields: [federationId], references: [id], onDelete: Cascade)
+
+  clubs       Club[]
+  players     Player[]
+  schools     School[]
+  tournaments Tournament[]
+
+  @@index([federationId])
+  @@map("regions")
+}
+
+model Club {
+  id        String   @id @default(uuid(7)) @db.Uuid
+  regionId  String   @map("region_id") @db.Uuid
+  name      String
+  slug      String   @unique
+  logoUrl   String?  @map("logo_url")
+  address   String?
+  /// GeoJSON Point sifatida — xarita uchun. PostGIS keyingi bosqichda.
+  latitude  Decimal? @db.Decimal(9, 6)
+  longitude Decimal? @db.Decimal(9, 6)
+
+  contactPhone String? @map("contact_phone")
+  contactEmail String? @map("contact_email")
+
+  createdAt DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt DateTime  @updatedAt @map("updated_at") @db.Timestamptz(3)
+  deletedAt DateTime? @map("deleted_at") @db.Timestamptz(3)
+
+  region Region @relation(fields: [regionId], references: [id], onDelete: Restrict)
+
+  memberships   ClubMembership[]
+  tournaments   Tournament[]
+  subscriptions Subscription[]
+
+  @@index([regionId])
+  @@map("clubs")
+}
+
+model ClubMembership {
+  id       String    @id @default(uuid(7)) @db.Uuid
+  clubId   String    @map("club_id") @db.Uuid
+  playerId String    @map("player_id") @db.Uuid
+  joinedAt DateTime  @default(now()) @map("joined_at") @db.Timestamptz(3)
+  leftAt   DateTime? @map("left_at") @db.Timestamptz(3)
+
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  club   Club   @relation(fields: [clubId], references: [id], onDelete: Cascade)
+  player Player @relation(fields: [playerId], references: [id], onDelete: Cascade)
+
+  @@unique([clubId, playerId, joinedAt])
+  @@index([playerId])
+  @@map("club_memberships")
+}
+
+// ============================================================================
+//  TOURNAMENT moduli
+// ============================================================================
+
+model Tournament {
+  id          String  @id @default(uuid(7)) @db.Uuid
+  name        String
+  slug        String  @unique
+  description String?
+
+  federationId String? @map("federation_id") @db.Uuid
+  regionId     String? @map("region_id") @db.Uuid
+  clubId       String? @map("club_id") @db.Uuid
+  organizerId  String  @map("organizer_id") @db.Uuid
+
+  status TournamentStatus @default(DRAFT)
+
+  venueName String?  @map("venue_name")
+  address   String?
+  latitude  Decimal? @db.Decimal(9, 6)
+  longitude Decimal? @db.Decimal(9, 6)
+
+  /// Sana + vaqt, timezone bilan. Asia/Tashkent.
+  startDate            DateTime  @map("start_date") @db.Timestamptz(3)
+  endDate              DateTime  @map("end_date") @db.Timestamptz(3)
+  registrationOpensAt  DateTime? @map("registration_opens_at") @db.Timestamptz(3)
+  registrationClosesAt DateTime? @map("registration_closes_at") @db.Timestamptz(3)
+
+  /// Start puli — TIYINDA. docs/09-payments-and-billing.md §4
+  entryFeeAmount   BigInt? @map("entry_fee_amount")
+  entryFeeCurrency String  @default("UZS") @map("entry_fee_currency")
+
+  /// FIDE reytingiga hisoblanadimi
+  isFideRated       Boolean @default(false) @map("is_fide_rated")
+  /// Farzin milliy reytingiga hisoblanadimi
+  isNationallyRated Boolean @default(true) @map("is_nationally_rated")
+
+  isPublic Boolean @default(true) @map("is_public")
+
+  createdAt DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt DateTime  @updatedAt @map("updated_at") @db.Timestamptz(3)
+  deletedAt DateTime? @map("deleted_at") @db.Timestamptz(3)
+
+  federation Federation? @relation(fields: [federationId], references: [id], onDelete: SetNull)
+  region     Region?     @relation(fields: [regionId], references: [id], onDelete: SetNull)
+  club       Club?       @relation(fields: [clubId], references: [id], onDelete: SetNull)
+
+  sections TournamentSection[]
+  arbiters TournamentArbiter[]
+  invoices Invoice[]
+
+  @@index([status, startDate])
+  @@index([regionId])
+  @@index([clubId])
+  @@index([slug])
+  @@map("tournaments")
+}
+
+/// Turnir bir necha seksiyaga bo'linishi mumkin (A/B guruh, yosh toifasi, ayollar).
+/// Juftlashtirish va reyting SEKSIYA darajasida ishlaydi, turnir darajasida emas.
+model TournamentSection {
+  id           String @id @default(uuid(7)) @db.Uuid
+  tournamentId String @map("tournament_id") @db.Uuid
+  name         String
+
+  pairingSystem PairingSystem   @default(SWISS_DUTCH)
+  timeCategory  TimeCategory
+  environment   PlayEnvironment @default(OTB)
+
+  totalRounds Int @map("total_rounds")
+
+  /// Vaqt nazorati — docs/07-realtime-and-clock.md §3
+  clockType        ClockType @map("clock_type")
+  /// Boshlang'ich vaqt (sekundda)
+  baseTimeSeconds  Int       @map("base_time_seconds")
+  /// Increment/delay (sekundda)
+  incrementSeconds Int       @default(0) @map("increment_seconds")
+  /// Ko'p bosqichli nazorat uchun (masalan 90min/40 + 30min + 30s inc).
+  /// Format docs/07-realtime-and-clock.md §3 da belgilangan.
+  multiStageConfig Json?     @map("multi_stage_config")
+
+  /// Ishtirok cheklovlari
+  minRating         Int?    @map("min_rating")
+  maxRating         Int?    @map("max_rating")
+  minBirthYear      Int?    @map("min_birth_year")
+  maxBirthYear      Int?    @map("max_birth_year")
+  genderRestriction Gender? @map("gender_restriction")
+  maxPlayers        Int?    @map("max_players")
+
+  /// Tie-break tartibi. Massiv — leksikografik tartibda qo'llaniladi.
+  /// Qiymatlar: BUCHHOLZ | BUCHHOLZ_CUT1 | MEDIAN_BUCHHOLZ | SONNEBORN_BERGER |
+  ///            DIRECT_ENCOUNTER | CUMULATIVE | ARO | KOYA | WINS | BLACK_GAMES
+  /// docs/05-pairing-engine.md §6
+  tieBreakOrder String[] @map("tie_break_order")
+
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  tournament Tournament @relation(fields: [tournamentId], references: [id], onDelete: Cascade)
+
+  registrations Registration[]
+  rounds        Round[]
+  standings     Standing[]
+
+  @@unique([tournamentId, name])
+  @@index([tournamentId])
+  @@map("tournament_sections")
+}
+
+model TournamentArbiter {
+  id           String  @id @default(uuid(7)) @db.Uuid
+  tournamentId String  @map("tournament_id") @db.Uuid
+  userId       String  @map("user_id") @db.Uuid
+  /// Bosh hakammi
+  isChief      Boolean @default(false) @map("is_chief")
+
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  tournament Tournament @relation(fields: [tournamentId], references: [id], onDelete: Cascade)
+
+  @@unique([tournamentId, userId])
+  @@index([userId])
+  @@map("tournament_arbiters")
+}
+
+model Registration {
+  id        String @id @default(uuid(7)) @db.Uuid
+  sectionId String @map("section_id") @db.Uuid
+  playerId  String @map("player_id") @db.Uuid
+
+  /// Juftlashtirish raqami (pairing number). Turnir boshlanganda
+  /// reyting bo'yicha tartiblanib beriladi va TURNIR DAVOMIDA O'ZGARMAYDI.
+  /// docs/05-pairing-engine.md §2
+  pairingNumber Int? @map("pairing_number")
+
+  /// Ro'yxatga olish paytidagi reyting — muzlatiladi (snapshot).
+  /// Turnir davomida o'yinchi reytingi o'zgarsa ham juftlashtirish
+  /// SHU qiymatdan foydalanadi. Aks holda determinizm buziladi.
+  ratingAtEntry Int?        @map("rating_at_entry")
+  titleAtEntry  ChessTitle? @map("title_at_entry")
+
+  isConfirmed     Boolean   @default(false) @map("is_confirmed")
+  isWithdrawn     Boolean   @default(false) @map("is_withdrawn")
+  withdrawnAt     DateTime? @map("withdrawn_at") @db.Timestamptz(3)
+  withdrawnReason String?   @map("withdrawn_reason")
+
+  /// Kech qo'shilgan o'yinchi qaysi turdan boshlab o'ynaydi
+  joinedAtRound Int? @map("joined_at_round")
+
+  invoiceId String? @map("invoice_id") @db.Uuid
+
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  section TournamentSection @relation(fields: [sectionId], references: [id], onDelete: Cascade)
+  player  Player            @relation(fields: [playerId], references: [id], onDelete: Restrict)
+  invoice Invoice?          @relation(fields: [invoiceId], references: [id], onDelete: SetNull)
+
+  whitePairings Pairing[] @relation("WhiteRegistration")
+  blackPairings Pairing[] @relation("BlackRegistration")
+  standing      Standing?
+
+  @@unique([sectionId, playerId])
+  @@unique([sectionId, pairingNumber])
+  @@index([playerId])
+  @@map("registrations")
+}
+
+// ============================================================================
+//  PAIRING moduli — docs/05-pairing-engine.md
+// ============================================================================
+
+model Round {
+  id        String @id @default(uuid(7)) @db.Uuid
+  sectionId String @map("section_id") @db.Uuid
+  number    Int
+
+  status RoundStatus @default(PENDING)
+
+  scheduledStartAt DateTime? @map("scheduled_start_at") @db.Timestamptz(3)
+  actualStartAt    DateTime? @map("actual_start_at") @db.Timestamptz(3)
+  completedAt      DateTime? @map("completed_at") @db.Timestamptz(3)
+
+  /// Juftlashtirish qaysi algoritm/versiya bilan qilingan — audit va
+  /// reproducibility uchun. docs/05-pairing-engine.md §5
+  pairingEngineVersion String?   @map("pairing_engine_version")
+  /// Juftlashtirish job'ining natijasi/xatosi
+  pairingFailureReason String?   @map("pairing_failure_reason")
+  pairingComputedAt    DateTime? @map("pairing_computed_at") @db.Timestamptz(3)
+  pairingDurationMs    Int?      @map("pairing_duration_ms")
+
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  section  TournamentSection @relation(fields: [sectionId], references: [id], onDelete: Cascade)
+  pairings Pairing[]
+
+  @@unique([sectionId, number])
+  @@index([sectionId])
+  @@map("rounds")
+}
+
+model Pairing {
+  id      String @id @default(uuid(7)) @db.Uuid
+  roundId String @map("round_id") @db.Uuid
+
+  boardNumber Int @map("board_number")
+
+  whiteRegistrationId String  @map("white_registration_id") @db.Uuid
+  /// NULL = bye (juftliksiz qolgan o'yinchi)
+  blackRegistrationId String? @map("black_registration_id") @db.Uuid
+
+  result PairingResult @default(UNPLAYED)
+
+  /// Natija kim tomonidan, qachon kiritilgan — audit
+  resultEnteredBy String?   @map("result_entered_by") @db.Uuid
+  resultEnteredAt DateTime? @map("result_entered_at") @db.Timestamptz(3)
+
+  /// Partiya yozuvi. "pgn" — Portable Game Notation.
+  /// (Eski loyihada bu maydon "png" deb xato yozilgan edi.)
+  pgn String?
+
+  /// OTB turnirda o'ynalgan partiya onlayn o'yin bilan bog'langan bo'lishi mumkin
+  onlineGameId String? @unique @map("online_game_id") @db.Uuid
+
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  round             Round         @relation(fields: [roundId], references: [id], onDelete: Cascade)
+  whiteRegistration Registration  @relation("WhiteRegistration", fields: [whiteRegistrationId], references: [id], onDelete: Restrict)
+  blackRegistration Registration? @relation("BlackRegistration", fields: [blackRegistrationId], references: [id], onDelete: Restrict)
+  onlineGame        OnlineGame?   @relation(fields: [onlineGameId], references: [id], onDelete: SetNull)
+
+  @@unique([roundId, boardNumber])
+  @@index([roundId])
+  @@index([whiteRegistrationId])
+  @@index([blackRegistrationId])
+  @@map("pairings")
+}
+
+/// Turnir jadvali (standings). Har tur oxirida qayta hisoblanadi.
+/// Bu DENORMALIZATSIYA — tez o'qish uchun. Manba: Pairing.result.
+/// Nomuvofiqlik bo'lsa Pairing HAQIQAT hisoblanadi.
+model Standing {
+  id             String @id @default(uuid(7)) @db.Uuid
+  sectionId      String @map("section_id") @db.Uuid
+  registrationId String @unique @map("registration_id") @db.Uuid
+
+  /// Ochko. 0.5 qadam bilan → Decimal(4,1). Float EMAS.
+  points Decimal @default(0) @db.Decimal(4, 1)
+  rank   Int?
+
+  /// Tie-break qiymatlari. Kalit = tieBreakOrder dagi nom.
+  /// Masalan: { "BUCHHOLZ": 24.5, "SONNEBORN_BERGER": 18.25 }
+  tieBreakValues Json @default("{}") @map("tie_break_values")
+
+  gamesPlayed Int @default(0) @map("games_played")
+  wins        Int @default(0)
+  draws       Int @default(0)
+  losses      Int @default(0)
+
+  /// Rang tarixi va float tarixi — juftlashtirish uchun kerak.
+  /// docs/05-pairing-engine.md §2
+  colorHistory String[] @map("color_history") // ["WHITE", "BLACK", ...]
+  floatHistory String[] @map("float_history") // ["NONE", "DOWN", "UP", ...]
+
+  /// Performance rating — turnir natijasiga ko'ra hisoblangan
+  performanceRating Int? @map("performance_rating")
+
+  computedAt DateTime @default(now()) @map("computed_at") @db.Timestamptz(3)
+  createdAt  DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt  DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  section      TournamentSection @relation(fields: [sectionId], references: [id], onDelete: Cascade)
+  registration Registration      @relation(fields: [registrationId], references: [id], onDelete: Cascade)
+
+  @@index([sectionId, rank])
+  @@map("standings")
+}
+
+// ============================================================================
+//  RATING moduli — docs/06-rating-system.md
+// ============================================================================
+
+/// O'yinchining JORIY reytingi. Har (environment, timeCategory) uchun alohida qator.
+model PlayerRating {
+  id       String @id @default(uuid(7)) @db.Uuid
+  playerId String @map("player_id") @db.Uuid
+
+  environment  PlayEnvironment
+  timeCategory TimeCategory
+
+  /// Glicko-2 parametrlari. Decimal — Float EMAS (determinizm).
+  rating     Decimal @default(1500) @db.Decimal(8, 4)
+  deviation  Decimal @default(350) @db.Decimal(8, 4)
+  volatility Decimal @default(0.06) @db.Decimal(10, 8)
+
+  gamesPlayed   Int     @default(0) @map("games_played")
+  /// Provisional = hali yetarli o'yin o'ynamagan. docs/06-rating-system.md §4
+  isProvisional Boolean @default(true) @map("is_provisional")
+
+  peakRating   Int?      @map("peak_rating")
+  peakRatingAt DateTime? @map("peak_rating_at") @db.Timestamptz(3)
+
+  lastPeriodId String? @map("last_period_id") @db.Uuid
+
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  player Player @relation(fields: [playerId], references: [id], onDelete: Cascade)
+
+  @@unique([playerId, environment, timeCategory])
+  @@index([environment, timeCategory, rating(sort: Desc)])
+  @@map("player_ratings")
+}
+
+/// Glicko-2 batch davri. docs/06-rating-system.md §3
+model RatingPeriod {
+  id           String          @id @default(uuid(7)) @db.Uuid
+  environment  PlayEnvironment
+  timeCategory TimeCategory
+
+  startsAt DateTime @map("starts_at") @db.Timestamptz(3)
+  endsAt   DateTime @map("ends_at") @db.Timestamptz(3)
+
+  /// Sistema konstantasi τ — davr uchun muzlatiladi (audit uchun).
+  tau Decimal @db.Decimal(4, 3)
+
+  computedAt      DateTime? @map("computed_at") @db.Timestamptz(3)
+  playersAffected Int?      @map("players_affected")
+  gamesProcessed  Int?      @map("games_processed")
+
+  /// Qayta hisoblash bo'lgan bo'lsa — nechanchi marta.
+  /// docs/06-rating-system.md §9 (zanjirli qayta hisoblash)
+  recomputeGeneration Int @default(0) @map("recompute_generation")
+
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  history RatingHistory[]
+
+  @@unique([environment, timeCategory, startsAt])
+  @@index([computedAt])
+  @@map("rating_periods")
+}
+
+/// Reytingning HAR BIR o'zgarishi. IMMUTABLE — hech qachon UPDATE qilinmaydi.
+/// Sabab: "reytingim nega tushdi?" savoliga javob bera olish + audit.
+/// docs/06-rating-system.md §8
+model RatingHistory {
+  id       String @id @default(uuid(7)) @db.Uuid
+  playerId String @map("player_id") @db.Uuid
+  periodId String @map("period_id") @db.Uuid
+
+  environment  PlayEnvironment
+  timeCategory TimeCategory
+
+  ratingBefore     Decimal @map("rating_before") @db.Decimal(8, 4)
+  deviationBefore  Decimal @map("deviation_before") @db.Decimal(8, 4)
+  volatilityBefore Decimal @map("volatility_before") @db.Decimal(10, 8)
+
+  ratingAfter     Decimal @map("rating_after") @db.Decimal(8, 4)
+  deviationAfter  Decimal @map("deviation_after") @db.Decimal(8, 4)
+  volatilityAfter Decimal @map("volatility_after") @db.Decimal(10, 8)
+
+  gamesInPeriod Int @map("games_in_period")
+
+  /// Hisobga kirgan o'yinlar — qayta hisoblash va tushuntirish uchun.
+  /// [{ opponentId, opponentRating, opponentRd, score }]
+  inputGames Json @map("input_games")
+
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  player Player       @relation(fields: [playerId], references: [id], onDelete: Cascade)
+  period RatingPeriod @relation(fields: [periodId], references: [id], onDelete: Cascade)
+
+  @@unique([playerId, periodId, environment, timeCategory])
+  @@index([playerId, createdAt])
+  @@map("rating_history")
+}
+
+/// FIDE reytingi — TASHQI ma'lumot. Farzin buni hisoblamaydi, faqat sinxronlaydi.
+/// FIDE ro'yxati oyda bir marta chiqadi. docs/06-rating-system.md §6
+model FideRatingSnapshot {
+  id       String @id @default(uuid(7)) @db.Uuid
+  playerId String @map("player_id") @db.Uuid
+
+  /// FIDE ro'yxati sanasi (oyning 1-kuni)
+  listDate DateTime @map("list_date") @db.Date
+
+  standardRating Int? @map("standard_rating")
+  rapidRating    Int? @map("rapid_rating")
+  blitzRating    Int? @map("blitz_rating")
+
+  standardGames Int? @map("standard_games")
+  rapidGames    Int? @map("rapid_games")
+  blitzGames    Int? @map("blitz_games")
+
+  title ChessTitle?
+
+  syncedAt DateTime @default(now()) @map("synced_at") @db.Timestamptz(3)
+
+  player Player @relation(fields: [playerId], references: [id], onDelete: Cascade)
+
+  @@unique([playerId, listDate])
+  @@index([listDate])
+  @@map("fide_rating_snapshots")
+}
+
+// ============================================================================
+//  PLAY moduli — onlayn o'yin. docs/07-realtime-and-clock.md
+// ============================================================================
+
+model OnlineGame {
+  id String @id @default(uuid(7)) @db.Uuid
+
+  whitePlayerId String @map("white_player_id") @db.Uuid
+  blackPlayerId String @map("black_player_id") @db.Uuid
+
+  status       OnlineGameStatus @default(PENDING)
+  timeCategory TimeCategory     @map("time_category")
+
+  clockType        ClockType @map("clock_type")
+  baseTimeSeconds  Int       @map("base_time_seconds")
+  incrementSeconds Int       @default(0) @map("increment_seconds")
+
+  /// Joriy pozitsiya (Forsyth-Edwards Notation)
+  fen String  @default("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1")
+  pgn String?
+
+  /// G'olib. NULL = durang yoki tugamagan.
+  winnerColor Color? @map("winner_color")
+
+  /// O'yin tugagandagi qolgan vaqt (millisekundda) — audit uchun.
+  whiteTimeLeftMs Int? @map("white_time_left_ms")
+  blackTimeLeftMs Int? @map("black_time_left_ms")
+
+  /// Reytingga hisoblanadimi. Do'stona o'yin → false.
+  isRated Boolean @default(true) @map("is_rated")
+
+  startedAt DateTime? @map("started_at") @db.Timestamptz(3)
+  endedAt   DateTime? @map("ended_at") @db.Timestamptz(3)
+
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  whitePlayer Player @relation("WhitePlayer", fields: [whitePlayerId], references: [id], onDelete: Restrict)
+  blackPlayer Player @relation("BlackPlayer", fields: [blackPlayerId], references: [id], onDelete: Restrict)
+
+  moves           Move[]
+  pairing         Pairing?
+  fairPlayReports FairPlayReport[]
+
+  @@index([whitePlayerId])
+  @@index([blackPlayerId])
+  @@index([status])
+  @@index([createdAt])
+  @@map("online_games")
+}
+
+/// Har bir yurish. Bu jadval TEZ o'sadi → vaqt bo'yicha partitioning nomzodi.
+/// docs/11-infrastructure.md §6
+model Move {
+  id     String @id @default(uuid(7)) @db.Uuid
+  gameId String @map("game_id") @db.Uuid
+
+  /// Yarim-yurish (ply) raqami: 1, 2, 3... Yurish raqami emas.
+  ply Int
+
+  /// Standard Algebraic Notation — "Nf3", "O-O", "exd5"
+  san      String
+  /// Universal Chess Interface — "g1f3". Engine tahlili uchun.
+  uci      String
+  /// Yurishdan KEYINGI pozitsiya
+  fenAfter String @map("fen_after")
+
+  /// Zobrist hash — uch marta takrorlanishni aniqlash uchun.
+  /// docs/07-realtime-and-clock.md §6
+  positionHash String @map("position_hash")
+
+  /// Yurishga sarflangan vaqt (ms) — fair-play timing tahlili uchun.
+  /// docs/08-fair-play.md §2
+  thinkTimeMs  Int? @map("think_time_ms")
+  /// Yurishdan keyin qolgan vaqt (ms)
+  clockAfterMs Int? @map("clock_after_ms")
+
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  game OnlineGame @relation(fields: [gameId], references: [id], onDelete: Cascade)
+
+  @@unique([gameId, ply])
+  @@index([gameId])
+  @@index([positionHash])
+  @@map("moves")
+}
+
+// ============================================================================
+//  FAIRPLAY moduli — docs/08-fair-play.md
+// ============================================================================
+
+/// Bitta o'yinning avtomatik tahlili (Stockfish NNUE).
+model FairPlayReport {
+  id     String @id @default(uuid(7)) @db.Uuid
+  gameId String @map("game_id") @db.Uuid
+
+  /// Qaysi o'yinchi tahlil qilindi
+  playerId String @map("player_id") @db.Uuid
+
+  /// Engine bilan mos kelgan yurishlar ulushi (0..1)
+  topMoveMatchRate Decimal? @map("top_move_match_rate") @db.Decimal(5, 4)
+  /// O'rtacha centipawn loss
+  avgCentipawnLoss Decimal? @map("avg_centipawn_loss") @db.Decimal(8, 2)
+  /// Yurish vaqti dispersiyasi — inson o'ylash vaqti pozitsiya
+  /// murakkabligiga bog'liq; engine ishlatuvchida bu korrelyatsiya yo'qoladi.
+  timingVariance   Decimal? @map("timing_variance") @db.Decimal(10, 4)
+
+  /// Umumiy shubha skori (0..1). BU EHTIMOLLIK, ISBOT EMAS.
+  /// docs/08-fair-play.md §3
+  suspicionScore Decimal? @map("suspicion_score") @db.Decimal(5, 4)
+
+  engineName  String? @map("engine_name") // "Stockfish 17"
+  engineDepth Int?    @map("engine_depth")
+  analysisMs  Int?    @map("analysis_ms")
+
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  game OnlineGame @relation(fields: [gameId], references: [id], onDelete: Cascade)
+
+  @@unique([gameId, playerId])
+  @@index([suspicionScore])
+  @@map("fair_play_reports")
+}
+
+/// Bitta signal — o'yindan tashqari manbalardan ham kelishi mumkin.
+model FairPlaySignal {
+  id     String @id @default(uuid(7)) @db.Uuid
+  caseId String @map("case_id") @db.Uuid
+
+  type     FairPlaySignalType
+  /// Signal kuchi (0..1)
+  strength Decimal            @db.Decimal(5, 4)
+  /// Signalning xom ma'lumoti — komissiya ko'rib chiqishi uchun
+  evidence Json
+
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  case FairPlayCase @relation(fields: [caseId], references: [id], onDelete: Cascade)
+
+  @@index([caseId])
+  @@map("fair_play_signals")
+}
+
+/// Fair-play ishi. HECH QACHON avtomatik ban qilinmaydi — qo'lda ko'rib chiqiladi.
+/// docs/08-fair-play.md §4
+model FairPlayCase {
+  id       String @id @default(uuid(7)) @db.Uuid
+  playerId String @map("player_id") @db.Uuid
+
+  status FairPlayCaseStatus @default(OPEN)
+
+  /// Ishning umumiy skori (signal'lardan hisoblangan)
+  aggregateScore Decimal? @map("aggregate_score") @db.Decimal(5, 4)
+
+  /// Komissiya qarori va asosi — bu odamning karyerasi haqida.
+  reviewedBy        String?   @map("reviewed_by") @db.Uuid
+  reviewedAt        DateTime? @map("reviewed_at") @db.Timestamptz(3)
+  decisionRationale String?   @map("decision_rationale")
+
+  /// Sanksiya (agar bo'lsa)
+  sanctionUntil DateTime? @map("sanction_until") @db.Timestamptz(3)
+
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  player  Player           @relation(fields: [playerId], references: [id], onDelete: Cascade)
+  signals FairPlaySignal[]
+  appeals Appeal[]
+
+  @@index([playerId])
+  @@index([status])
+  @@map("fair_play_cases")
+}
+
+/// Apellyatsiya — hakam qaroriga ham, fair-play qaroriga ham.
+model Appeal {
+  id       String @id @default(uuid(7)) @db.Uuid
+  playerId String @map("player_id") @db.Uuid
+
+  /// Nimaga apellyatsiya: PAIRING | RESULT | FAIR_PLAY | RATING
+  subjectType String @map("subject_type")
+  subjectId   String @map("subject_id") @db.Uuid
+
+  fairPlayCaseId String? @map("fair_play_case_id") @db.Uuid
+
+  status AppealStatus @default(SUBMITTED)
+  reason String
+
+  reviewedBy String?   @map("reviewed_by") @db.Uuid
+  reviewedAt DateTime? @map("reviewed_at") @db.Timestamptz(3)
+  decision   String?
+
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  player       Player        @relation(fields: [playerId], references: [id], onDelete: Cascade)
+  fairPlayCase FairPlayCase? @relation(fields: [fairPlayCaseId], references: [id], onDelete: SetNull)
+
+  @@index([playerId])
+  @@index([subjectType, subjectId])
+  @@index([status])
+  @@map("appeals")
+}
+
+// ============================================================================
+//  TRAINING moduli
+// ============================================================================
+
+model Puzzle {
+  id String @id @default(uuid(7)) @db.Uuid
+
+  fen      String
+  /// Yechim ketma-ketligi (UCI formatida)
+  solution String[]
+
+  /// Puzzle reytingi — Glicko-2 bilan, o'yinchi kabi.
+  /// Puzzle ham "o'yinchi" sifatida qaraladi: yechilsa reytingi tushadi.
+  rating    Decimal @default(1500) @db.Decimal(8, 4)
+  deviation Decimal @default(350) @db.Decimal(8, 4)
+
+  /// Mavzular: fork, pin, skewer, mateIn2, endgame...
+  themes String[]
+
+  /// Manba — Lichess puzzle DB (CC0) yoki o'z partiyalarimizdan
+  sourceGameId String? @map("source_game_id")
+  sourceUrl    String? @map("source_url")
+
+  attemptCount Int @default(0) @map("attempt_count")
+  solveCount   Int @default(0) @map("solve_count")
+
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  attempts PuzzleAttempt[]
+
+  @@index([rating])
+  @@index([themes], type: Gin)
+  @@map("puzzles")
+}
+
+model PuzzleAttempt {
+  id       String @id @default(uuid(7)) @db.Uuid
+  puzzleId String @map("puzzle_id") @db.Uuid
+  playerId String @map("player_id") @db.Uuid
+
+  isSolved    Boolean @map("is_solved")
+  timeSpentMs Int     @map("time_spent_ms")
+  /// Necha marta noto'g'ri urindi
+  wrongMoves  Int     @default(0) @map("wrong_moves")
+
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  puzzle Puzzle @relation(fields: [puzzleId], references: [id], onDelete: Cascade)
+  player Player @relation(fields: [playerId], references: [id], onDelete: Cascade)
+
+  @@index([playerId, createdAt])
+  @@index([puzzleId])
+  @@map("puzzle_attempts")
+}
+
+model Coach {
+  id       String @id @default(uuid(7)) @db.Uuid
+  playerId String @unique @map("player_id") @db.Uuid
+
+  bio                String?
+  languages          String[] // ["uz", "ru", "en"]
+  /// Soatlik narx — TIYINDA
+  hourlyRateAmount   BigInt?  @map("hourly_rate_amount")
+  hourlyRateCurrency String   @default("UZS") @map("hourly_rate_currency")
+
+  isVerified Boolean @default(false) @map("is_verified")
+
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  player  Player   @relation(fields: [playerId], references: [id], onDelete: Cascade)
+  lessons Lesson[]
+
+  @@map("coaches")
+}
+
+model Lesson {
+  id      String @id @default(uuid(7)) @db.Uuid
+  coachId String @map("coach_id") @db.Uuid
+
+  studentPlayerId String @map("student_player_id") @db.Uuid
+
+  scheduledAt     DateTime @map("scheduled_at") @db.Timestamptz(3)
+  durationMinutes Int      @map("duration_minutes")
+
+  /// TIYINDA
+  priceAmount   BigInt @map("price_amount")
+  priceCurrency String @default("UZS") @map("price_currency")
+
+  invoiceId String? @map("invoice_id") @db.Uuid
+
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  coach   Coach    @relation(fields: [coachId], references: [id], onDelete: Cascade)
+  invoice Invoice? @relation(fields: [invoiceId], references: [id], onDelete: SetNull)
+
+  @@index([coachId, scheduledAt])
+  @@map("lessons")
+}
+
+// ============================================================================
+//  SCHOOL moduli — B2G. 7-17 yoshli bolalar ma'lumoti!
+//  docs/10-security.md §4 — ota-ona roziligi, minimal ma'lumot
+// ============================================================================
+
+model School {
+  id       String @id @default(uuid(7)) @db.Uuid
+  regionId String @map("region_id") @db.Uuid
+
+  name String
+  /// Maktab raqami/kodi (Xalq ta'limi tizimidagi)
+  code String? @unique
+
+  address String?
+
+  createdAt DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt DateTime  @updatedAt @map("updated_at") @db.Timestamptz(3)
+  deletedAt DateTime? @map("deleted_at") @db.Timestamptz(3)
+
+  region Region @relation(fields: [regionId], references: [id], onDelete: Restrict)
+
+  classes       SchoolClass[]
+  subscriptions Subscription[]
+
+  @@index([regionId])
+  @@map("schools")
+}
+
+model SchoolClass {
+  id       String @id @default(uuid(7)) @db.Uuid
+  schoolId String @map("school_id") @db.Uuid
+
+  name          String // "5-A"
+  academicYear  String @map("academic_year") // "2026-2027"
+  teacherUserId String @map("teacher_user_id") @db.Uuid
+
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  school   School    @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  students Student[]
+
+  @@unique([schoolId, name, academicYear])
+  @@index([teacherUserId])
+  @@map("school_classes")
+}
+
+model Student {
+  id       String @id @default(uuid(7)) @db.Uuid
+  playerId String @unique @map("player_id") @db.Uuid
+  classId  String @map("class_id") @db.Uuid
+
+  enrolledAt DateTime  @default(now()) @map("enrolled_at") @db.Timestamptz(3)
+  leftAt     DateTime? @map("left_at") @db.Timestamptz(3)
+
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  player Player      @relation(fields: [playerId], references: [id], onDelete: Cascade)
+  class  SchoolClass @relation(fields: [classId], references: [id], onDelete: Restrict)
+
+  @@index([classId])
+  @@map("students")
+}
+
+// ============================================================================
+//  BILLING moduli — docs/09-payments-and-billing.md
+//  PUL: BigInt, TIYINDA. Float HECH QACHON.
+// ============================================================================
+
+model Subscription {
+  id String @id @default(uuid(7)) @db.Uuid
+
+  /// Obuna klubga yoki maktabga tegishli (ikkalasi ham bo'lishi mumkin emas)
+  clubId   String? @map("club_id") @db.Uuid
+  schoolId String? @map("school_id") @db.Uuid
+
+  plan   String // "club_basic" | "club_pro" | "school_standard"
+  status SubscriptionStatus @default(TRIALING)
+
+  /// TIYINDA
+  priceAmount   BigInt @map("price_amount")
+  priceCurrency String @default("UZS") @map("price_currency")
+  /// "monthly" | "yearly"
+  billingCycle  String @map("billing_cycle")
+
+  currentPeriodStart DateTime  @map("current_period_start") @db.Timestamptz(3)
+  currentPeriodEnd   DateTime  @map("current_period_end") @db.Timestamptz(3)
+  trialEndsAt        DateTime? @map("trial_ends_at") @db.Timestamptz(3)
+  gracePeriodEndsAt  DateTime? @map("grace_period_ends_at") @db.Timestamptz(3)
+  cancelledAt        DateTime? @map("cancelled_at") @db.Timestamptz(3)
+
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  club   Club?   @relation(fields: [clubId], references: [id], onDelete: Cascade)
+  school School? @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+
+  invoices Invoice[]
+
+  @@index([clubId])
+  @@index([schoolId])
+  @@index([status, currentPeriodEnd])
+  @@map("subscriptions")
+}
+
+model Invoice {
+  id     String @id @default(uuid(7)) @db.Uuid
+  number String @unique // "FRZ-2026-000001"
+
+  /// Invoys kimga
+  userId String? @map("user_id") @db.Uuid
+
+  subscriptionId String? @map("subscription_id") @db.Uuid
+  tournamentId   String? @map("tournament_id") @db.Uuid
+
+  /// TIYINDA
+  subtotalAmount BigInt @map("subtotal_amount")
+  taxAmount      BigInt @default(0) @map("tax_amount")
+  totalAmount    BigInt @map("total_amount")
+  currency       String @default("UZS")
+
+  status PaymentStatus @default(CREATED)
+
+  dueAt  DateTime? @map("due_at") @db.Timestamptz(3)
+  paidAt DateTime? @map("paid_at") @db.Timestamptz(3)
+
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  subscription Subscription? @relation(fields: [subscriptionId], references: [id], onDelete: SetNull)
+  tournament   Tournament?   @relation(fields: [tournamentId], references: [id], onDelete: SetNull)
+
+  payments      Payment[]
+  registrations Registration[]
+  lessons       Lesson[]
+
+  @@index([userId])
+  @@index([status])
+  @@index([createdAt])
+  @@map("invoices")
+}
+
+model Payment {
+  id        String @id @default(uuid(7)) @db.Uuid
+  invoiceId String @map("invoice_id") @db.Uuid
+
+  provider PaymentProvider
+  status   PaymentStatus   @default(CREATED)
+
+  /// TIYINDA
+  amount   BigInt
+  currency String @default("UZS")
+
+  /// Provayder tomonidagi tranzaksiya ID
+  providerTransactionId String? @map("provider_transaction_id")
+  /// Provayderdan kelgan xom javob — nizo bo'lsa dalil
+  providerPayload       Json?   @map("provider_payload")
+
+  /// Idempotentlik kaliti — webhook ikki marta kelsa himoya.
+  /// docs/09-payments-and-billing.md §3
+  idempotencyKey String @unique @map("idempotency_key")
+
+  failureReason String? @map("failure_reason")
+
+  paidAt     DateTime? @map("paid_at") @db.Timestamptz(3)
+  refundedAt DateTime? @map("refunded_at") @db.Timestamptz(3)
+
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  invoice Invoice @relation(fields: [invoiceId], references: [id], onDelete: Restrict)
+
+  ledgerEntries LedgerEntry[]
+
+  @@unique([provider, providerTransactionId])
+  @@index([invoiceId])
+  @@index([status])
+  @@map("payments")
+}
+
+/// Double-entry ledger. Har bir tranzaksiya balanslangan bo'lishi shart:
+/// SUM(debit) == SUM(credit). Oddiy "balance" ustuni YETARLI EMAS.
+/// docs/09-payments-and-billing.md §6
+model LedgerEntry {
+  id String @id @default(uuid(7)) @db.Uuid
+
+  /// Bitta tranzaksiyaga tegishli yozuvlar bir xil transactionId ga ega
+  transactionId String @map("transaction_id") @db.Uuid
+
+  paymentId String? @map("payment_id") @db.Uuid
+
+  /// Hisob kodi: "cash.click" | "revenue.subscription" | "liability.organizer_payable" ...
+  account   String
+  direction LedgerDirection
+  /// TIYINDA
+  amount    BigInt
+  currency  String          @default("UZS")
+
+  description String?
+
+  /// Ledger IMMUTABLE — hech qachon UPDATE/DELETE qilinmaydi.
+  /// Xato bo'lsa teskari yozuv (reversing entry) qo'shiladi.
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  payment Payment? @relation(fields: [paymentId], references: [id], onDelete: SetNull)
+
+  @@index([transactionId])
+  @@index([account, createdAt])
+  @@index([paymentId])
+  @@map("ledger_entries")
+}
+
+// ============================================================================
+//  NOTIFICATION moduli
+// ============================================================================
+
+model Notification {
+  id     String @id @default(uuid(7)) @db.Uuid
+  userId String @map("user_id") @db.Uuid
+
+  channel     NotificationChannel
+  /// i18n kaliti — matn emas. Foydalanuvchi tiliga qarab render qilinadi.
+  templateKey String              @map("template_key")
+  /// Shablon o'zgaruvchilari
+  payload     Json
+
+  sentAt        DateTime? @map("sent_at") @db.Timestamptz(3)
+  readAt        DateTime? @map("read_at") @db.Timestamptz(3)
+  failedAt      DateTime? @map("failed_at") @db.Timestamptz(3)
+  failureReason String?   @map("failure_reason")
+
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt])
+  @@index([sentAt])
+  @@map("notifications")
+}
+
+// ============================================================================
+//  ADMIN moduli
+// ============================================================================
+
+/// Audit log. IMMUTABLE — faqat append. UPDATE/DELETE hech qachon.
+/// Nima yoziladi: rol o'zgarishi, natija tahriri, reyting qayta hisobi,
+/// to'lov, ban. Sabab: bu sport — nizolar bo'ladi.
+/// docs/10-security.md §10
+model AuditLog {
+  id String @id @default(uuid(7)) @db.Uuid
+
+  /// NULL = tizim harakati (job, cron)
+  actorUserId String? @map("actor_user_id") @db.Uuid
+
+  action       String // "tournament.result.update" | "user.role.grant" ...
+  resourceType String  @map("resource_type")
+  resourceId   String? @map("resource_id") @db.Uuid
+
+  /// Oldingi va yangi holat — nima o'zgardi
+  before Json?
+  after  Json?
+
+  ipAddress String? @map("ip_address")
+  userAgent String? @map("user_agent")
+  /// OpenTelemetry trace ID — log bilan bog'lash uchun
+  traceId   String? @map("trace_id")
+
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  actor User? @relation(fields: [actorUserId], references: [id], onDelete: SetNull)
+
+  @@index([actorUserId, createdAt])
+  @@index([resourceType, resourceId])
+  @@index([action, createdAt])
+  @@index([createdAt])
+  @@map("audit_logs")
+}
+
+model FeatureFlag {
+  id  String @id @default(uuid(7)) @db.Uuid
+  key String @unique
+
+  isEnabled         Boolean  @default(false) @map("is_enabled")
+  /// Foizli rollout (0..100)
+  rolloutPercentage Int      @default(0) @map("rollout_percentage")
+  /// Aniq foydalanuvchilarga yoqilgan
+  enabledForUserIds String[] @map("enabled_for_user_ids")
+
+  description String?
+
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  @@map("feature_flags")
+}
+
+// ============================================================================
+//  Transactional outbox — docs/02-architecture.md §6.2
+//  Kritik event'lar (to'lov, reyting, tur yakuni) DB tranzaksiyasi ichida
+//  shu jadvalga yoziladi. Alohida worker ularni o'qib chiqaradi.
+//  Sabab: in-process EventEmitter tranzaksiya bilan atomik EMAS.
+// ============================================================================
+
+model OutboxEvent {
+  id String @id @default(uuid(7)) @db.Uuid
+
+  eventType     String @map("event_type") // "PaymentCompleted" | "RoundCompleted" ...
+  aggregateType String @map("aggregate_type")
+  aggregateId   String @map("aggregate_id") @db.Uuid
+  payload       Json
+
+  status    OutboxStatus @default(PENDING)
+  attempts  Int          @default(0)
+  lastError String?      @map("last_error")
+
+  availableAt DateTime  @default(now()) @map("available_at") @db.Timestamptz(3)
+  publishedAt DateTime? @map("published_at") @db.Timestamptz(3)
+
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  @@index([status, availableAt])
+  @@index([aggregateType, aggregateId])
+  @@map("outbox_events")
+}

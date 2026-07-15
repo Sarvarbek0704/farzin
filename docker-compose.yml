@@ -1,0 +1,128 @@
+# =============================================================================
+#  FARZIN — lokal ishlab chiqish muhiti
+#  Ishga tushirish:  docker compose up -d
+#  Spetsifikatsiya:  docs/11-infrastructure.md §3
+# =============================================================================
+
+name: farzin
+
+services:
+  postgres:
+    image: postgres:17-alpine
+    container_name: farzin-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: farzin
+      POSTGRES_PASSWORD: farzin_dev_only
+      POSTGRES_DB: farzin
+      # Determinizm uchun: barcha muhitlarda bir xil collation.
+      # Aks holda ORDER BY natijasi platformaga qarab farq qiladi.
+      POSTGRES_INITDB_ARGS: '--locale=C.UTF-8 --encoding=UTF8'
+      TZ: UTC
+    ports:
+      - '5432:5432'
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./docker/postgres/init:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U farzin -d farzin']
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    command:
+      - postgres
+      # Dev'da sekin so'rovlarni ko'rish uchun
+      - -c
+      - log_min_duration_statement=200
+      - -c
+      - shared_preload_libraries=pg_stat_statements
+      - -c
+      - max_connections=100
+
+  redis:
+    image: redis:7-alpine
+    container_name: farzin-redis
+    restart: unless-stopped
+    ports:
+      - '6379:6379'
+    volumes:
+      - redis_data:/data
+    # AOF yoqilgan — faol o'yin taymeri Redis'da saqlanadi.
+    # Sabab va trade-off: docs/adr/0002-postgres-primary-store.md
+    command: redis-server --appendonly yes --appendfsync everysec
+    healthcheck:
+      test: ['CMD', 'redis-cli', 'ping']
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  # S3-mos object storage (avatar, PGN arxiv, hisobot)
+  minio:
+    image: minio/minio:latest
+    container_name: farzin-minio
+    restart: unless-stopped
+    environment:
+      MINIO_ROOT_USER: farzin
+      MINIO_ROOT_PASSWORD: farzin_dev_only
+    ports:
+      - '9000:9000'
+      - '9001:9001'
+    volumes:
+      - minio_data:/data
+    command: server /data --console-address ":9001"
+    healthcheck:
+      test: ['CMD', 'mc', 'ready', 'local']
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Dev'da email tutib qolish — haqiqiy email yuborilmaydi
+  mailpit:
+    image: axllent/mailpit:latest
+    container_name: farzin-mailpit
+    restart: unless-stopped
+    ports:
+      - '1025:1025' # SMTP
+      - '8025:8025' # Web UI
+    environment:
+      MP_MAX_MESSAGES: 500
+
+  # --- Kuzatuv (ixtiyoriy: docker compose --profile observability up) ------
+  jaeger:
+    image: jaegertracing/all-in-one:latest
+    container_name: farzin-jaeger
+    profiles: ['observability']
+    ports:
+      - '16686:16686' # UI
+      - '4318:4318' # OTLP HTTP
+    environment:
+      COLLECTOR_OTLP_ENABLED: 'true'
+
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: farzin-prometheus
+    profiles: ['observability']
+    ports:
+      - '9090:9090'
+    volumes:
+      - ./docker/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus_data:/prometheus
+
+  grafana:
+    image: grafana/grafana:latest
+    container_name: farzin-grafana
+    profiles: ['observability']
+    ports:
+      - '3009:3000'
+    environment:
+      GF_SECURITY_ADMIN_PASSWORD: farzin_dev_only
+      GF_AUTH_ANONYMOUS_ENABLED: 'true'
+    volumes:
+      - grafana_data:/var/lib/grafana
+
+volumes:
+  postgres_data:
+  redis_data:
+  minio_data:
+  prometheus_data:
+  grafana_data:

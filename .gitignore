@@ -1,1 +1,57 @@
+# --- Sirlar --------------------------------------------------------------
+# ⚠️  Loyihaning oldingi versiyasida DB paroli va JWT kalitlari
+#     config/default.json ichida commit qilingan edi. Takrorlanmasin.
+#     docs/10-security.md §8
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.p12
+secrets/
+
+# --- Bog'liqliklar -------------------------------------------------------
 node_modules/
+.pnpm-store/
+
+# --- Build ---------------------------------------------------------------
+dist/
+build/
+*.tsbuildinfo
+
+# --- Test ----------------------------------------------------------------
+coverage/
+.nyc_output/
+test-results/
+playwright-report/
+
+# --- Loglar --------------------------------------------------------------
+*.log
+npm-debug.log*
+pnpm-debug.log*
+logs/
+
+# --- IDE -----------------------------------------------------------------
+.vscode/*
+!.vscode/extensions.json
+.idea/
+*.swp
+*.swo
+
+# --- OS ------------------------------------------------------------------
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# --- Vaqtinchalik --------------------------------------------------------
+tmp/
+temp/
+.cache/
+
+# --- Prisma --------------------------------------------------------------
+# Migration fayllari COMMIT QILINADI — ular tarixning bir qismi.
+# Faqat generatsiya qilingan client e'tiborsiz qoldiriladi.
+prisma/generated/
+
+# --- Local ---------------------------------------------------------------
+docker-compose.override.yml

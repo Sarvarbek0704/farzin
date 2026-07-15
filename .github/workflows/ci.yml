@@ -1,0 +1,198 @@
+# =============================================================================
+#  FARZIN — CI
+#  Spetsifikatsiya: docs/11-infrastructure.md §7, docs/13-testing-strategy.md
+# =============================================================================
+
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  NODE_VERSION: '22'
+  PNPM_VERSION: '9.15.0'
+
+jobs:
+  # --- Tez tekshiruvlar: sekundlar ichida yiqiladi ---------------------------
+  static:
+    name: Lint · Format · Typecheck
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: ${{ env.PNPM_VERSION }}
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm prisma generate
+
+      - name: Lint
+        run: pnpm lint
+
+      - name: Format check
+        run: pnpm format:check
+
+      - name: Typecheck
+        run: pnpm typecheck
+
+      # Prisma schema formatlangan va yaroqli ekanini tekshirish
+      - name: Prisma validate
+        run: pnpm prisma validate
+
+  # --- Arxitektura chegaralari ----------------------------------------------
+  #  ADR-0001 majburlanadi: modul chegarasi niyat bilan emas, CI bilan.
+  #  Bu job yiqilsa — modular monolith buzilgan.
+  architecture:
+    name: Arxitektura chegaralari (ADR-0001)
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: ${{ env.PNPM_VERSION }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm prisma generate
+      - name: Dependency rules
+        run: pnpm arch:check
+
+  # --- Unit testlar ---------------------------------------------------------
+  test-unit:
+    name: Unit testlar
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: ${{ env.PNPM_VERSION }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm prisma generate
+      - run: pnpm test:unit --coverage
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: coverage-unit
+          path: coverage/
+
+  # --- Integration testlar: REAL PostgreSQL va Redis -------------------------
+  #  Mock DB ishlatilmaydi — u yolg'on ishonch beradi.
+  #  docs/13-testing-strategy.md §3
+  test-integration:
+    name: Integration testlar (Testcontainers)
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: ${{ env.PNPM_VERSION }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm prisma generate
+      - name: Integration
+        run: pnpm test:integration
+        env:
+          TESTCONTAINERS_RYUK_DISABLED: 'true'
+
+  # --- Build ----------------------------------------------------------------
+  build:
+    name: Build
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: ${{ env.PNPM_VERSION }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm prisma generate
+      - run: pnpm build
+
+  # --- Docker image ---------------------------------------------------------
+  docker:
+    name: Docker build
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/setup-buildx-action@v3
+      - uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: false
+          tags: farzin:ci
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  # --- Xavfsizlik -----------------------------------------------------------
+  security:
+    name: Xavfsizlik skani
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: ${{ env.PNPM_VERSION }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+
+      - name: Dependency audit
+        run: pnpm audit --audit-level=high
+
+      # Sirlar commit qilinmaganini tekshirish.
+      # Eski loyihada config/default.json ichida parollar GitHub'da edi —
+      # bu takrorlanmasligi kerak. docs/10-security.md §8
+      - name: Secret scan
+        uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  # --- Yakuniy darvoza ------------------------------------------------------
+  ci-passed:
+    name: CI o'tdi
+    runs-on: ubuntu-latest
+    needs: [static, architecture, test-unit, test-integration, build, docker, security]
+    if: always()
+    steps:
+      - name: Natijani tekshirish
+        run: |
+          if echo '${{ toJSON(needs) }}' | grep -q '"result": *"failure"'; then
+            echo "::error::CI yiqildi"
+            exit 1
+          fi
+          echo "Hammasi o'tdi"
