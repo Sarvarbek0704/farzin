@@ -14,6 +14,7 @@ import { HealthModule } from './modules/health/health.module';
 import { IdentityModule } from './modules/identity/identity.module';
 import { OrgModule } from './modules/org/org.module';
 import { PlayerModule } from './modules/player/player.module';
+import { TournamentModule } from './modules/tournament/tournament.module';
 import { RbacGuard } from './modules/identity/rbac.port';
 import { JwtAuthGuard } from './shared/auth/jwt-auth.guard';
 import { AuditModule } from './shared/audit/audit.module';
@@ -122,9 +123,9 @@ import { RedisModule } from './shared/redis/redis.module';
     PlayerModule,
     OrgModule,
     AdminModule,
+    TournamentModule,
 
     //
-    // TODO(Faza 1): TournamentModule  — turnir, seksiya, ro'yxat
     // TODO(Faza 1): ArbiterModule     — natija kiritish, apellyatsiya
     //
     // TODO(Faza 2): PairingModule     — Swiss Dutch  ← eng qiyin qism

@@ -84,6 +84,14 @@ export class PlayerService implements PlayerPort {
     const found = await Promise.all(ids.map((id) => this.players.findById(id)));
     return found.filter((p): p is PlayerRow => p !== null).map(toSummary);
   }
+
+  async findSummaryByUserId(userId: string): Promise<(PlayerSummary & { userId: string }) | null> {
+    const player = await this.players.findByUserId(userId);
+    if (player?.userId == null) {
+      return null;
+    }
+    return { ...toSummary(player), userId: player.userId };
+  }
 }
 
 function toSummary(player: PlayerRow): PlayerSummary {

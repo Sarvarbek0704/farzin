@@ -2,12 +2,8 @@ import { Injectable } from '@nestjs/common';
 
 import { NotFoundError } from '../../core/errors/domain.error';
 import { type Actor, RbacService } from '../identity/rbac.port';
-import {
-  type ClubRow,
-  type FederationRow,
-  OrgRepository,
-  type RegionRow,
-} from './org.repository';
+import type { ClubContext, OrgPort, RegionContext } from './org.port';
+import { type ClubRow, type FederationRow, OrgRepository, type RegionRow } from './org.repository';
 
 /**
  * Org — federatsiya → viloyat → klub. [CANON 5] #3.
@@ -18,7 +14,7 @@ import {
  * docs/10-security.md §3, docs/01-product-spec.md §4
  */
 @Injectable()
-export class OrgService {
+export class OrgService implements OrgPort {
   constructor(
     private readonly org: OrgRepository,
     private readonly rbac: RbacService,
@@ -130,5 +126,27 @@ export class OrgService {
       throw new NotFoundError('Club', clubId);
     }
     return await this.org.updateClub(clubId, input, actor.userId);
+  }
+
+  // --- OrgPort (boshqa modullar uchun) --------------------------------------
+
+  /** Klubning to'liq ierarxiya konteksti — RBAC scope tekshiruvi uchun. */
+  async findClubContext(clubId: string): Promise<ClubContext | null> {
+    const club = await this.org.findClubById(clubId);
+    if (club === null) {
+      return null;
+    }
+    const region = await this.org.findRegionById(club.regionId);
+    if (region === null) {
+      // FK Restrict tufayli bo'lmasligi kerak — himoya: noaniqlik = yo'q.
+      return null;
+    }
+    return { clubId: club.id, regionId: region.id, federationId: region.federationId };
+  }
+
+  /** Viloyatning federatsiya konteksti — RBAC scope tekshiruvi uchun. */
+  async findRegionContext(regionId: string): Promise<RegionContext | null> {
+    const region = await this.org.findRegionById(regionId);
+    return region === null ? null : { regionId: region.id, federationId: region.federationId };
   }
 }
