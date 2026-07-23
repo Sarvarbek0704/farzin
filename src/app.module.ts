@@ -9,6 +9,7 @@ import { LoggerModule } from 'nestjs-pino';
 import { randomUUID } from 'node:crypto';
 
 import { loadConfig, validateEnv } from './config/configuration';
+import { AdminModule } from './modules/admin/admin.module';
 import { HealthModule } from './modules/health/health.module';
 import { IdentityModule } from './modules/identity/identity.module';
 import { OrgModule } from './modules/org/org.module';
@@ -17,6 +18,7 @@ import { RbacGuard } from './modules/identity/rbac.port';
 import { JwtAuthGuard } from './shared/auth/jwt-auth.guard';
 import { AuditModule } from './shared/audit/audit.module';
 import { ProblemDetailsFilter } from './shared/errors/problem-details.filter';
+import { OutboxModule } from './shared/outbox/outbox.module';
 import { PrismaModule } from './shared/prisma/prisma.module';
 import { RedisModule } from './shared/redis/redis.module';
 
@@ -112,14 +114,15 @@ import { RedisModule } from './shared/redis/redis.module';
     PrismaModule,
     RedisModule,
     AuditModule,
+    OutboxModule,
 
     // --- Funksional modullar ----------------------------------------------
     HealthModule,
     IdentityModule,
     PlayerModule,
     OrgModule,
+    AdminModule,
 
-    // TODO(Faza 0): AdminModule       — audit ko'rish, feature flag
     //
     // TODO(Faza 1): TournamentModule  — turnir, seksiya, ro'yxat
     // TODO(Faza 1): ArbiterModule     — natija kiritish, apellyatsiya
