@@ -1,14 +1,19 @@
-import { Controller, Get } from '@nestjs/common';
+import { Controller, Get, Inject } from '@nestjs/common';
 import {
   HealthCheck,
   HealthCheckService,
+  HealthIndicatorService,
   type HealthCheckResult,
+  type HealthIndicatorResult,
   MemoryHealthIndicator,
   PrismaHealthIndicator,
 } from '@nestjs/terminus';
 import { ApiExcludeController } from '@nestjs/swagger';
+import type { Redis } from 'ioredis';
 
+import { Public } from '../../shared/auth/public.decorator';
 import { PrismaService } from '../../shared/prisma/prisma.service';
+import { REDIS } from '../../shared/redis/redis.module';
 
 /**
  * Health check.
@@ -28,6 +33,7 @@ import { PrismaService } from '../../shared/prisma/prisma.service';
  * @see docs/11-infrastructure.md §4
  */
 @ApiExcludeController()
+@Public()
 @Controller('health')
 export class HealthController {
   constructor(
@@ -35,6 +41,8 @@ export class HealthController {
     private readonly prismaIndicator: PrismaHealthIndicator,
     private readonly memory: MemoryHealthIndicator,
     private readonly prisma: PrismaService,
+    private readonly indicator: HealthIndicatorService,
+    @Inject(REDIS) private readonly redis: Redis,
   ) {}
 
   /**
@@ -58,8 +66,18 @@ export class HealthController {
   ready(): Promise<HealthCheckResult> {
     return this.health.check([
       () => this.prismaIndicator.pingCheck('database', this.prisma),
-      // TODO(Faza 0): Redis health indicator qo'shish
+      () => this.redisCheck(),
     ]);
+  }
+
+  private async redisCheck(): Promise<HealthIndicatorResult> {
+    const check = this.indicator.check('redis');
+    try {
+      await this.redis.ping();
+      return check.up();
+    } catch {
+      return check.down();
+    }
   }
 
   @Get()

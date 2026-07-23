@@ -1,5 +1,5 @@
 import { Module } from '@nestjs/common';
-import { APP_GUARD } from '@nestjs/core';
+import { APP_FILTER, APP_GUARD } from '@nestjs/core';
 import { ConfigModule } from '@nestjs/config';
 import { EventEmitterModule } from '@nestjs/event-emitter';
 import { ScheduleModule } from '@nestjs/schedule';
@@ -10,7 +10,15 @@ import { randomUUID } from 'node:crypto';
 
 import { loadConfig, validateEnv } from './config/configuration';
 import { HealthModule } from './modules/health/health.module';
+import { IdentityModule } from './modules/identity/identity.module';
+import { OrgModule } from './modules/org/org.module';
+import { PlayerModule } from './modules/player/player.module';
+import { RbacGuard } from './modules/identity/rbac.port';
+import { JwtAuthGuard } from './shared/auth/jwt-auth.guard';
+import { AuditModule } from './shared/audit/audit.module';
+import { ProblemDetailsFilter } from './shared/errors/problem-details.filter';
 import { PrismaModule } from './shared/prisma/prisma.module';
+import { RedisModule } from './shared/redis/redis.module';
 
 /**
  * Ildiz modul.
@@ -102,14 +110,16 @@ import { PrismaModule } from './shared/prisma/prisma.module';
 
     // --- Umumiy infratuzilma ----------------------------------------------
     PrismaModule,
+    RedisModule,
+    AuditModule,
 
     // --- Funksional modullar ----------------------------------------------
     HealthModule,
+    IdentityModule,
+    PlayerModule,
+    OrgModule,
 
-    // TODO(Faza 0): IdentityModule    — auth, RBAC, sessiya
-    // TODO(Faza 0): PlayerModule      — o'yinchi profili
-    // TODO(Faza 0): OrgModule         — federatsiya, viloyat, klub
-    // TODO(Faza 0): AdminModule       — audit log, feature flag
+    // TODO(Faza 0): AdminModule       — audit ko'rish, feature flag
     //
     // TODO(Faza 1): TournamentModule  — turnir, seksiya, ro'yxat
     // TODO(Faza 1): ArbiterModule     — natija kiritish, apellyatsiya
@@ -130,6 +140,22 @@ import { PrismaModule } from './shared/prisma/prisma.module';
     {
       provide: APP_GUARD,
       useClass: ThrottlerGuard,
+    },
+    // Default YOPIQ: har endpoint token talab qiladi, @Public() dan tashqari.
+    {
+      provide: APP_GUARD,
+      useClass: JwtAuthGuard,
+    },
+    // RBAC: @RequirePermission(...) gate + request.actor biriktirish.
+    // Ruxsat yo'q → 404 (403 emas — resurs mavjudligi oshkor bo'lmasin).
+    {
+      provide: APP_GUARD,
+      useClass: RbacGuard,
+    },
+    // Hamma xato bitta formatda — RFC 9457. docs/04-api-spec.md §2.5
+    {
+      provide: APP_FILTER,
+      useClass: ProblemDetailsFilter,
     },
   ],
 })

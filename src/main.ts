@@ -1,6 +1,11 @@
 import 'reflect-metadata';
 
-import { ValidationPipe, VersioningType } from '@nestjs/common';
+import {
+  BadRequestException,
+  ValidationPipe,
+  type ValidationError,
+  VersioningType,
+} from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import { Logger } from 'nestjs-pino';
@@ -69,7 +74,7 @@ async function bootstrap(): Promise<void> {
   });
   app.enableVersioning({ type: VersioningType.URI, defaultVersion: '1' });
 
-  // --- Validatsiya (docs/10-security.md §6) --------------------------------
+  // --- Validatsiya (docs/10-security.md §6, docs/04-api-spec.md §2.5) ------
   app.useGlobalPipes(
     new ValidationPipe({
       // Faqat DTO'da e'lon qilingan maydonlar o'tadi.
@@ -80,6 +85,19 @@ async function bootstrap(): Promise<void> {
       transformOptions: { enableImplicitConversion: false },
       // Prod'da validatsiya xatosi ichki detalni ochmasin.
       disableErrorMessages: false,
+      // Maydon darajasidagi tuzilmali xato — ProblemDetailsFilter buni
+      // RFC 9457 `errors[]` ro'yxatiga aylantiradi.
+      exceptionFactory: (validationErrors: ValidationError[]): BadRequestException =>
+        new BadRequestException({
+          code: 'VALIDATION_FAILED',
+          errors: validationErrors.flatMap((e) =>
+            Object.entries(e.constraints ?? {}).map(([constraint, message]) => ({
+              field: e.property,
+              code: constraint.replace(/([a-z])([A-Z])/g, '$1_$2').toUpperCase(),
+              message,
+            })),
+          ),
+        }),
     }),
   );
 
