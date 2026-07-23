@@ -9,6 +9,8 @@ import { AuthController } from './auth/auth.controller';
 import { AuthService } from './auth/auth.service';
 import { JwtStrategy } from './auth/jwt.strategy';
 import { AuthzService } from './authz/authz.service';
+import { TotpController } from './mfa/totp.controller';
+import { TotpService } from './mfa/totp.service';
 import { PasswordService } from './password/password.service';
 import { RbacGuard } from './rbac.port';
 import { RbacService } from './rbac/rbac.service';
@@ -43,7 +45,7 @@ import { UserRepository } from './user.repository';
       },
     }),
   ],
-  controllers: [AuthController],
+  controllers: [AuthController, TotpController],
   providers: [
     AuthService,
     AuthzService,
@@ -51,6 +53,7 @@ import { UserRepository } from './user.repository';
     RbacGuard,
     RbacService,
     RefreshTokenService,
+    TotpService,
     UserRepository,
     JwtStrategy,
     SlidingWindowLimiter,

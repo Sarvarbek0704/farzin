@@ -5,6 +5,7 @@ import {
   IsInt,
   IsOptional,
   IsString,
+  Matches,
   Max,
   Min,
   MinLength,
@@ -89,6 +90,20 @@ class EnvironmentVariables {
   @IsString()
   JWT_REFRESH_TTL = '30d';
 
+  // --- TOTP 2FA (docs/10-security.md §2.5) ---------------------------------
+  /**
+   * TOTP sirlarini DB'da shifrlash kaliti — AES-256-GCM, 32 bayt (64 hex).
+   * Ixtiyoriy: berilmasa 2FA endpointlari ishlamaydi (xato beradi),
+   * lekin ilova ishga tushadi. Prod'da admin/hakam rollari uchun 2FA
+   * majburiy — kalit ham majburiy bo'ladi.
+   */
+  @IsString()
+  @IsOptional()
+  @Matches(/^[0-9a-fA-F]{64}$/, {
+    message: 'TOTP_ENCRYPTION_KEY aynan 64 hex belgi (32 bayt). Generatsiya: openssl rand -hex 32',
+  })
+  TOTP_ENCRYPTION_KEY?: string;
+
   // --- Argon2id (ADR-0004) ------------------------------------------------
   @IsInt()
   @Min(19456, {
@@ -146,6 +161,7 @@ export interface AppConfig {
     refreshTtl: string;
   };
   argon2: { memoryCost: number; timeCost: number; parallelism: number };
+  totpEncryptionKey?: string;
   observability: { logLevel: string; otelEnabled: boolean; sentryDsn?: string };
   throttle: { ttl: number; limit: number };
 }
@@ -215,6 +231,9 @@ export function loadConfig(): AppConfig {
       timeCost: env.ARGON2_TIME_COST,
       parallelism: env.ARGON2_PARALLELISM,
     },
+    ...(env.TOTP_ENCRYPTION_KEY !== undefined && {
+      totpEncryptionKey: env.TOTP_ENCRYPTION_KEY,
+    }),
     observability: {
       logLevel: env.LOG_LEVEL,
       otelEnabled: env.OTEL_ENABLED,

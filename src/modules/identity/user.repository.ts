@@ -12,6 +12,11 @@ export interface UserView {
   status: 'PENDING_VERIFICATION' | 'ACTIVE' | 'SUSPENDED' | 'BANNED' | 'DELETED';
   emailVerified: boolean;
   deletedAt: Date | null;
+  totpEnabled: boolean;
+  /** SHIFRLANGAN TOTP siri (SecretBox formati). NULL = 2FA yo'q. */
+  totpSecret: string | null;
+  /** SHA-256 hash qilingan bir martalik zaxira kodlar. */
+  totpBackupCodes: string[];
 }
 
 export interface CreateUserInput {
@@ -133,6 +138,56 @@ export class UserRepository {
     });
   }
 
+  /**
+   * 2FA yoqish: shifrlangan sir + hash qilingan zaxira kodlar + audit —
+   * bir tranzaksiyada. docs/10-security.md §2.5
+   */
+  async enableTotp(
+    userId: string,
+    encryptedSecret: string,
+    hashedBackupCodes: string[],
+  ): Promise<void> {
+    await this.prisma.$transaction(async (tx) => {
+      await tx.user.update({
+        where: { id: userId },
+        data: {
+          totpSecret: encryptedSecret,
+          totpEnabled: true,
+          totpBackupCodes: hashedBackupCodes,
+        },
+      });
+      await this.audit.write(tx, {
+        action: 'auth.2fa_enabled',
+        actorUserId: userId,
+        resourceType: 'User',
+        resourceId: userId,
+      });
+    });
+  }
+
+  async disableTotp(userId: string): Promise<void> {
+    await this.prisma.$transaction(async (tx) => {
+      await tx.user.update({
+        where: { id: userId },
+        data: { totpSecret: null, totpEnabled: false, totpBackupCodes: [] },
+      });
+      await this.audit.write(tx, {
+        action: 'auth.2fa_disabled',
+        actorUserId: userId,
+        resourceType: 'User',
+        resourceId: userId,
+      });
+    });
+  }
+
+  /** Ishlatilgan zaxira kod ro'yxatdan olib tashlanadi (bir martalik). */
+  async replaceBackupCodes(userId: string, remainingHashed: string[]): Promise<void> {
+    await this.prisma.user.update({
+      where: { id: userId },
+      data: { totpBackupCodes: remainingHashed },
+    });
+  }
+
   /** Faol (muddati o'tmagan) rol biriktirmalari — AuthzService uchun. */
   async findActiveAssignments(userId: string): Promise<RoleAssignmentRow[]> {
     return await this.prisma.userRole.findMany({
@@ -153,5 +208,8 @@ function toView(user: User): UserView {
     status: user.status,
     emailVerified: user.emailVerified,
     deletedAt: user.deletedAt,
+    totpEnabled: user.totpEnabled,
+    totpSecret: user.totpSecret,
+    totpBackupCodes: user.totpBackupCodes,
   };
 }

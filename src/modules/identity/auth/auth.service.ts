@@ -8,6 +8,8 @@ import type { Redis } from 'ioredis';
 import { type AppConfig, NodeEnv } from '../../../config/configuration';
 import { SlidingWindowLimiter } from '../../../shared/rate-limit/sliding-window.limiter';
 import { REDIS } from '../../../shared/redis/redis.module';
+import { TotpRequiredError } from '../mfa/totp.errors';
+import { TotpService } from '../mfa/totp.service';
 import { PasswordService } from '../password/password.service';
 import { RefreshTokenService } from '../token/refresh-token.repository';
 import { UserRepository } from '../user.repository';
@@ -53,6 +55,8 @@ const LOGIN_LIMIT = 5;
 const LOGIN_WINDOW_SECONDS = 15 * 60;
 const REGISTER_LIMIT = 3;
 const REGISTER_WINDOW_SECONDS = 60 * 60;
+const TOTP_LIMIT = 5;
+const TOTP_WINDOW_SECONDS = 15 * 60;
 
 @Injectable()
 export class AuthService {
@@ -62,6 +66,7 @@ export class AuthService {
     private readonly users: UserRepository,
     private readonly password: PasswordService,
     private readonly refreshTokens: RefreshTokenService,
+    private readonly totp: TotpService,
     private readonly jwt: JwtService,
     private readonly limiter: SlidingWindowLimiter,
     private readonly config: ConfigService<AppConfig, true>,
@@ -148,6 +153,24 @@ export class AuthService {
       user.deletedAt !== null
     ) {
       throw new AccountDisabledError();
+    }
+
+    // 2FA yoqilgan hisob: parol TO'G'RI bo'lgandan keyingina kod so'raladi
+    // (aks holda TOTP_REQUIRED javobi hisob mavjudligini oshkor qilardi).
+    // Kod urinishlari alohida limitlanadi: 5/15min, userId. §7.1
+    if (user.totpEnabled) {
+      if (dto.totpCode === undefined) {
+        throw new TotpRequiredError();
+      }
+      const totpLimit = await this.limiter.consume(
+        `2fa:user:${user.id}`,
+        TOTP_LIMIT,
+        TOTP_WINDOW_SECONDS,
+      );
+      if (!totpLimit.allowed) {
+        throw new TooManyAttemptsError(totpLimit.retryAfterSeconds);
+      }
+      await this.totp.verify(user, dto.totpCode);
     }
 
     // Shaffof qayta-hash: parametrlar kuchaytirilgan bo'lsa, plaintext
