@@ -144,9 +144,11 @@ module.exports = {
     {
       name: 'not-to-dev-dep',
       severity: 'error',
-      comment: 'Prod kodi devDependency ishlatmaydi',
+      comment:
+        'Prod kodi devDependency ishlatmaydi. Type-only import istisno — ' +
+        "tip kompilyatsiyada yo'qoladi, runtime bog'liqlik emas (@types/*)",
       from: { path: '^src', pathNot: '\\.(spec|test)\\.ts$' },
-      to: { dependencyTypes: ['npm-dev'] },
+      to: { dependencyTypes: ['npm-dev'], dependencyTypesNot: ['type-only'] },
     },
     {
       name: 'no-test-in-prod',
