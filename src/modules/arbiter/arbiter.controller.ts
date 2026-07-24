@@ -1,0 +1,114 @@
+import {
+  Body,
+  Controller,
+  Get,
+  HttpCode,
+  HttpStatus,
+  Param,
+  ParseUUIDPipe,
+  Patch,
+  Post,
+} from '@nestjs/common';
+import { ApiBearerAuth, ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
+
+import { Public } from '../../shared/auth/public.decorator';
+import { type Actor, CurrentActor, RequirePermission } from '../identity/rbac.port';
+import type {
+  PairingRow,
+  RoundRow,
+  RoundWithPairings,
+  StandingRow,
+} from './arbiter.repository';
+import { ArbiterService } from './arbiter.service';
+import { EnterResultDto } from './dto/enter-result.dto';
+
+/**
+ * Arbiter endpointlari — hakam paneli: turlar, taxtalar, natijalar,
+ * jadval (docs/14-roadmap.md Faza 1). O'qish — ochiq (jadval va
+ * juftliklar ommaviy ma'lumot), yozish — RBAC gate + service'da
+ * hakam/tashkilotchi scope tekshiruvi (docs/10-security.md §3).
+ */
+@ApiTags('arbiter')
+@Controller()
+export class ArbiterController {
+  constructor(private readonly arbiterService: ArbiterService) {}
+
+  // --- Rounds -----------------------------------------------------------------
+
+  /**
+   * docs/04-api-spec.md AIP-136 bo'yicha bu aslida `rounds:generate`
+   * custom method — lekin Nest marshrutida literal ':' noqulay, shuning
+   * uchun POST /rounds "keyingi turni GENERATSIYA qilish" harakati
+   * sifatida hujjatlanadi (body yo'q, tur raqami server tomonda).
+   */
+  @Post('sections/:sectionId/rounds')
+  @HttpCode(HttpStatus.CREATED)
+  @ApiBearerAuth('access-token')
+  @RequirePermission('Round', 'create')
+  @ApiOperation({
+    summary:
+      "Keyingi turni generatsiya qilish (round-robin/double round-robin) — oldingi tur COMPLETED bo'lishi shart",
+  })
+  @ApiResponse({ status: 422, description: 'PAIRING_IMPOSSIBLE | PREVIOUS_ROUND_NOT_COMPLETED | PAIRING_SYSTEM_NOT_IMPLEMENTED' })
+  generateRound(
+    @CurrentActor() actor: Actor,
+    @Param('sectionId', ParseUUIDPipe) sectionId: string,
+  ): Promise<RoundWithPairings> {
+    return this.arbiterService.generateRound(actor, sectionId);
+  }
+
+  @Public()
+  @Get('sections/:sectionId/rounds')
+  @ApiOperation({ summary: 'Seksiya turlari (ommaviy)' })
+  listRounds(@Param('sectionId', ParseUUIDPipe) sectionId: string): Promise<RoundRow[]> {
+    return this.arbiterService.listRounds(sectionId);
+  }
+
+  @Public()
+  @Get('rounds/:id')
+  @ApiOperation({ summary: 'Tur + juftliklar (ommaviy)' })
+  getRound(@Param('id', ParseUUIDPipe) id: string): Promise<RoundWithPairings> {
+    return this.arbiterService.getRound(id);
+  }
+
+  @Post('rounds/:id/complete')
+  @HttpCode(HttpStatus.OK)
+  @ApiBearerAuth('access-token')
+  @RequirePermission('Round', 'update')
+  @ApiOperation({
+    summary: "Turni yakunlash — barcha natijalar kiritilgan bo'lishi shart (outbox: RoundCompleted)",
+  })
+  completeRound(
+    @CurrentActor() actor: Actor,
+    @Param('id', ParseUUIDPipe) id: string,
+  ): Promise<RoundWithPairings> {
+    return this.arbiterService.completeRound(actor, id);
+  }
+
+  // --- Results ------------------------------------------------------------------
+
+  // TODO(Faza 1): Idempotency-Key header (docs/04-api-spec.md §5) —
+  //               takroriy so'rov bir xil natija qaytarsin.
+  @Patch('pairings/:id/result')
+  @ApiBearerAuth('access-token')
+  @RequirePermission('GameResult', 'create')
+  @ApiOperation({
+    summary: "Natija kiritish/tuzatish — mavjud natijani o'zgartirishda sabab majburiy",
+  })
+  enterResult(
+    @CurrentActor() actor: Actor,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: EnterResultDto,
+  ): Promise<PairingRow> {
+    return this.arbiterService.enterResult(actor, id, dto.result, dto.reason);
+  }
+
+  // --- Standings ------------------------------------------------------------------
+
+  @Public()
+  @Get('sections/:sectionId/standings')
+  @ApiOperation({ summary: 'Jadval + tie-break qiymatlari, rank tartibida (ommaviy)' })
+  getStandings(@Param('sectionId', ParseUUIDPipe) sectionId: string): Promise<StandingRow[]> {
+    return this.arbiterService.getStandings(sectionId);
+  }
+}

@@ -10,6 +10,7 @@ import { randomUUID } from 'node:crypto';
 
 import { loadConfig, validateEnv } from './config/configuration';
 import { AdminModule } from './modules/admin/admin.module';
+import { ArbiterModule } from './modules/arbiter/arbiter.module';
 import { HealthModule } from './modules/health/health.module';
 import { IdentityModule } from './modules/identity/identity.module';
 import { OrgModule } from './modules/org/org.module';
@@ -124,9 +125,8 @@ import { RedisModule } from './shared/redis/redis.module';
     OrgModule,
     AdminModule,
     TournamentModule,
+    ArbiterModule,
 
-    //
-    // TODO(Faza 1): ArbiterModule     — natija kiritish, apellyatsiya
     //
     // TODO(Faza 2): PairingModule     — Swiss Dutch  ← eng qiyin qism
     // TODO(Faza 3): RatingModule      — Glicko-2
