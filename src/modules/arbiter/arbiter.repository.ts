@@ -45,7 +45,51 @@ export interface SectionContextRow {
     clubId: string | null;
     regionId: string | null;
     federationId: string | null;
+    /** Eksport metasi (PGN/TRF header, fayl nomi) uchun. */
+    name: string;
+    slug: string;
+    venueName: string | null;
+    startDate: Date;
+    endDate: Date;
   };
+}
+
+// --- Eksport qatorlari (docs/14-roadmap.md Faza 1 "Eksport") -------------------
+
+export interface ExportPlayerRow {
+  registrationId: string;
+  pairingNumber: number;
+  ratingAtEntry: number | null;
+  /** ChessTitle literal (GM/IM/...) yoki null. */
+  titleAtEntry: string | null;
+  firstName: string;
+  lastName: string;
+  gender: 'MALE' | 'FEMALE' | null;
+  birthDate: Date | null;
+  fideId: string | null;
+  /** Standing.points Decimal → string (ADR-0006 uslubi); jadval yo'q — null. */
+  points: string | null;
+  rank: number | null;
+}
+
+export interface ExportPairingItemRow {
+  boardNumber: number;
+  whiteRegistrationId: string;
+  blackRegistrationId: string | null;
+  result: PairingResultValue;
+  pgn: string | null;
+}
+
+export interface ExportRoundRow {
+  number: number;
+  scheduledStartAt: Date | null;
+  pairings: ExportPairingItemRow[];
+}
+
+/** Seksiya eksporti uchun barcha qatorlar — core/export kirishi xomashyosi. */
+export interface SectionExportRows {
+  players: ExportPlayerRow[];
+  rounds: ExportRoundRow[];
 }
 
 export interface ParticipantRow {
@@ -167,7 +211,72 @@ export class ArbiterRepository {
         clubId: row.tournament.clubId,
         regionId: row.tournament.regionId,
         federationId: row.tournament.federationId,
+        name: row.tournament.name,
+        slug: row.tournament.slug,
+        venueName: row.tournament.venueName,
+        startDate: row.tournament.startDate,
+        endDate: row.tournament.endDate,
       },
+    };
+  }
+
+  /**
+   * Eksport uchun to'liq ma'lumot (docs/14-roadmap.md Faza 1 "Eksport"):
+   * raqam olgan ishtirokchilar (o'yinchi profili va jadval qatori bilan)
+   * hamda barcha turlar juftliklari bilan. Chiqib ketganlar HAM kiradi —
+   * ularning o'ynagan partiyalari hisobotda qolishi shart (TRF/PGN
+   * tarixiy hujjat).
+   */
+  async sectionExportData(sectionId: string): Promise<SectionExportRows> {
+    const registrations = await this.prisma.registration.findMany({
+      where: { sectionId, pairingNumber: { not: null } },
+      orderBy: { pairingNumber: 'asc' },
+      include: {
+        player: {
+          select: {
+            firstName: true,
+            lastName: true,
+            gender: true,
+            birthDate: true,
+            fideId: true,
+          },
+        },
+        standing: { select: { points: true, rank: true } },
+      },
+    });
+
+    const rounds = await this.prisma.round.findMany({
+      where: { sectionId },
+      orderBy: { number: 'asc' },
+      include: { pairings: { orderBy: { boardNumber: 'asc' } } },
+    });
+
+    return {
+      players: registrations.map((r) => ({
+        registrationId: r.id,
+        // where sharti null'ni chiqarib tashlagan; 0 — tip himoyasi.
+        pairingNumber: r.pairingNumber ?? 0,
+        ratingAtEntry: r.ratingAtEntry,
+        titleAtEntry: r.titleAtEntry,
+        firstName: r.player.firstName,
+        lastName: r.player.lastName,
+        gender: r.player.gender,
+        birthDate: r.player.birthDate,
+        fideId: r.player.fideId,
+        points: r.standing?.points.toString() ?? null,
+        rank: r.standing?.rank ?? null,
+      })),
+      rounds: rounds.map((round) => ({
+        number: round.number,
+        scheduledStartAt: round.scheduledStartAt,
+        pairings: round.pairings.map((p) => ({
+          boardNumber: p.boardNumber,
+          whiteRegistrationId: p.whiteRegistrationId,
+          blackRegistrationId: p.blackRegistrationId,
+          result: p.result,
+          pgn: p.pgn,
+        })),
+      })),
     };
   }
 

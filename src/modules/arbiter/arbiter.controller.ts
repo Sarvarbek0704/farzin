@@ -8,8 +8,10 @@ import {
   ParseUUIDPipe,
   Patch,
   Post,
+  Res,
 } from '@nestjs/common';
-import { ApiBearerAuth, ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
+import { ApiBearerAuth, ApiOperation, ApiProduces, ApiResponse, ApiTags } from '@nestjs/swagger';
+import type { Response } from 'express';
 
 import { Public } from '../../shared/auth/public.decorator';
 import { type Actor, CurrentActor, RequirePermission } from '../identity/rbac.port';
@@ -110,5 +112,45 @@ export class ArbiterController {
   @ApiOperation({ summary: 'Jadval + tie-break qiymatlari, rank tartibida (ommaviy)' })
   getStandings(@Param('sectionId', ParseUUIDPipe) sectionId: string): Promise<StandingRow[]> {
     return this.arbiterService.getStandings(sectionId);
+  }
+
+  // --- Export ---------------------------------------------------------------------
+  //
+  // docs/14-roadmap.md Faza 1 "Eksport": PGN va Chess-Results (TRF16).
+  // docs/04-api-spec.md uslubi: PGN — matnli javob (GET .../pgn →
+  // text/plain oilasi). Yuklab olish uchun Content-Disposition attachment.
+
+  @Public()
+  @Get('sections/:sectionId/export/pgn')
+  @ApiProduces('application/x-chess-pgn')
+  @ApiOperation({
+    summary: "Seksiya partiyalari PGN formatida (ommaviy) — bir fayl, tur/taxta tartibida",
+  })
+  async exportPgn(
+    @Param('sectionId', ParseUUIDPipe) sectionId: string,
+    @Res({ passthrough: true }) res: Response,
+  ): Promise<string> {
+    const file = await this.arbiterService.exportPgn(sectionId);
+    // PGN'ning rasmiy MIME turi (PGN spec §21) — application/x-chess-pgn.
+    res.type('application/x-chess-pgn');
+    res.setHeader('Content-Disposition', `attachment; filename="${file.filename}"`);
+    return file.content;
+  }
+
+  @Public()
+  @Get('sections/:sectionId/export/trf')
+  @ApiProduces('text/plain')
+  @ApiOperation({
+    summary:
+      'Seksiya FIDE TRF16 formatida (ommaviy) — Chess-Results / Swiss-Manager import qiladi',
+  })
+  async exportTrf(
+    @Param('sectionId', ParseUUIDPipe) sectionId: string,
+    @Res({ passthrough: true }) res: Response,
+  ): Promise<string> {
+    const file = await this.arbiterService.exportTrf(sectionId);
+    res.type('text/plain');
+    res.setHeader('Content-Disposition', `attachment; filename="${file.filename}"`);
+    return file.content;
   }
 }

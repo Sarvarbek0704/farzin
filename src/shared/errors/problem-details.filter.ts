@@ -67,14 +67,18 @@ export class ProblemDetailsFilter implements ExceptionFilter {
     let problem: ProblemDetails;
 
     if (exception instanceof DomainError) {
+      // Meta AVVAL spread qilinadi — rezerv RFC 9457 maydonlarini
+      // (status, code, type, ...) HECH QACHON bosib keta olmaydi.
+      // Jonli testda ushlangan: meta'da `status: "IN_PROGRESS"` bo'lsa,
+      // res.status("IN_PROGRESS") → TypeError → 500.
       problem = {
+        ...exception.meta,
         type: `https://farzin.uz/errors/${toKebab(exception.code)}`,
         title: exception.message,
         status: exception.httpStatus,
         code: exception.code,
         instance,
         traceId,
-        ...exception.meta,
       };
     } else if (exception instanceof ThrottlerException) {
       problem = {

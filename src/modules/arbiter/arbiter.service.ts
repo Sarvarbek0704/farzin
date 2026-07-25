@@ -5,6 +5,8 @@ import {
   ConflictError,
   NotFoundError,
 } from '../../core/errors/domain.error';
+import { writeSectionPgn } from '../../core/export/pgn-writer';
+import { writeSectionTrf } from '../../core/export/trf-writer';
 import { RoundRobinEngine } from '../../core/pairing/round-robin.engine';
 import {
   PairingImpossibleError,
@@ -34,8 +36,15 @@ import {
   type EnterableResult,
   type ParticipantSeed,
 } from './arbiter.types';
+import { buildSectionExportData, exportFilename } from './export-mapping';
 import { buildPairingStates } from './pairing-state.builder';
 import { buildScoreViews } from './result-mapping';
+
+/** Yuklab olinadigan eksport fayli (controller Content-Disposition uchun). */
+export interface ExportFile {
+  readonly filename: string;
+  readonly content: string;
+}
 
 /**
  * Arbiter — hakam ish oqimi: tur generatsiyasi (round-robin), natija
@@ -298,6 +307,35 @@ export class ArbiterService {
   async getStandings(sectionId: string): Promise<StandingRow[]> {
     await this.requirePublicSection(sectionId);
     return await this.repo.getStandings(sectionId);
+  }
+
+  // --- Eksport (docs/14-roadmap.md Faza 1 "Eksport") -----------------------------
+
+  /**
+   * PGN eksport — seksiyaning barcha o'ynalgan partiyalari bitta faylda.
+   * Ommaviy o'qish: boshqa ommaviy o'qishlar bilan bir xil qoida
+   * (yashirin/DRAFT turnir → 404, mavjudligi oshkor qilinmaydi).
+   */
+  async exportPgn(sectionId: string): Promise<ExportFile> {
+    const section = await this.requirePublicSection(sectionId);
+    const rows = await this.repo.sectionExportData(sectionId);
+    return {
+      filename: exportFilename(section, 'pgn'),
+      content: writeSectionPgn(buildSectionExportData(section, rows)),
+    };
+  }
+
+  /**
+   * FIDE TRF16 eksport — Chess-Results / Swiss-Manager import qiladigan
+   * format ("migratsiya yo'li", docs/14-roadmap.md Faza 1). Ommaviy.
+   */
+  async exportTrf(sectionId: string): Promise<ExportFile> {
+    const section = await this.requirePublicSection(sectionId);
+    const rows = await this.repo.sectionExportData(sectionId);
+    return {
+      filename: exportFilename(section, 'trf'),
+      content: writeSectionTrf(buildSectionExportData(section, rows)),
+    };
   }
 
   // --- Jadval hisoblash -----------------------------------------------------------

@@ -102,12 +102,16 @@ import { RedisModule } from './shared/redis/redis.module';
     }),
 
     // --- Rate limiting (docs/04-api-spec.md §6) ---------------------------
-    // TODO(Faza 0): Redis storage qo'shish — hozircha in-memory,
-    //               ya'ni ko'p instance'da limit har instance uchun alohida.
-    ThrottlerModule.forRoot([
-      { name: 'default', ttl: 60_000, limit: 300 },
-      { name: 'strict', ttl: 900_000, limit: 5 },
-    ]),
+    // Umumiy himoya chegarasi: 300 so'rov/min (autentifikatsiyalangan
+    // foydalanuvchi normasi). Auth endpointlarining qat'iy limitlari
+    // (login 5/15min, register 3/soat) SlidingWindowLimiter'da (Redis,
+    // IP+email kaliti bilan) — docs/10-security.md §7.1. Bu yerda ikkinchi
+    // "strict" throttler ATAYLAB YO'Q: nomlangan throttler'lar HAMMA
+    // route'ga qo'llanadi va oddiy API'ni bo'g'ib qo'yadi (jonli testda
+    // aniqlangan).
+    // TODO(Faza 0): Redis storage — hozircha in-memory, ko'p instance'da
+    //               limit har instance uchun alohida.
+    ThrottlerModule.forRoot([{ name: 'default', ttl: 60_000, limit: 300 }]),
 
     EventEmitterModule.forRoot({ global: true, verboseMemoryLeak: true }),
     ScheduleModule.forRoot(),
