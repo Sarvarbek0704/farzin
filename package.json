@@ -29,7 +29,7 @@
     "test:watch": "jest --watch",
     "test:cov": "jest --coverage",
     "test:unit": "jest --selectProjects unit",
-    "test:integration": "jest --selectProjects integration",
+    "test:integration": "jest --selectProjects integration --runInBand",
     "test:e2e": "jest --config ./test/jest-e2e.json --runInBand",
     "db:generate": "prisma generate",
     "db:migrate": "prisma migrate dev",
