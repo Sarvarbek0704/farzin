@@ -166,15 +166,59 @@ export interface AppConfig {
   throttle: { ttl: number; limit: number };
 }
 
+/** Env'dan raqam sifatida o'qiladigan kalitlar. */
+const NUMERIC_KEYS = [
+  'PORT',
+  'REDIS_PORT',
+  'REDIS_DB',
+  'ARGON2_MEMORY_COST',
+  'ARGON2_TIME_COST',
+  'ARGON2_PARALLELISM',
+  'GLICKO2_DEFAULT_RATING',
+  'THROTTLE_TTL',
+  'THROTTLE_LIMIT',
+] as const;
+
+/** Env'dan boolean sifatida o'qiladigan kalitlar. */
+const BOOLEAN_KEYS = ['OTEL_ENABLED'] as const;
+
+/**
+ * process.env qiymatlari HAR DOIM string — aniq koersiya.
+ *
+ * `enableImplicitConversion` ga ATAYLAB tayanilmaydi: u dist buildda
+ * ishonchsiz (reflection metadata'ga bog'liq) va `Boolean('false') === true`
+ * tuzog'i bor. Aniq ro'yxat — aniq xatti-harakat.
+ */
+function coerceEnv(raw: Record<string, unknown>): Record<string, unknown> {
+  const out: Record<string, unknown> = { ...raw };
+
+  for (const key of NUMERIC_KEYS) {
+    const value = out[key];
+    if (typeof value === 'string' && value.trim() !== '') {
+      const parsed = Number(value);
+      if (!Number.isNaN(parsed)) {
+        out[key] = parsed;
+      }
+    }
+  }
+
+  for (const key of BOOLEAN_KEYS) {
+    const value = out[key];
+    if (typeof value === 'string') {
+      out[key] = value.trim().toLowerCase() === 'true' || value.trim() === '1';
+    }
+  }
+
+  return out;
+}
+
 /**
  * Muhit o'zgaruvchilarini tekshirish.
  *
  * Xato bo'lsa — ilova ishga tushmaydi va sabab aniq ko'rsatiladi.
  */
 export function validateEnv(raw: Record<string, unknown>): EnvironmentVariables {
-  const validated = plainToInstance(EnvironmentVariables, raw, {
-    enableImplicitConversion: true,
-  });
+  const validated = plainToInstance(EnvironmentVariables, coerceEnv(raw));
 
   const errors = validateSync(validated, { skipMissingProperties: false });
 

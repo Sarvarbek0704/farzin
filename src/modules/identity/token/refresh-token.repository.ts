@@ -29,6 +29,17 @@ interface RequestMeta {
 }
 
 /**
+ * rotate() tranzaksiyasining ichki natijasi. Xato tranzaksiya ICHIDA
+ * tashlanmaydi (rollback reuse-yozuvlarini yo'q qilardi) — natija
+ * qaytariladi, throw commit'dan keyin.
+ */
+type RotationOutcome =
+  | { kind: 'rotated'; result: RotationResult }
+  | { kind: 'invalid' }
+  | { kind: 'expired' }
+  | { kind: 'reuse'; userId: string; familyId: string };
+
+/**
  * Refresh token: rotatsiya + reuse detection.
  *
  * ═══════════════════════════════════════════════════════════════════════════
@@ -74,13 +85,19 @@ export class RefreshTokenService {
   async rotate(rawToken: string, meta: RequestMeta): Promise<RotationResult> {
     const tokenHash = sha256(rawToken);
 
-    return await this.prisma.$transaction(
-      async (tx) => {
+    // ⚠️  KRITIK NOZIKLIK: tranzaksiya ichida throw qilinsa, REUSE
+    //     shoxidagi revokeFamily + audit yozuvlari ROLLBACK bo'ladi —
+    //     ya'ni o'g'irlik aniqlanadi-yu, oila TIRIK qoladi. Shuning
+    //     uchun tranzaksiya natija QAYTARADI (discriminated union),
+    //     xato esa COMMIT'dan KEYIN tashlanadi. Bu xato jonli smoke
+    //     testda ushlangan — regressiyaga yo'l qo'ymang.
+    const outcome = await this.prisma.$transaction(
+      async (tx): Promise<RotationOutcome> => {
         const stored = await tx.refreshToken.findUnique({ where: { tokenHash } });
 
         // 1. Notanish/soxta token — bekor qiladigan narsa yo'q.
         if (stored === null) {
-          throw new UnauthorizedException('Invalid refresh token');
+          return { kind: 'invalid' };
         }
 
         // 2. REUSE: ishlatilgan yoki bekor qilingan token qayta keldi.
@@ -102,16 +119,12 @@ export class RefreshTokenService {
             ipAddress: meta.ip ?? null,
             userAgent: meta.userAgent ?? null,
           });
-          this.logger.warn(
-            { userId: stored.userId, familyId: stored.familyId },
-            'Refresh token reuse aniqlandi — oila bekor qilindi',
-          );
-          throw new UnauthorizedException('Token reuse detected. Please sign in again.');
+          return { kind: 'reuse', userId: stored.userId, familyId: stored.familyId };
         }
 
         // 3. Muddati o'tgan.
         if (stored.expiresAt.getTime() < Date.now()) {
-          throw new UnauthorizedException('Refresh token expired');
+          return { kind: 'expired' };
         }
 
         // 4. Compare-and-set: poygada faqat bittasi yutadi.
@@ -124,20 +137,39 @@ export class RefreshTokenService {
           // Poygani yutqazdik → ikkinchi parallel so'rov allaqachon
           // rotatsiya qilgan → bu ham reuse deb qaraladi.
           await this.revokeFamily(tx, stored.familyId);
-          throw new UnauthorizedException('Token reuse detected. Please sign in again.');
+          return { kind: 'reuse', userId: stored.userId, familyId: stored.familyId };
         }
 
         // 5. Yangi token — o'sha oila ichida.
         const issued = await this.persist(tx, stored.userId, stored.familyId, meta);
         return {
-          userId: stored.userId,
-          familyId: stored.familyId,
-          token: issued.token,
-          expiresAt: issued.expiresAt,
+          kind: 'rotated',
+          result: {
+            userId: stored.userId,
+            familyId: stored.familyId,
+            token: issued.token,
+            expiresAt: issued.expiresAt,
+          },
         };
       },
       { isolationLevel: Prisma.TransactionIsolationLevel.Serializable },
     );
+
+    // Tranzaksiya COMMIT bo'ldi — endi xato tashlash xavfsiz.
+    switch (outcome.kind) {
+      case 'rotated':
+        return outcome.result;
+      case 'invalid':
+        throw new UnauthorizedException('Invalid refresh token');
+      case 'expired':
+        throw new UnauthorizedException('Refresh token expired');
+      case 'reuse':
+        this.logger.warn(
+          { userId: outcome.userId, familyId: outcome.familyId },
+          'Refresh token reuse aniqlandi — oila bekor qilindi',
+        );
+        throw new UnauthorizedException('Token reuse detected. Please sign in again.');
+    }
   }
 
   /** Logout — taqdim etilgan token oilasini bekor qiladi. */

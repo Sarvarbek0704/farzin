@@ -1,4 +1,4 @@
-import { Controller, Get, Inject } from '@nestjs/common';
+import { Controller, Get, Inject, VERSION_NEUTRAL } from '@nestjs/common';
 import {
   HealthCheck,
   HealthCheckService,
@@ -34,7 +34,9 @@ import { REDIS } from '../../shared/redis/redis.module';
  */
 @ApiExcludeController()
 @Public()
-@Controller('health')
+// K8s probe /health/ready ni VERSIYASIZ chaqiradi — URI versioning
+// qo'llanmaydi (aks holda yo'l /v1/health/ready bo'lib qolardi).
+@Controller({ path: 'health', version: VERSION_NEUTRAL })
 export class HealthController {
   constructor(
     private readonly health: HealthCheckService,
