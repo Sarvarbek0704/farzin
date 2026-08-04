@@ -11,6 +11,7 @@ import {
 import { type Actor, RbacService } from '../identity/rbac.port';
 import { ORG_PORT, type OrgPort } from '../org/org.port';
 import { PLAYER_PORT, type PlayerPort } from '../player/player.port';
+import { RATING_PORT, type RatingPort } from '../rating/rating.port';
 import { assertTransition, type TournamentStatus } from './tournament-status.machine';
 import {
   type CreateSectionInput,
@@ -56,6 +57,7 @@ export class TournamentService {
     private readonly rbac: RbacService,
     @Inject(PLAYER_PORT) private readonly players: PlayerPort,
     @Inject(ORG_PORT) private readonly org: OrgPort,
+    @Inject(RATING_PORT) private readonly rating: RatingPort,
   ) {}
 
   // --- Tournament -----------------------------------------------------------
@@ -327,11 +329,24 @@ export class TournamentService {
       }
     }
 
+    // Faza 3: ratingAtEntry — reyting modulidan MUZLATILGAN snapshot
+    // (RATING_PORT). Seksiya kategoriyasi (environment, timeCategory)
+    // bo'yicha joriy reyting; hech qachon o'ynamagan → null qoladi
+    // (1500 deb taxmin qilinmaydi — snapshot halolligi). Provisional
+    // reyting ham seedingda ishlatiladi (docs/06-rating-system.md §4.2).
+    const currentRating = await this.rating.getCurrentRating(
+      player.id,
+      section.environment,
+      section.timeCategory,
+    );
+
     return await this.tournaments.createRegistration(
       {
         sectionId,
         playerId: player.id,
         ...(player.title !== null && { titleAtEntry: player.title }),
+        // Registration.ratingAtEntry — Int ustun: butun songa yaxlitlanadi.
+        ratingAtEntry: currentRating === null ? null : Math.round(currentRating.rating),
         // TODO(Faza 4): to'lov oqimi — hozircha faqat bepul turnir avtomatik
         //               tasdiqlanadi.
         isConfirmed: tournament.entryFeeAmount === null,

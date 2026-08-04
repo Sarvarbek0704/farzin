@@ -55,3 +55,9 @@ prisma/generated/
 
 # --- Local ---------------------------------------------------------------
 docker-compose.override.yml
+
+# Dizayn referens + internal promptlar
+*.zip
+design-handoff/
+*-prompt.md
+*-PROMPT.md

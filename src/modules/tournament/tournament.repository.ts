@@ -146,6 +146,8 @@ export interface CreateRegistrationInput {
   sectionId: string;
   playerId: string;
   titleAtEntry?: string | undefined;
+  /** Ro'yxat paytidagi reyting snapshot'i (RATING_PORT). null = reytingsiz. */
+  ratingAtEntry: number | null;
   isConfirmed: boolean;
 }
 
@@ -375,9 +377,10 @@ export class TournamentRepository {
         data: {
           sectionId: input.sectionId,
           playerId: input.playerId,
-          // TODO(Faza 3): ratingAtEntry — rating modulidan snapshot olinadi.
-          //               Hozircha null: reyting bazasi hali yo'q.
-          ratingAtEntry: null,
+          // Faza 3: ratingAtEntry — service RATING_PORT'dan olib beradi.
+          // Muzlatilgan snapshot: turnir davomida reyting o'zgarsa ham
+          // juftlashtirish SHU qiymatdan foydalanadi (schema izohi).
+          ratingAtEntry: input.ratingAtEntry,
           titleAtEntry: (input.titleAtEntry as ChessTitle | undefined) ?? null,
           isConfirmed: input.isConfirmed,
         },

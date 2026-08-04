@@ -15,6 +15,7 @@ import { HealthModule } from './modules/health/health.module';
 import { IdentityModule } from './modules/identity/identity.module';
 import { OrgModule } from './modules/org/org.module';
 import { PlayerModule } from './modules/player/player.module';
+import { RatingModule } from './modules/rating/rating.module';
 import { TournamentModule } from './modules/tournament/tournament.module';
 import { RbacGuard } from './modules/identity/rbac.port';
 import { JwtAuthGuard } from './shared/auth/jwt-auth.guard';
@@ -130,10 +131,10 @@ import { RedisModule } from './shared/redis/redis.module';
     AdminModule,
     TournamentModule,
     ArbiterModule,
+    RatingModule,
 
     //
     // TODO(Faza 2): PairingModule     — Swiss Dutch  ← eng qiyin qism
-    // TODO(Faza 3): RatingModule      — Glicko-2
     // TODO(Faza 4): BillingModule     — Click/Payme, ledger
     // TODO(Faza 5): PlayModule        — onlayn o'yin, WebSocket
     // TODO(Faza 6): FairPlayModule    — Stockfish tahlili
