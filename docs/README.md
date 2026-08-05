@@ -97,7 +97,7 @@ Bular hal qilinmaguncha tegishli modul **prod'ga chiqmaydi**:
 | Ma'lumot lokalizatsiyasi (fuqarolar ma'lumoti mamlakat ichida?) | **Yurist** | Hosting tanlovi |
 | Fiskal chek / soliq talablari | **Yurist** | `billing` moduli |
 | **chessground GPL-3.0 litsenziyasi** tijorat mahsulotga mos keladimi | **Yurist** | Frontend |
-| FIDE Handbook C.04.3 amaldagi matnini verbatim olish | Dasturchi | `pairing` moduli |
+| ~~FIDE Handbook C.04.3 amaldagi matnini verbatim olish~~ **HAL QILINDI (2026-08-05):** [references/fide-c0403-dutch-2026-02.md](./references/fide-c0403-dutch-2026-02.md) — 2026-02-01 redaksiyasi, handbook.fide.com'dan | Dasturchi | `pairing` moduli |
 | `τ` (Glicko-2) qiymati — backtest | Dasturchi | `rating` moduli |
 | Hakamlar Swiss-Manager'dan ko'chadimi | **Bozor tekshiruvi** | **Butun loyiha** |
 
