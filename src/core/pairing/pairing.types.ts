@@ -86,10 +86,21 @@ export interface PlayerPairingState {
   /** Rang tarixi, tur tartibida. Bye bo'lgan turda element YO'Q. */
   readonly colorHistory: readonly Color[];
 
-  /** Float tarixi, tur tartibida. */
+  /**
+   * Float tarixi, tur tartibida: HAR yakunlangan tur uchun bitta element
+   * (1-turdan boshlab), float bo'lmagan turda `None`. Swiss C14–C17
+   * kriteriylari oxirgi ikki elementga qaraydi, shuning uchun tekislash
+   * (alignment) shart — arbiter/pairing-state.builder.ts shunday quradi
+   * (FIDE C.04.3 Article 1.4: turli ochkolilar o'ynasa yuqorisi Down /
+   * pastkisi Up; PAB yoki o'ynamasdan mag'lubiyatdan ko'p ochko — Down).
+   */
   readonly floatHistory: readonly FloatDirection[];
 
-  /** Allaqachon bye olganmi (odatda bir o'yinchi bir marta oladi). */
+  /**
+   * FIDE C2 blokeri: allaqachon PAB/to'liq ochkoli bye olganmi YOKI biror
+   * turda o'ynamasdan g'alaba bilan teng ochko olganmi (forfeit g'alaba).
+   * Bunday o'yinchi PAB olmaydi (C.04.3 Article 2.1.2 → Basic Rules 4-modda).
+   */
   readonly hasReceivedBye: boolean;
 
   /** Turnirdan chiqqanmi. Chiqqan o'yinchi juftlashtirilmaydi. */
@@ -116,6 +127,17 @@ export interface PairingRequest {
    * implementatsiya uni E'TIBORSIZ qoldirishi kerak.
    */
   readonly seed?: number;
+
+  /**
+   * Initial-colour — 1-tur juftlashtirishidan OLDIN qur'a bilan aniqlanadigan
+   * rang (FIDE C.04.3 Article 5.1; 5.2.5 unga tayanadi). Qur'a engine'dan
+   * TASHQARIDA o'tkaziladi va shu maydon orqali kiradi — engine ichida
+   * tasodifiylik taqiqlangani uchun (determinizm kafolati #1).
+   *
+   * Berilmasa — `Color.White` (amaliyotdagi eng keng tarqalgan qiymat).
+   * Round-robin engine'lari bu maydonni ishlatmaydi.
+   */
+  readonly initialColor?: Color;
 }
 
 export interface Pairing {

@@ -8,6 +8,7 @@ import {
 import { writeSectionPgn } from '../../core/export/pgn-writer';
 import { writeSectionTrf } from '../../core/export/trf-writer';
 import { RoundRobinEngine } from '../../core/pairing/round-robin.engine';
+import { SwissDutchEngine } from '../../core/pairing/swiss-dutch.engine';
 import {
   PairingImpossibleError,
   type PairingResult as EnginePairingResult,
@@ -69,10 +70,18 @@ export class ArbiterService {
    * Engine'lar deterministik va holatsiz — bitta nusxa yetadi.
    * DOUBLE_ROUND_ROBIN — alohida engine emas, `legs: 2` konfiguratsiyasi
    * (docs/05-pairing-engine.md §1.3).
+   *
+   * ⚠️ SWISS_DUTCH validatsiya holati (halol bayon, TZ Faza 2 DoD):
+   * property-testlar + qo'lda hisoblangan golden ssenariylar bilan
+   * tekshirilgan, lekin Swiss-Manager/JaVaFo bilan real turnirlarda HALI
+   * solishtirilmagan. Jiddiy turnirlarda ishonishdan oldin shadow-mode
+   * (mavjud vosita bilan parallel yurgizib solishtirish) o'tkazilsin —
+   * core/pairing/swiss-dutch.engine.ts sarlavhasi va ADR-0009.
    */
   private readonly engines = {
     ROUND_ROBIN: new RoundRobinEngine(),
     DOUBLE_ROUND_ROBIN: new RoundRobinEngine({ legs: 2 }),
+    SWISS_DUTCH: new SwissDutchEngine(),
   } as const;
 
   private readonly tieBreaks = new TieBreakCalculator();
@@ -90,7 +99,8 @@ export class ArbiterService {
    *
    * Qoidalar:
    *  - turnir IN_PROGRESS bo'lishi shart;
-   *  - seksiya ROUND_ROBIN yoki DOUBLE_ROUND_ROBIN (Swiss — Faza 2);
+   *  - seksiya ROUND_ROBIN, DOUBLE_ROUND_ROBIN yoki SWISS_DUTCH
+   *    (KNOCKOUT/SCHEVENINGEN/TEAM_SWISS — keyingi fazalar);
    *  - oldingi tur (bo'lsa) COMPLETED bo'lishi shart;
    *  - raqamlar hali berilmagan bo'lsa — avval assignPairingNumbers;
    *  - jadval tugagan bo'lsa engine PairingImpossibleError beradi →
@@ -102,10 +112,14 @@ export class ArbiterService {
     await this.assertManageAccess(actor, section, 'Round');
     this.assertTournamentInProgress(section);
 
-    if (section.pairingSystem !== 'ROUND_ROBIN' && section.pairingSystem !== 'DOUBLE_ROUND_ROBIN') {
+    if (
+      section.pairingSystem !== 'ROUND_ROBIN' &&
+      section.pairingSystem !== 'DOUBLE_ROUND_ROBIN' &&
+      section.pairingSystem !== 'SWISS_DUTCH'
+    ) {
       throw new BusinessRuleError(
         'PAIRING_SYSTEM_NOT_IMPLEMENTED',
-        `${section.pairingSystem} juftlashtirish hali yo'q — Swiss Faza 2'da (docs/14-roadmap.md)`,
+        `${section.pairingSystem} juftlashtirish hali yo'q — keyingi fazalarda (docs/14-roadmap.md)`,
         { pairingSystem: section.pairingSystem },
       );
     }
