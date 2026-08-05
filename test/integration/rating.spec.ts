@@ -32,6 +32,16 @@ import {
 describe('Rating (integration)', () => {
   let t: TestApp;
 
+  // Sana-bog'liq test — flaky test. Oyna HAR DOIM "hozir"ni qamraydi:
+  // raund completedAt = test payti bo'lgani uchun davr oynasi ham
+  // shunga nisbatan dinamik quriladi (avval qattiq 2026-07 kodlangan
+  // edi va keyingi oyda testlar yiqila boshlagan).
+  const DAY_MS = 24 * 60 * 60 * 1000;
+  const windowStart = new Date(Date.now() - DAY_MS).toISOString();
+  const windowEnd = new Date(Date.now() + DAY_MS).toISOString();
+  const overlapStart = new Date(Date.now()).toISOString();
+  const overlapEnd = new Date(Date.now() + 2 * DAY_MS).toISOString();
+
   let adminToken: string;
   let whitePlayerId: string;
   let blackPlayerId: string;
@@ -157,8 +167,8 @@ describe('Rating (integration)', () => {
       .send({
         environment: 'OTB',
         timeCategory: 'BULLET',
-        startsAt: '2026-07-01T00:00:00.000+05:00',
-        endsAt: '2026-08-01T00:00:00.000+05:00',
+        startsAt: windowStart,
+        endsAt: windowEnd,
       });
     expectProblem(res, 422, 'INVALID_RATING_CATEGORY');
   });
@@ -170,8 +180,8 @@ describe('Rating (integration)', () => {
       .send({
         environment: 'OTB',
         timeCategory: 'RAPID',
-        startsAt: '2026-07-01T00:00:00.000+05:00',
-        endsAt: '2026-08-01T00:00:00.000+05:00',
+        startsAt: windowStart,
+        endsAt: windowEnd,
       });
     expect(res.status).toBe(201);
     expect(res.body.tau).toBe(0.5);
@@ -187,8 +197,8 @@ describe('Rating (integration)', () => {
       .send({
         environment: 'OTB',
         timeCategory: 'RAPID',
-        startsAt: '2026-07-15T00:00:00.000+05:00',
-        endsAt: '2026-08-15T00:00:00.000+05:00',
+        startsAt: overlapStart,
+        endsAt: overlapEnd,
       });
     expectProblem(res, 409, 'CONFLICT');
   });
