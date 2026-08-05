@@ -11,6 +11,7 @@ import { randomUUID } from 'node:crypto';
 import { loadConfig, validateEnv } from './config/configuration';
 import { AdminModule } from './modules/admin/admin.module';
 import { ArbiterModule } from './modules/arbiter/arbiter.module';
+import { BillingModule } from './modules/billing/billing.module';
 import { HealthModule } from './modules/health/health.module';
 import { IdentityModule } from './modules/identity/identity.module';
 import { OrgModule } from './modules/org/org.module';
@@ -132,10 +133,10 @@ import { RedisModule } from './shared/redis/redis.module';
     TournamentModule,
     ArbiterModule,
     RatingModule,
+    BillingModule,
 
     //
     // TODO(Faza 2): PairingModule     — Swiss Dutch  ← eng qiyin qism
-    // TODO(Faza 4): BillingModule     — Click/Payme, ledger
     // TODO(Faza 5): PlayModule        — onlayn o'yin, WebSocket
     // TODO(Faza 6): FairPlayModule    — Stockfish tahlili
     // TODO(Faza 7): SchoolModule      — B2G
