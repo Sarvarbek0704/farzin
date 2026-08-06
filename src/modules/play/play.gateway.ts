@@ -1,4 +1,5 @@
 import { Logger } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { OnEvent } from '@nestjs/event-emitter';
 import { JwtService } from '@nestjs/jwt';
 import {
@@ -12,17 +13,26 @@ import {
 } from '@nestjs/websockets';
 import type { Server, Socket } from 'socket.io';
 
+import type { ClockSide } from '../../core/clock/chess-clock';
 import { DomainError, NotFoundError } from '../../core/errors/domain.error';
+import type { AppConfig } from '../../config/configuration';
+import { ClockStore } from './clock.store';
+import { CLOCK_TICK_INTERVAL_MS, FLAG_EPSILON_MS, flagDelayMs, GameTimers, graceMsFor } from './game-timers';
 import { PlayService } from './play.service';
 import {
   PLAY_MATCHED_EVENT,
   WS_EVENTS,
   type Ack,
   type ClaimTimeoutAckData,
+  type ClockPayload,
+  type ClockUpdatePayload,
+  type GameEndedPayload,
   type GameErrorCode,
   type GameErrorPayload,
   type GameStatePayload,
   type MoveAckData,
+  type OpponentBackPayload,
+  type OpponentGonePayload,
   type PlayMatchedEvent,
 } from './play.types';
 
@@ -55,7 +65,33 @@ import {
  *
  *  DEVIATSIYA (hujjatlangan): `game:draw_offered` §7.3 bo'yicha faqat
  *  `:players` room'iga ketishi kerak; birinchi bo'lakda butun o'yin
- *  room'iga yuboriladi (taklif maxfiy ma'lumot emas).
+ *  room'iga yuboriladi (taklif maxfiy ma'lumot emas). Xuddi shu sabab
+ *  bilan `opponent_gone`/`opponent_back` ham butun room'ga ketadi
+ *  (tomoshabin ham "o'yinchi uzildi" indikatorini ko'radi).
+ *
+ *  HAYOT SIKLI TAYMERLARI (game-timers.ts registri):
+ *   - FLAG (docs/07 §3.5 proaktiv yo'l): har muvaffaqiyatli yurishdan keyin
+ *     yurayotgan tomonning qolgan vaqti + epsilon'ga setTimeout qo'yiladi.
+ *     Uyg'onganda service.checkFlag Redis soatini (avtoritativ) qayta
+ *     o'qiydi: vaqt bor → qayta rejalashtirish, flag → TIMEOUT (FIDE 6.9
+ *     claim yo'li bilan BIR XIL mantiq) + game:ended broadcast.
+ *   - clock_update TICK (§3.7): o'yin faolligida har 5s avtoritativ soat
+ *     room'ga yuboriladi — client displey drift'ini tuzatadi. Past-vaqt
+ *     (<30s) 1s chastota rejimi — keyingi bosqich (hujjatlangan qoldiq).
+ *   - DISKONNEKT GRACE (§3.8, §8): o'yinchining OXIRGI socket'i uzilganda
+ *     kategoriya bo'yicha grace (game-timers.DISCONNECT_GRACE_MS, env
+ *     override PLAY_DISCONNECT_GRACE_MS) boshlanadi, room'ga
+ *     `opponent_gone {graceMs}` ketadi. Grace ichida game:join → grace
+ *     bekor + `opponent_back` + ack'da TO'LIQ game:state snapshot (§8.1 —
+ *     RECONNECT SHARTNOMASI: client har doim game:join dan resync oladi).
+ *     Grace tugasa va o'yinchi hali yo'q → ABANDONED (service hujjati).
+ *     DIQQAT: diskonnekt SOATNI TO'XTATMAYDI (§3.8 qattiq qoida).
+ *   - Presence: Redis `game:presence:{gameId}:{color}` markerlari
+ *     (clock.store.ts) — multi-instance uchun arzon signal; grace qarori
+ *     hozircha shu instance'ning in-memory registriga tayanadi
+ *     (bitta-instance cheklovi clock.store.ts da halol hujjatlangan).
+ *   Barcha taymerlar o'yin tugashida clearGame, modul yopilishida
+ *   GameTimers.onModuleDestroy bilan bekor qilinadi (open-handle yo'q).
  * ═══════════════════════════════════════════════════════════════════════════
  */
 
@@ -81,10 +117,24 @@ export class PlayGateway implements OnGatewayConnection, OnGatewayDisconnect {
 
   private readonly moveWindows = new Map<string, { start: number; count: number }>();
 
+  /** socketId → (gameId → rang): bu socket qaysi o'yinlarda O'YINCHI. */
+  private readonly playerGamesBySocket = new Map<string, Map<string, ClockSide>>();
+
+  /** gameId → rang → jonli o'yinchi socketlari (bir o'yinchi = bir nechta tab). */
+  private readonly playerSocketsByGame = new Map<string, Record<ClockSide, Set<string>>>();
+
+  /** PLAY_DISCONNECT_GRACE_MS override (test/ops); null → docs/07 §3.8 jadvali. */
+  private readonly graceOverrideMs: number | null;
+
   constructor(
     private readonly play: PlayService,
     private readonly jwt: JwtService,
-  ) {}
+    private readonly clocks: ClockStore,
+    private readonly timers: GameTimers,
+    config: ConfigService<AppConfig, true>,
+  ) {
+    this.graceOverrideMs = config.get('play', { infer: true }).disconnectGraceMsOverride;
+  }
 
   // --- Ulanish -------------------------------------------------------------------
 
@@ -104,8 +154,23 @@ export class PlayGateway implements OnGatewayConnection, OnGatewayDisconnect {
     }
   }
 
+  /**
+   * Diskonnekt (docs/07 §3.8): soat TO'XTAMAYDI. O'yinchining oxirgi
+   * socket'i ketganda presence o'chadi, grace boshlanadi va room'ga
+   * `opponent_gone` yuboriladi.
+   */
   handleDisconnect(socket: Socket): void {
     this.moveWindows.delete(socket.id);
+    const games = this.playerGamesBySocket.get(socket.id);
+    this.playerGamesBySocket.delete(socket.id);
+    if (games === undefined) {
+      return;
+    }
+    for (const [gameId, side] of games) {
+      void this.onPlayerSocketGone(socket.id, gameId, side).catch(
+        this.swallow(`diskonnekt kuzatuvi: game=${gameId}`),
+      );
+    }
   }
 
   private rejectConnection(socket: Socket, code: GameErrorCode, message: string): void {
@@ -135,8 +200,14 @@ export class PlayGateway implements OnGatewayConnection, OnGatewayDisconnect {
       return ackError('internal', 'gameId kerak');
     }
     try {
+      // RECONNECT SHARTNOMASI (docs/07 §8.1): ack HAR DOIM to'liq snapshot —
+      // fen, barcha yurishlar, jonli soat (Redis'dan "hozir" kesimida),
+      // status, drawOfferFrom. Client taxtani shu javobdan noldan quradi.
       const state = await this.play.getGameView(gameId, userId);
       await socket.join(roomOf(gameId));
+      if (state.status === 'ACTIVE' && state.viewerRole !== 'spectator') {
+        await this.registerPlayerSocket(socket, gameId, state.viewerRole === 'white' ? 'w' : 'b');
+      }
       return { ok: true, data: state };
     } catch (e) {
       return this.toAckError(e);
@@ -165,7 +236,7 @@ export class PlayGateway implements OnGatewayConnection, OnGatewayDisconnect {
     if (!result.ok) {
       if (result.ended !== undefined) {
         // Flag aniqlanib o'yin TIMEOUT bilan tugadi — hammaga e'lon.
-        this.server.to(roomOf(intent.gameId)).emit(WS_EVENTS.ended, result.ended);
+        this.announceEnd(intent.gameId, result.ended);
       }
       return {
         ok: false,
@@ -180,7 +251,11 @@ export class PlayGateway implements OnGatewayConnection, OnGatewayDisconnect {
     // Broadcast — yurish avval, o'yin oxiri keyin (tartib muhim).
     this.server.to(roomOf(intent.gameId)).emit(WS_EVENTS.moveMade, result.move);
     if (result.ended !== null) {
-      this.server.to(roomOf(intent.gameId)).emit(WS_EVENTS.ended, result.ended);
+      this.announceEnd(intent.gameId, result.ended);
+    } else {
+      // Navbat raqibga o'tdi — flag taymeri QAYTA qo'yiladi (docs/07 §3.5)
+      // va sinxron tick ishlayotganiga ishonch hosil qilinadi (§3.7).
+      this.armClockTimers(intent.gameId, result.move.clock);
     }
     return { ok: true, data: { ply: result.move.ply, clock: result.move.clock } };
   }
@@ -192,7 +267,7 @@ export class PlayGateway implements OnGatewayConnection, OnGatewayDisconnect {
   ): Promise<Ack<null>> {
     return await this.simpleGameAction(socket, payload, async (userId, gameId) => {
       const ended = await this.play.resign(userId, gameId);
-      this.server.to(roomOf(gameId)).emit(WS_EVENTS.ended, ended);
+      this.announceEnd(gameId, ended);
     });
   }
 
@@ -214,7 +289,7 @@ export class PlayGateway implements OnGatewayConnection, OnGatewayDisconnect {
   ): Promise<Ack<null>> {
     return await this.simpleGameAction(socket, payload, async (userId, gameId) => {
       const ended = await this.play.acceptDraw(userId, gameId);
-      this.server.to(roomOf(gameId)).emit(WS_EVENTS.ended, ended);
+      this.announceEnd(gameId, ended);
     });
   }
 
@@ -226,7 +301,7 @@ export class PlayGateway implements OnGatewayConnection, OnGatewayDisconnect {
   ): Promise<Ack<null>> {
     return await this.simpleGameAction(socket, payload, async (userId, gameId) => {
       const ended = await this.play.abort(userId, gameId);
-      this.server.to(roomOf(gameId)).emit(WS_EVENTS.ended, ended);
+      this.announceEnd(gameId, ended);
     });
   }
 
@@ -247,7 +322,7 @@ export class PlayGateway implements OnGatewayConnection, OnGatewayDisconnect {
     try {
       const result = await this.play.claimTimeout(userId, gameId);
       if (result.ended !== undefined) {
-        this.server.to(roomOf(gameId)).emit(WS_EVENTS.ended, result.ended);
+        this.announceEnd(gameId, result.ended);
       }
       return {
         ok: true,
@@ -292,6 +367,148 @@ export class PlayGateway implements OnGatewayConnection, OnGatewayDisconnect {
     } catch (e) {
       return this.toAckError(e);
     }
+  }
+
+  // --- Hayot sikli taymerlari (flag / tick / grace) ---------------------------------
+
+  /**
+   * O'yin oxiri — YAGONA chiqish nuqtasi: broadcast + barcha taymerlarni
+   * tozalash + o'yinchi registrini bo'shatish. Redis kalitlari (soat,
+   * durang, presence) service'ning finish yo'lida clocks.clear bilan ketgan.
+   */
+  private announceEnd(gameId: string, ended: GameEndedPayload): void {
+    this.server.to(roomOf(gameId)).emit(WS_EVENTS.ended, ended);
+    this.timers.clearGame(gameId);
+    const sides = this.playerSocketsByGame.get(gameId);
+    if (sides !== undefined) {
+      for (const socketId of [...sides.w, ...sides.b]) {
+        this.playerGamesBySocket.get(socketId)?.delete(gameId);
+      }
+      this.playerSocketsByGame.delete(gameId);
+    }
+  }
+
+  /** Yurishdan keyin: flag taymeri (qolgan vaqt + ε) va tick (idempotent). */
+  private armClockTimers(gameId: string, clock: ClockPayload): void {
+    const delay = flagDelayMs(clock);
+    if (delay !== null) {
+      this.timers.scheduleFlag(gameId, delay, () => {
+        void this.onFlagTimer(gameId).catch(this.swallow(`flag taymeri: game=${gameId}`));
+      });
+    }
+    this.timers.startTick(gameId, CLOCK_TICK_INTERVAL_MS, () => {
+      void this.onClockTick(gameId).catch(this.swallow(`clock tick: game=${gameId}`));
+    });
+  }
+
+  /** Flag taymeri uyg'ondi — haqiqatni service (Redis soati) hal qiladi. */
+  private async onFlagTimer(gameId: string): Promise<void> {
+    const res = await this.play.checkFlag(gameId);
+    if (res.kind === 'ended') {
+      this.announceEnd(gameId, res.ended);
+      return;
+    }
+    if (res.kind === 'wait') {
+      // Oraliqda yurish kelgan yoki taymer erta uyg'ongan — qayta.
+      this.timers.scheduleFlag(gameId, res.remainingMs + FLAG_EPSILON_MS, () => {
+        void this.onFlagTimer(gameId).catch(this.swallow(`flag taymeri: game=${gameId}`));
+      });
+      return;
+    }
+    // 'stop' — o'yin parallel yo'lda tugagan (broadcast o'sha yo'ldan ketgan).
+    this.timers.clearGame(gameId);
+  }
+
+  /** docs/07 §3.7 sinxron tick: avtoritativ soat room'ga, ACTIVE emas → to'xta. */
+  private async onClockTick(gameId: string): Promise<void> {
+    const clock = await this.play.liveClockPayload(gameId);
+    if (clock === null) {
+      this.timers.stopTick(gameId);
+      return;
+    }
+    this.server
+      .to(roomOf(gameId))
+      .emit(WS_EVENTS.clockUpdate, { gameId, clock } satisfies ClockUpdatePayload);
+  }
+
+  /** game:join da o'yinchi socket'ini ro'yxatga olish + reconnect aniqlash. */
+  private async registerPlayerSocket(
+    socket: Socket,
+    gameId: string,
+    side: ClockSide,
+  ): Promise<void> {
+    let sides = this.playerSocketsByGame.get(gameId);
+    if (sides === undefined) {
+      sides = { w: new Set<string>(), b: new Set<string>() };
+      this.playerSocketsByGame.set(gameId, sides);
+    }
+    sides[side].add(socket.id);
+
+    let games = this.playerGamesBySocket.get(socket.id);
+    if (games === undefined) {
+      games = new Map<string, ClockSide>();
+      this.playerGamesBySocket.set(socket.id, games);
+    }
+    games.set(gameId, side);
+
+    await this.clocks.setPresence(gameId, side);
+    if (this.timers.clearGrace(gameId, side)) {
+      // Grace ichida qaytdi (docs/07 §8.2) — o'yin davom etadi, soat esa
+      // baribir yurgan (§3.8). Room'dagi qolganlarga xabar.
+      socket
+        .to(roomOf(gameId))
+        .emit(WS_EVENTS.opponentBack, { gameId, side } satisfies OpponentBackPayload);
+    }
+  }
+
+  /** O'yinchi socket'i uzildi — oxirgisi bo'lsa presence o'chadi, grace boshlanadi. */
+  private async onPlayerSocketGone(
+    socketId: string,
+    gameId: string,
+    side: ClockSide,
+  ): Promise<void> {
+    const sides = this.playerSocketsByGame.get(gameId);
+    if (sides === undefined) {
+      return;
+    }
+    sides[side].delete(socketId);
+    if (sides[side].size > 0) {
+      // Boshqa tab hali ulangan — o'yinchi "ketgan" hisoblanmaydi.
+      return;
+    }
+    const game = await this.play.activeGameRow(gameId);
+    if (game === null) {
+      return; // o'yin allaqachon tugagan — grace shart emas
+    }
+    await this.clocks.clearPresence(gameId, side);
+
+    const graceMs = graceMsFor(game.timeCategory, this.graceOverrideMs);
+    this.server
+      .to(roomOf(gameId))
+      .emit(WS_EVENTS.opponentGone, { gameId, side, graceMs } satisfies OpponentGonePayload);
+    this.timers.scheduleGrace(gameId, side, graceMs, () => {
+      void this.onGraceExpired(gameId, side).catch(this.swallow(`grace: game=${gameId}`));
+    });
+  }
+
+  /** Grace tugadi — o'yinchi hali ham yo'q bo'lsa ABANDONED (service hujjati). */
+  private async onGraceExpired(gameId: string, side: ClockSide): Promise<void> {
+    const sides = this.playerSocketsByGame.get(gameId);
+    if (sides !== undefined && sides[side].size > 0) {
+      return; // poyga: reconnect grace bekor qilinishidan oldin yetib kelgan
+    }
+    const other: ClockSide = side === 'w' ? 'b' : 'w';
+    const opponentConnected = sides !== undefined && sides[other].size > 0;
+    const ended = await this.play.abandonAfterDisconnect(gameId, side, opponentConnected);
+    if (ended !== null) {
+      this.announceEnd(gameId, ended);
+    }
+  }
+
+  private swallow(context: string): (e: unknown) => void {
+    return (e: unknown): void => {
+      this.logger.error(`${context}: ${String(e)}`);
+    };
   }
 
   private allowMove(socketId: string): boolean {

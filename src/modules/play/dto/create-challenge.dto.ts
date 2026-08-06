@@ -31,9 +31,15 @@ export class CreateChallengeDto {
   @IsIn(SUPPORTED_CLOCK_TYPES)
   clockType!: Exclude<ClockTypeValue, 'MULTI_STAGE'>;
 
-  @ApiProperty({ minimum: 15, maximum: 21_600, example: 180 })
+  /**
+   * Minimal baza 5s — "hyperbullet" oilasi (lichess'da 15s ultrabullet,
+   * ba'zi platformalarda 5s ham o'ynaladi). Bu pastki chegara ayni paytda
+   * flag-taymer integration testiga real (sun'iy soxtalanmagan) TIMEOUT
+   * ssenariysini bir necha soniyada o'ynash imkonini beradi.
+   */
+  @ApiProperty({ minimum: 5, maximum: 21_600, example: 180 })
   @IsInt()
-  @Min(15)
+  @Min(5)
   @Max(21_600)
   baseTimeSeconds!: number;
 

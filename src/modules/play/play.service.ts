@@ -31,6 +31,7 @@ import type {
   ClockPayload,
   ClockTypeValue,
   ColorValue,
+  FlagCheckResult,
   GameEndedPayload,
   GameErrorCode,
   GameRow,
@@ -70,6 +71,18 @@ import type {
  *  DURANG SODDALASHTIRISHLARI (docs/07 §6.4 dan ONGLI chetlanish,
  *  rules.gameEndFromPosition hujjatida ham): threefold (3x) va 50-yurish
  *  (100 ply) birinchi bo'lakda AVTOMATIK durang — claim tugmasi keyin.
+ *
+ *  HAYOT SIKLI TAYMERLARI (Faza 5 DoD yakuni):
+ *   - PROAKTIV FLAG (§3.5 2-yo'l) — checkFlag(); taymer gateway'da
+ *     (game-timers.ts), har yurishda qayta qo'yiladi. Reaktiv claim yo'li
+ *     (claimTimeout) saqlanadi — ikkalasi ham kerak (§3.5).
+ *   - DISKONNEKT/ABANDON (§3.8, §8) — abandonAfterDisconnect(); grace
+ *     qiymatlari §3.8 jadvalidan (game-timers.DISCONNECT_GRACE_MS).
+ *   - clock_update TICK (§3.7) — liveClockPayload(); 5s oralig'ida
+ *     (past-vaqt 1s rejimi — keyingi bosqich).
+ *   Multi-instance halolligi game-timers.ts sarlavhasida — §10.3 affinity
+ *   hali bajarilmagan, taymer o'lgan instance bilan ketsa reaktiv yo'l
+ *   qoladi.
  * ═══════════════════════════════════════════════════════════════════════════
  */
 
@@ -206,6 +219,12 @@ export class PlayService {
       return [];
     }
     return await this.repo.listActiveForPlayer(me.id);
+  }
+
+  /** Gateway diskonnekt kuzatuvi uchun: faol bo'lsagina qator, aks holda null. */
+  async activeGameRow(gameId: string): Promise<GameRow | null> {
+    const game = await this.repo.findGame(gameId);
+    return game?.status === 'ACTIVE' ? game : null;
   }
 
   // --- Yurish ---------------------------------------------------------------------
@@ -373,7 +392,7 @@ export class PlayService {
   async resign(userId: string, gameId: string): Promise<GameEndedPayload> {
     const { game, side } = await this.requireActivePlayer(userId, gameId);
     const winner: ColorValue = side === 'w' ? 'BLACK' : 'WHITE';
-    return await this.finishNoMove(game, 'RESIGNATION', winner, userId);
+    return this.requireFinished(await this.finishNoMove(game, 'RESIGNATION', winner, userId));
   }
 
   /** Durang taklifi — Redis bayrog'i (docs/07 §7.2). Qaytgan qiymat: kim taklif qildi. */
@@ -389,7 +408,7 @@ export class PlayService {
     if (offer === null || offer === side) {
       throw new BusinessRuleError('NO_DRAW_OFFER', 'Qabul qilinadigan durang taklifi yo\'q');
     }
-    return await this.finishNoMove(game, 'DRAW_AGREED', null, userId);
+    return this.requireFinished(await this.finishNoMove(game, 'DRAW_AGREED', null, userId));
   }
 
   /**
@@ -401,7 +420,7 @@ export class PlayService {
     if (game.plyCount >= 2) {
       throw new BusinessRuleError('ABORT_WINDOW_CLOSED', 'Abort oynasi yopilgan (2-yurishdan keyin)');
     }
-    return await this.finishNoMove(game, 'ABORTED', null, userId);
+    return this.requireFinished(await this.finishNoMove(game, 'ABORTED', null, userId));
   }
 
   /**
@@ -438,6 +457,104 @@ export class PlayService {
       return { accepted: false };
     }
     return { accepted: true, ended };
+  }
+
+  // --- Proaktiv flag / grace / tick (docs/07 §3.5, §3.7, §3.8) ----------------------
+
+  /**
+   * PROAKTIV flag tekshiruvi (docs/07 §3.5 2-yo'l): gateway'dagi taymer
+   * uyg'onganda chaqiriladi. Haqiqat manbai — Redis soati "hozir" kesimida
+   * (taymer kechikkan/erta uyg'ongan bo'lishi mumkin — event loop band,
+   * yoki oraliqda yurish kelgan). Vaqt hali bor bo'lsa 'wait' qaytadi va
+   * chaqiruvchi qayta rejalashtiradi; flag tasdiqlansa o'yin TIMEOUT bilan
+   * tugaydi (FIDE 6.9 tekshiruvi finishByTimeout ichida — claim yo'li bilan
+   * BIR XIL mantiq, actor=null: bu server qarori).
+   */
+  async checkFlag(gameId: string): Promise<FlagCheckResult> {
+    const now = Date.now();
+    const game = await this.repo.findGame(gameId);
+    if (game?.status !== 'ACTIVE' || game.plyCount === 0) {
+      // Tugagan yoki soat hali yurmagan (oqning 1-yurishi bepul, §3.8).
+      return { kind: 'stop' };
+    }
+    const config = clockConfig(game);
+    const entry = await this.clocks.load(gameId);
+    const state =
+      entry?.state ?? this.reconstructClock(game, await this.repo.listMoves(gameId), now);
+    const mover = state.turn;
+    const rem = remaining(config, state, mover, now);
+    if (rem > 0) {
+      return { kind: 'wait', remainingMs: rem };
+    }
+
+    const flaggedState: ClockState = {
+      whiteRemainingMs: mover === 'w' ? 0 : remaining(config, state, 'w', now),
+      blackRemainingMs: mover === 'b' ? 0 : remaining(config, state, 'b', now),
+      turn: state.turn,
+      lastEventAtMs: state.lastEventAtMs,
+    };
+    const ended = await this.finishByTimeout(game, mover, flaggedState, null);
+    // ended === null → parallel yo'l (yurish/claim/resign) allaqachon
+    // tugatgan — idempotentlik, broadcast o'sha yo'ldan ketgan.
+    return ended === null ? { kind: 'stop' } : { kind: 'ended', ended };
+  }
+
+  /**
+   * Diskonnekt grace tugadi (docs/07 §3.8, §8) — o'yin ABANDONED.
+   *
+   * WINNER SEMANTIKASI (schema: winnerColor null = durang):
+   *  - raqib hali ulangan → g'olib RAQIB (uzilgan o'yinchi yutqazadi);
+   *  - IKKALASI ham yo'q → winnerColor=null, ya'ni durang (docs/07 §4:
+   *    "ikkalasi ham yo'qolgan bo'lsa natija draw ... hal qilinadi").
+   *
+   * DEVIATSIYA (hujjatlangan): §3.8 jadvalida grace'dan keyin ulangan
+   * o'yinchiga "claim victory" TUGMASI faollashadi; birinchi bo'lakda server
+   * grace tugashi bilan O'ZI tugatadi — abandoned o'yin stolda qolib
+   * ketmasligi soddaroq va abuse'ga chidamli (claim tugmasi UX'i keyin).
+   *
+   * Idempotent: o'yin allaqachon tugagan bo'lsa null (broadcast yo'q).
+   */
+  async abandonAfterDisconnect(
+    gameId: string,
+    goneSide: ClockSide,
+    opponentConnected: boolean,
+  ): Promise<GameEndedPayload | null> {
+    const game = await this.repo.findGame(gameId);
+    if (game?.status !== 'ACTIVE') {
+      return null;
+    }
+    const winnerColor: ColorValue | null = opponentConnected
+      ? goneSide === 'w'
+        ? 'BLACK'
+        : 'WHITE'
+      : null;
+    return await this.finishNoMove(game, 'ABANDONED', winnerColor, null);
+  }
+
+  /**
+   * docs/07 §3.7 sinxron tick uchun jonli soat. ACTIVE bo'lmasa null —
+   * chaqiruvchi tick'ni to'xtatadi. Yengil yo'l: 1 DB o'qish + 1 Redis
+   * o'qish (Move logi faqat Redis yozuvi yo'qolganda o'qiladi).
+   */
+  async liveClockPayload(gameId: string): Promise<ClockPayload | null> {
+    const now = Date.now();
+    const game = await this.repo.findGame(gameId);
+    if (game?.status !== 'ACTIVE') {
+      return null;
+    }
+    const config = clockConfig(game);
+    if (game.plyCount === 0) {
+      return { whiteMs: config.baseMs, blackMs: config.baseMs, running: null, serverSentAtMs: now };
+    }
+    const entry = await this.clocks.load(gameId);
+    const state =
+      entry?.state ?? this.reconstructClock(game, await this.repo.listMoves(gameId), now);
+    return {
+      whiteMs: remaining(config, state, 'w', now),
+      blackMs: remaining(config, state, 'b', now),
+      running: state.turn,
+      serverSentAtMs: now,
+    };
   }
 
   // --- Ichki yordamchilar ------------------------------------------------------------
@@ -484,7 +601,8 @@ export class PlayService {
     game: GameRow,
     loser: ClockSide,
     finalClock: ClockState,
-    actorUserId: string,
+    /** null = server qarori (proaktiv taymer, docs/07 §3.5 2-yo'l). */
+    actorUserId: string | null,
   ): Promise<GameEndedPayload | null> {
     const winner: ClockSide = loser === 'w' ? 'b' : 'w';
     const winnerHasMaterial = hasMatingMaterial(game.fen, winner);
@@ -519,12 +637,18 @@ export class PlayService {
     };
   }
 
+  /**
+   * Yurishsiz tugatish (resign / draw / abort / abandon). Idempotent:
+   * o'yin allaqachon terminal bo'lsa null qaytadi — foydalanuvchi amali
+   * bo'lsa chaqiruvchi requireFinished bilan 422 ga aylantiradi, server
+   * taymeri bo'lsa (abandon) jimgina o'tkazib yuboradi.
+   */
   private async finishNoMove(
     game: GameRow,
     status: OnlineGameStatusValue,
     winnerColor: ColorValue | null,
-    actorUserId: string,
-  ): Promise<GameEndedPayload> {
+    actorUserId: string | null,
+  ): Promise<GameEndedPayload | null> {
     const now = Date.now();
     const moves = await this.repo.listMoves(game.id);
     const config = clockConfig(game);
@@ -553,7 +677,7 @@ export class PlayService {
       actorUserId,
     });
     if (row === null) {
-      throw new BusinessRuleError('GAME_NOT_ACTIVE', "O'yin allaqachon tugagan");
+      return null;
     }
     await this.clocks.clear(game.id);
     return {
@@ -563,6 +687,14 @@ export class PlayService {
       finalFen: game.fen,
       clock: toClockPayload(finalState, true, now),
     };
+  }
+
+  /** Foydalanuvchi amali uchun: idempotentlik null'i → GAME_NOT_ACTIVE (422). */
+  private requireFinished(ended: GameEndedPayload | null): GameEndedPayload {
+    if (ended === null) {
+      throw new BusinessRuleError('GAME_NOT_ACTIVE', "O'yin allaqachon tugagan");
+    }
+    return ended;
   }
 
   /**

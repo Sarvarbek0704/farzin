@@ -157,6 +157,27 @@ export interface GameEndedPayload {
   clock: ClockPayload;
 }
 
+/** docs/07 §3.7 sinxron tick — avtoritativ soat qiymati (drift tuzatish). */
+export interface ClockUpdatePayload {
+  gameId: string;
+  clock: ClockPayload;
+}
+
+/** docs/07 §3.8/§8.2 — o'yinchi uzildi; grace tugagach abandon xavfi. */
+export interface OpponentGonePayload {
+  gameId: string;
+  /** Uzilgan tomon. */
+  side: ClockSide;
+  /** Necha ms ichida qaytmasa o'yin ABANDONED bo'ladi. */
+  graceMs: number;
+}
+
+/** docs/07 §8.2 — uzilgan o'yinchi grace ichida qaytdi, o'yin davom etadi. */
+export interface OpponentBackPayload {
+  gameId: string;
+  side: ClockSide;
+}
+
 /** docs/07 §7.3 GameErrorCode ro'yxatidan ishlatilayotganlari. */
 export type GameErrorCode =
   | 'not_your_turn'
@@ -220,6 +241,17 @@ export interface ClaimTimeoutResult {
   ended?: GameEndedPayload;
 }
 
+/**
+ * Proaktiv flag tekshiruvi natijasi (docs/07 §3.5 2-yo'l):
+ *  - ended — flag tasdiqlandi, o'yin TIMEOUT bilan tugadi (broadcast kerak);
+ *  - wait  — soatda hali vaqt bor (yurish yetib kelgan) — qayta rejalashtir;
+ *  - stop  — o'yin faol emas / soat yurmayapti — taymer kerak emas.
+ */
+export type FlagCheckResult =
+  | { kind: 'ended'; ended: GameEndedPayload }
+  | { kind: 'wait'; remainingMs: number }
+  | { kind: 'stop' };
+
 /** Matchmaking navbatiga qo'shilish natijasi. */
 export type MatchmakingJoinResult =
   | { status: 'queued' }
@@ -251,6 +283,12 @@ export const WS_EVENTS = {
   ended: 'game:ended',
   error: 'game:error',
   drawOffered: 'game:draw_offered',
+  /** docs/07 §3.7 — davriy avtoritativ soat (client drift tuzatadi). */
+  clockUpdate: 'game:clock_update',
+  /** docs/07 §8.2 — raqib uzildi (grace boshlandi). */
+  opponentGone: 'game:opponent_gone',
+  /** docs/07 §8.2 — raqib qaytdi (grace bekor). */
+  opponentBack: 'game:opponent_back',
   /** docs/07 kontraktida yo'q — matchmaking topilganda user room'ga yuboriladi. */
   matched: 'matchmaking:matched',
 } as const;

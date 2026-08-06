@@ -60,6 +60,10 @@ export class ClockStore {
     return `game:draw:${gameId}`;
   }
 
+  private presenceKey(gameId: string, side: 'w' | 'b'): string {
+    return `game:presence:${gameId}:${side}`;
+  }
+
   /** Yangi o'yin uchun boshlang'ich yozuv (SET — o'yin ID unikal, NX shart emas). */
   async init(gameId: string, state: ClockState): Promise<void> {
     const entry: ClockEntry = { version: 1, state };
@@ -97,9 +101,17 @@ export class ClockStore {
     return res === 1;
   }
 
-  /** O'yin tugadi — jonli yozuv o'chiriladi (yakuniy holat PostgreSQL'da). */
+  /**
+   * O'yin tugadi — jonli yozuvlar o'chiriladi (yakuniy holat PostgreSQL'da).
+   * Presence markerlari ham shu yerda ketadi — har finish yo'lida avtomatik.
+   */
   async clear(gameId: string): Promise<void> {
-    await this.redis.del(this.key(gameId), this.drawKey(gameId));
+    await this.redis.del(
+      this.key(gameId),
+      this.drawKey(gameId),
+      this.presenceKey(gameId, 'w'),
+      this.presenceKey(gameId, 'b'),
+    );
   }
 
   // --- Durang taklifi bayrog'i (docs/07 §7.2 draw_offer/draw_accept) -----------
@@ -115,5 +127,31 @@ export class ClockStore {
 
   async clearDrawOffer(gameId: string): Promise<void> {
     await this.redis.del(this.drawKey(gameId));
+  }
+
+  // --- Presence markerlari (docs/07 §3.8, §8) -----------------------------------
+  //
+  // `game:presence:{gameId}:{color}` — o'yinchining shu o'yin room'ida jonli
+  // socket'i BORLIGI haqidagi ARZON multi-instance signal. Gateway ulanishda
+  // qo'yadi, oxirgi socket uzilganda o'chiradi; o'yin tugaganda clear()
+  // ikkalasini ham supuradi.
+  //
+  // HALOL CHEKLOV (bitta instance rejimi): grace taymeri va "hali ham
+  // yo'qmi?" tekshiruvi hozircha socket ushlab turgan instance'ning
+  // IN-MEMORY registriga tayanadi — marker faqat kelajakdagi multi-instance
+  // bosqich (docs/07 §10.3 affinity) uchun tashqi iz. Ikki instance'da bir
+  // o'yinchining ikki socket'i bo'lsa, marker oxirgi yozgan instance
+  // qarashida qoladi — bu bosqichda qabul qilingan soddalashtirish.
+
+  async setPresence(gameId: string, side: 'w' | 'b'): Promise<void> {
+    await this.redis.set(this.presenceKey(gameId, side), '1', 'EX', ClockStore.TTL_SECONDS);
+  }
+
+  async clearPresence(gameId: string, side: 'w' | 'b'): Promise<void> {
+    await this.redis.del(this.presenceKey(gameId, side));
+  }
+
+  async isPresent(gameId: string, side: 'w' | 'b'): Promise<boolean> {
+    return (await this.redis.exists(this.presenceKey(gameId, side))) === 1;
   }
 }

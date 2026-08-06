@@ -5,6 +5,7 @@ import { ConflictError } from '../../core/errors/domain.error';
 import { AuditService } from '../../shared/audit/audit.service';
 import { OutboxService } from '../../shared/outbox/outbox.service';
 import { PrismaService } from '../../shared/prisma/prisma.service';
+import { onlineRatedResult, RATED_ONLINE_STATUSES } from './online-result-mapping';
 import type { PlayerPeriodResult } from './period-computation';
 import type {
   LeaderboardRow,
@@ -23,9 +24,11 @@ import type {
  * davr hisobi qo'shimcha ravishda outbox `RatingRecomputed` bilan ham
  * atomik (ADR-0008).
  *
- * MODUL CHEGARASI: Pairing/Round/TournamentSection o'qishlari — reyting
- * manbai uchun kulrang zona (arbiter.repository.ts dagi kabi, Faza 1
- * pretsedenti). Yozuv FAQAT rating jadvallariga.
+ * MODUL CHEGARASI: Pairing/Round/TournamentSection va OnlineGame
+ * o'qishlari — reyting manbai uchun kulrang zona (arbiter.repository.ts
+ * dagi kabi, Faza 1 pretsedenti): boshqa modul jadvalini o'qish FAQAT shu
+ * repository ichida, service/port qatlamiga chiqmaydi. Yozuv FAQAT rating
+ * jadvallariga.
  *
  * Decimal → number: har o'qishda `.toNumber()` — aniq, hujjatlangan
  * konversiya (docs/06 §8.2: saqlash NUMERIC, hisob IEEE 754 double).
@@ -181,7 +184,42 @@ export class RatingRepository {
   // --- O'yin manbai -------------------------------------------------------------
 
   /**
-   * Davrga kiradigan partiyalar (docs/06 §3, §11.4):
+   * Davrga kiradigan partiyalar — manba MUHITGA bog'liq:
+   *
+   *  - OTB    → turnir juftliklari (Pairing) — quyidagi otbGamesForPeriod;
+   *  - ONLINE → OnlineGame qatorlari — onlineGamesForPeriod.
+   *
+   * NEGA IKKI MANBA: OTB partiya faqat turnirda o'ynaladi va uning yagona
+   * rasmiy izi — hakam tasdiqlagan Pairing natijasi. Onlayn partiya esa
+   * OnlineGame'ning o'zi (matchmaking o'yinlari hech qanday pairing'ga
+   * bog'lanmaydi; onlayn TURNIR o'yini ham OnlineGame sifatida o'ynaladi —
+   * ikki marta sanamaslik uchun pairing yo'li FAQAT OTB'da qoladi).
+   *
+   * Ikkalasi ham docs/06 §3 BATCH-DAVR semantikasiga quyiladi: hech qanday
+   * o'yin "darhol" reyting o'zgartirmaydi — davr yopilganda hammasi davr
+   * BOSHIDAGI snapshot bilan bir yo'la hisoblanadi. Shu sababli bu metod
+   * faqat davr oynasiga tushgan qatorlarni yig'ib, sof hisoblagichga
+   * (period-computation.ts — o'zgarmagan) RatedGameRow shaklida beradi.
+   *
+   * MODUL CHEGARASI: OnlineGame o'qish — play modulining jadvali, lekin
+   * arbiter/tournament o'qishlari kabi KULRANG ZONA pretsedenti bo'yicha
+   * reyting o'z repository'sida o'qiydi (fayl sarlavhasidagi izoh):
+   * Prisma faqat *.repository.ts da, yozuv faqat rating jadvallariga.
+   */
+  async gamesForPeriod(
+    environment: PlayEnvironment,
+    timeCategory: TimeCategory,
+    startsAt: Date,
+    endsAt: Date,
+  ): Promise<RatedGameRow[]> {
+    if (environment === 'ONLINE') {
+      return await this.onlineGamesForPeriod(timeCategory, startsAt, endsAt);
+    }
+    return await this.otbGamesForPeriod(environment, timeCategory, startsAt, endsAt);
+  }
+
+  /**
+   * OTB manbai (docs/06 §3, §11.4):
    *
    *  - faqat hal qiluvchi TAXTADA o'ynalgan natijalar (WHITE_WIN/BLACK_WIN/
    *    DRAW — result-mapping.ts da playedOverBoard=true uchlik). Forfeit,
@@ -196,7 +234,7 @@ export class RatingRepository {
    *
    * ORDER BY id — determinizm uchun barqaror tartib (docs/06 §9.3 #4).
    */
-  async gamesForPeriod(
+  private async otbGamesForPeriod(
     environment: PlayEnvironment,
     timeCategory: TimeCategory,
     startsAt: Date,
@@ -240,6 +278,62 @@ export class RatingRepository {
           whitePlayerId: row.whiteRegistration.playerId,
           blackPlayerId: row.blackRegistration.playerId,
           result: row.result as 'WHITE_WIN' | 'BLACK_WIN' | 'DRAW',
+        },
+      ];
+    });
+  }
+
+  /**
+   * ONLINE manbai — OnlineGame (docs/06 §5 ONLINE_* kategoriyalari):
+   *
+   *  - isRated=true (do'stona chaqiriq false — reytingga kirmaydi);
+   *  - endedAt ∈ [startsAt, endsAt) — onlayn o'yinning yakun payti server
+   *    tomonda yoziladi (OTB'dagi hakam tasdig'iga ekvivalent yakuniy nuqta);
+   *  - timeCategory mos (docs/06 §5.1 — ONLINE_BULLET BOR, OTB_BULLET yo'q);
+   *  - status → natija mapping'i online-result-mapping.ts jadvalida:
+   *    hal qiluvchi to'rtlik winnerColor bo'yicha 1/0, durang oltiligi
+   *    0.5/0.5, ABORTED/PENDING/ACTIVE va g'olibsiz ABANDONED — chiqarib
+   *    tashlanadi (onlineRatedResult null).
+   *
+   * O'yinchilar to'g'ridan-to'g'ri playerId (OnlineGame ustunlari) —
+   * OTB'dagi registration bilvositaligi yo'q. `pairingId` maydonida
+   * OnlineGame.id yotadi: sof hisoblagich (period-computation) uchun bu
+   * shunchaki deterministik sort-kalit va RatingHistory.inputGames'dagi
+   * o'yin havolasi. ORDER BY id — determinizm (docs/06 §9.3 #4).
+   */
+  private async onlineGamesForPeriod(
+    timeCategory: TimeCategory,
+    startsAt: Date,
+    endsAt: Date,
+  ): Promise<RatedGameRow[]> {
+    const rows = await this.prisma.onlineGame.findMany({
+      where: {
+        isRated: true,
+        timeCategory,
+        endedAt: { gte: startsAt, lt: endsAt },
+        status: { in: [...RATED_ONLINE_STATUSES] },
+      },
+      select: {
+        id: true,
+        status: true,
+        winnerColor: true,
+        whitePlayerId: true,
+        blackPlayerId: true,
+      },
+      orderBy: { id: 'asc' },
+    });
+
+    return rows.flatMap((row) => {
+      const result = onlineRatedResult(row.status, row.winnerColor);
+      if (result === null) {
+        return [];
+      }
+      return [
+        {
+          pairingId: row.id,
+          whitePlayerId: row.whitePlayerId,
+          blackPlayerId: row.blackPlayerId,
+          result,
         },
       ];
     });

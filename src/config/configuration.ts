@@ -127,6 +127,19 @@ class EnvironmentVariables {
   @IsOptional()
   GLICKO2_DEFAULT_RATING = 1500;
 
+  // --- Play (docs/07-realtime-and-clock.md §3.8) ---------------------------
+  /**
+   * Diskonnekt grace davri OVERRIDE (ms) — barcha kategoriyalar uchun bitta
+   * qiymat. Berilmasa docs/07 §3.8 jadvali ishlaydi (bullet 10s, blitz 15s,
+   * rapid 30s, klassik 120s — game-timers.ts). Asosiy iste'molchi:
+   * integration testlar (qisqa grace bilan abandonment oqimi) va ops
+   * (telemetriyagacha vaqtincha burash).
+   */
+  @IsInt()
+  @Min(500)
+  @IsOptional()
+  PLAY_DISCONNECT_GRACE_MS?: number;
+
   // --- Kuzatuv ------------------------------------------------------------
   @IsString()
   LOG_LEVEL = 'info';
@@ -164,6 +177,8 @@ export interface AppConfig {
   totpEncryptionKey?: string;
   observability: { logLevel: string; otelEnabled: boolean; sentryDsn?: string };
   throttle: { ttl: number; limit: number };
+  /** Play moduli sozlamalari (docs/07 §3.8). null = hujjat jadvali. */
+  play: { disconnectGraceMsOverride: number | null };
 }
 
 /** Env'dan raqam sifatida o'qiladigan kalitlar. */
@@ -175,6 +190,7 @@ const NUMERIC_KEYS = [
   'ARGON2_TIME_COST',
   'ARGON2_PARALLELISM',
   'GLICKO2_DEFAULT_RATING',
+  'PLAY_DISCONNECT_GRACE_MS',
   'THROTTLE_TTL',
   'THROTTLE_LIMIT',
 ] as const;
@@ -284,5 +300,6 @@ export function loadConfig(): AppConfig {
       ...(env.SENTRY_DSN !== undefined && { sentryDsn: env.SENTRY_DSN }),
     },
     throttle: { ttl: env.THROTTLE_TTL, limit: env.THROTTLE_LIMIT },
+    play: { disconnectGraceMsOverride: env.PLAY_DISCONNECT_GRACE_MS ?? null },
   };
 }

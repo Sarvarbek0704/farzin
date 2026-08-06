@@ -7,6 +7,7 @@ import { IdentityModule } from '../identity/identity.module';
 import { PlayerModule } from '../player/player.module';
 import { RatingModule } from '../rating/rating.module';
 import { ClockStore } from './clock.store';
+import { GameTimers } from './game-timers';
 import { MatchmakingService } from './matchmaking.service';
 import { PlayController } from './play.controller';
 import { PlayGateway } from './play.gateway';
@@ -45,6 +46,6 @@ import { PlayService } from './play.service';
     }),
   ],
   controllers: [PlayController],
-  providers: [PlayService, PlayRepository, ClockStore, MatchmakingService, PlayGateway],
+  providers: [PlayService, PlayRepository, ClockStore, GameTimers, MatchmakingService, PlayGateway],
 })
 export class PlayModule {}
