@@ -37,6 +37,10 @@ const REASON_REQUIRED: ReadonlySet<string> = new Set([
   'user.banned',
   'refund.requested',
   'admin.impersonate',
+  // Fair-play: qaror odam karyerasiga tegadi — asossiz yozuv RAD
+  // (docs/08 §4, docs/14 Faza 6 "Majburiy sabab yozish").
+  'fairplay.decision',
+  'appeal.decision',
 ]);
 
 /**

@@ -1,4 +1,5 @@
 import { Inject, Injectable, Logger } from '@nestjs/common';
+import { EventEmitter2 } from '@nestjs/event-emitter';
 
 import {
   applyMove,
@@ -26,21 +27,23 @@ import { PLAYER_PORT, type PlayerPort, type PlayerSummary } from '../player/play
 import { RATING_PORT, type RatingPort } from '../rating/rating.port';
 import { ClockStore } from './clock.store';
 import { PlayRepository, type FinishGameInput } from './play.repository';
-import type {
-  ClaimTimeoutResult,
-  ClockPayload,
-  ClockTypeValue,
-  ColorValue,
-  FlagCheckResult,
-  GameEndedPayload,
-  GameErrorCode,
-  GameRow,
-  GameStatePayload,
-  MoveResult,
-  MoveRow,
-  OnlineGameStatusValue,
-  PlayerPayload,
-  TimeCategoryValue,
+import {
+  PLAY_GAME_FINISHED_EVENT,
+  type ClaimTimeoutResult,
+  type ClockPayload,
+  type ClockTypeValue,
+  type ColorValue,
+  type FlagCheckResult,
+  type GameEndedPayload,
+  type GameErrorCode,
+  type GameRow,
+  type GameStatePayload,
+  type MoveResult,
+  type MoveRow,
+  type OnlineGameStatusValue,
+  type PlayerPayload,
+  type PlayGameFinishedEvent,
+  type TimeCategoryValue,
 } from './play.types';
 
 /**
@@ -103,6 +106,7 @@ export class PlayService {
     private readonly clocks: ClockStore,
     @Inject(PLAYER_PORT) private readonly players: PlayerPort,
     @Inject(RATING_PORT) private readonly ratings: RatingPort,
+    private readonly events: EventEmitter2,
   ) {}
 
   // --- Yaratish -----------------------------------------------------------------
@@ -347,6 +351,7 @@ export class PlayService {
     // 8. Redis soat — DB'dan KEYIN (tepadagi tartib hujjatiga qarang).
     if (endStatus !== null) {
       await this.clocks.clear(gameId);
+      this.emitFinished(game, endStatus);
     } else if (ply === 1 || entryVersion === null) {
       await this.clocks.init(gameId, newClock);
     } else {
@@ -628,6 +633,7 @@ export class PlayService {
       return null; // allaqachon tugagan — idempotentlik (docs/07 §4)
     }
     await this.clocks.clear(game.id);
+    this.emitFinished(game, status);
     return {
       gameId: game.id,
       status,
@@ -680,6 +686,7 @@ export class PlayService {
       return null;
     }
     await this.clocks.clear(game.id);
+    this.emitFinished(game, status);
     return {
       gameId: game.id,
       status,
@@ -687,6 +694,23 @@ export class PlayService {
       finalFen: game.fen,
       clock: toClockPayload(finalState, true, now),
     };
+  }
+
+  /**
+   * O'yin tugadi — modullararo xabar (fairplay tanlab tahlil, docs/08
+   * §8.2). EventEmitter2 — ADR-0008: tahlil yo'qolishi katastrofik emas,
+   * shuning uchun outbox SHART EMAS (hujjatlangan tanlov, play.types).
+   */
+  private emitFinished(game: GameRow, status: OnlineGameStatusValue): void {
+    const event: PlayGameFinishedEvent = {
+      gameId: game.id,
+      whitePlayerId: game.whitePlayerId,
+      blackPlayerId: game.blackPlayerId,
+      isRated: game.isRated,
+      timeCategory: game.timeCategory,
+      status,
+    };
+    this.events.emit(PLAY_GAME_FINISHED_EVENT, event);
   }
 
   /** Foydalanuvchi amali uchun: idempotentlik null'i → GAME_NOT_ACTIVE (422). */

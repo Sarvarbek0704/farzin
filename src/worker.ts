@@ -4,13 +4,10 @@ import { NestFactory } from '@nestjs/core';
 import { Logger } from 'nestjs-pino';
 
 import { AppModule } from './app.module';
+import { AnalysisProcessor } from './modules/fairplay/analysis.processor';
 
 /**
  * Background worker — alohida process.
- *
- * ═══════════════════════════════════════════════════════════════════════════
- *  ⚠️  SKELET. Job'lar hali implementatsiya qilinmagan.
- * ═══════════════════════════════════════════════════════════════════════════
  *
  * Nega API'dan ALOHIDA process:
  *
@@ -24,11 +21,11 @@ import { AppModule } from './app.module';
  *  3. Mustaqil masshtablash: turnir kunida worker'lar ko'paytiriladi,
  *     API o'zgarmaydi.
  *
- * Rejalashtirilgan job'lar (docs/02-architecture.md §7):
+ * Job'lar (docs/02-architecture.md §7):
  *
+ *   fairplay.analyzeGame   — Stockfish tahlili         (Faza 6)  ← FAOL
  *   pairing.generate       — juftlashtirish            (Faza 2)
  *   rating.computePeriod   — Glicko-2 davri            (Faza 3)
- *   fairplay.analyzeGame   — Stockfish tahlili         (Faza 6)
  *   notification.send      — SMS/push/Telegram         (Faza 1)
  *   report.export          — PDF/Excel                 (Faza 1)
  *   fide.sync              — FIDE reyting ro'yxati     (Faza 3)
@@ -48,7 +45,11 @@ async function bootstrap(): Promise<void> {
   // BullMQ job'lar tugashi uchun graceful shutdown majburiy.
   app.enableShutdownHooks();
 
-  logger.log('Farzin worker ishga tushdi — hozircha job registratsiya qilinmagan');
+  // fairplay navbati SHU processda qayta ishlanadi (docs/08 §8.1:
+  // Stockfish CPU'ni to'liq yeydi — API processi bu Worker'ni OCHMAYDI).
+  app.get(AnalysisProcessor).start();
+
+  logger.log('Farzin worker ishga tushdi — fairplay navbati faol');
 }
 
 void bootstrap();

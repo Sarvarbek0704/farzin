@@ -3,6 +3,7 @@ import {
   IsBoolean,
   IsEnum,
   IsInt,
+  IsNumber,
   IsOptional,
   IsString,
   Matches,
@@ -140,6 +141,54 @@ class EnvironmentVariables {
   @IsOptional()
   PLAY_DISCONNECT_GRACE_MS?: number;
 
+  // --- Fair-play (docs/08-fair-play.md §8) ---------------------------------
+  /**
+   * UCI engine binary yo'li (Stockfish). IXTIYORIY: berilmasa engine
+   * korrelyatsiya tahlili TOZA o'chirilgan bo'ladi (adapter registratsiya
+   * qilinmaydi — billing Click stub'i kabi provider-gating). Vaqt tahlili
+   * engine'siz ham ishlayveradi.
+   */
+  @IsString()
+  @IsOptional()
+  STOCKFISH_PATH?: string;
+
+  /**
+   * Tanlab tahlil ulushi (docs/08 §8.2 "hamma o'yin EMAS" — iqtisodiy
+   * cheklov). Hujjat aniq qiymat bermaydi — 0.05 tanlangan default,
+   * kalibrlashda qayta ko'riladi (§9.4).
+   */
+  @IsNumber()
+  @Min(0)
+  @Max(1)
+  @IsOptional()
+  FAIRPLAY_SAMPLING_RATE = 0.05;
+
+  /**
+   * Engine tahlil chuqurligi. docs/08 §8.2 byudjetni ms bilan beradi
+   * (LOW ~50ms/yurish); bu implementatsiya deterministik natija uchun
+   * `go depth N` ishlatadi — bir xil chuqurlik + bir xil engine =
+   * bir xil natija (docs/08 §10 "determinizm" talabi). Default 12 —
+   * LOW byudjetga taxminan mos, benchmark bilan qayta ko'riladi.
+   */
+  @IsInt()
+  @Min(4)
+  @Max(30)
+  @IsOptional()
+  FAIRPLAY_ENGINE_DEPTH = 12;
+
+  /**
+   * suspicionScore shu chegaradan oshsa ish komissiya navbatiga tushadi
+   * (FAQAT ko'rinadi — hech qanday jazo YO'Q, docs/08 §4.1). Hujjat
+   * aggregat chegara qiymatini bermaydi (§9.3 FP-darajalarni beradi,
+   * skorni emas) — 0.6 tanlangan konservativ default, kalibrlash (§9)
+   * bilan almashtiriladi.
+   */
+  @IsNumber()
+  @Min(0)
+  @Max(1)
+  @IsOptional()
+  FAIRPLAY_SUSPICION_THRESHOLD = 0.6;
+
   // --- Kuzatuv ------------------------------------------------------------
   @IsString()
   LOG_LEVEL = 'info';
@@ -179,6 +228,16 @@ export interface AppConfig {
   throttle: { ttl: number; limit: number };
   /** Play moduli sozlamalari (docs/07 §3.8). null = hujjat jadvali. */
   play: { disconnectGraceMsOverride: number | null };
+  /**
+   * Fair-play (docs/08-fair-play.md). stockfishPath null = engine
+   * korrelyatsiya o'chirilgan (provider-gating), vaqt tahlili ishlaydi.
+   */
+  fairplay: {
+    stockfishPath: string | null;
+    samplingRate: number;
+    engineDepth: number;
+    suspicionThreshold: number;
+  };
 }
 
 /** Env'dan raqam sifatida o'qiladigan kalitlar. */
@@ -191,6 +250,9 @@ const NUMERIC_KEYS = [
   'ARGON2_PARALLELISM',
   'GLICKO2_DEFAULT_RATING',
   'PLAY_DISCONNECT_GRACE_MS',
+  'FAIRPLAY_SAMPLING_RATE',
+  'FAIRPLAY_ENGINE_DEPTH',
+  'FAIRPLAY_SUSPICION_THRESHOLD',
   'THROTTLE_TTL',
   'THROTTLE_LIMIT',
 ] as const;
@@ -301,5 +363,13 @@ export function loadConfig(): AppConfig {
     },
     throttle: { ttl: env.THROTTLE_TTL, limit: env.THROTTLE_LIMIT },
     play: { disconnectGraceMsOverride: env.PLAY_DISCONNECT_GRACE_MS ?? null },
+    fairplay: {
+      stockfishPath: env.STOCKFISH_PATH !== undefined && env.STOCKFISH_PATH.trim() !== ''
+        ? env.STOCKFISH_PATH
+        : null,
+      samplingRate: env.FAIRPLAY_SAMPLING_RATE,
+      engineDepth: env.FAIRPLAY_ENGINE_DEPTH,
+      suspicionThreshold: env.FAIRPLAY_SUSPICION_THRESHOLD,
+    },
   };
 }

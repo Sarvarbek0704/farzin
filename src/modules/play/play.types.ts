@@ -266,6 +266,23 @@ export interface PlayMatchedEvent {
   blackUserId: string;
 }
 
+/**
+ * O'yin tugadi — modullararo hodisa (fairplay tanlab tahlil triggeri,
+ * docs/08 §8.2). EventEmitter2, outbox EMAS — ADR-0008 mezoni: bitta
+ * tahlil yo'qolishi pul/natija/huquqqa zarar bermaydi (sampling baribir
+ * tasodifiy); kritik qadam (FairPlayCaseOpened) outbox'da.
+ */
+export const PLAY_GAME_FINISHED_EVENT = 'play.game.finished';
+
+export interface PlayGameFinishedEvent {
+  gameId: string;
+  whitePlayerId: string;
+  blackPlayerId: string;
+  isRated: boolean;
+  timeCategory: TimeCategoryValue;
+  status: OnlineGameStatusValue;
+}
+
 // --- WS event nomlari (docs/07 §7.2, §7.3 — hujjatdagi nomlar) -------------------
 
 export const WS_EVENTS = {
