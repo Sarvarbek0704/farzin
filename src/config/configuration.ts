@@ -189,6 +189,35 @@ class EnvironmentVariables {
   @IsOptional()
   FAIRPLAY_SUSPICION_THRESHOLD = 0.6;
 
+  // --- Email/SMTP (docs/01 §2.14 notification) ------------------------------
+  /**
+   * SMTP host — IXTIYORIY: berilmasa (yoki bo'sh) EMAIL kanali TOZA
+   * o'chirilgan (provider-gating, STOCKFISH_PATH pretsedenti); IN_APP
+   * ishlayveradi. Dev'da mailpit: docker-compose.yml, SMTP 1025-port.
+   */
+  @IsString()
+  @IsOptional()
+  SMTP_HOST?: string;
+
+  @IsInt()
+  @Min(1)
+  @Max(65535)
+  @IsOptional()
+  SMTP_PORT = 1025;
+
+  @IsString()
+  @IsOptional()
+  SMTP_USER?: string;
+
+  /** ⚠️  Sir — hech qachon loglanmaydi (docs/10-security.md §8). */
+  @IsString()
+  @IsOptional()
+  SMTP_PASSWORD?: string;
+
+  @IsString()
+  @IsOptional()
+  SMTP_FROM = 'no-reply@farzin.uz';
+
   // --- Kuzatuv ------------------------------------------------------------
   @IsString()
   LOG_LEVEL = 'info';
@@ -238,6 +267,17 @@ export interface AppConfig {
     engineDepth: number;
     suspicionThreshold: number;
   };
+  /**
+   * SMTP (notification EMAIL kanali). null = SMTP_HOST berilmagan —
+   * kanal toza o'chirilgan (notification.module.ts provider-gating).
+   */
+  mail: {
+    host: string;
+    port: number;
+    user?: string;
+    password?: string;
+    from: string;
+  } | null;
 }
 
 /** Env'dan raqam sifatida o'qiladigan kalitlar. */
@@ -253,6 +293,7 @@ const NUMERIC_KEYS = [
   'FAIRPLAY_SAMPLING_RATE',
   'FAIRPLAY_ENGINE_DEPTH',
   'FAIRPLAY_SUSPICION_THRESHOLD',
+  'SMTP_PORT',
   'THROTTLE_TTL',
   'THROTTLE_LIMIT',
 ] as const;
@@ -371,5 +412,16 @@ export function loadConfig(): AppConfig {
       engineDepth: env.FAIRPLAY_ENGINE_DEPTH,
       suspicionThreshold: env.FAIRPLAY_SUSPICION_THRESHOLD,
     },
+    mail:
+      env.SMTP_HOST !== undefined && env.SMTP_HOST.trim() !== ''
+        ? {
+            host: env.SMTP_HOST.trim(),
+            port: env.SMTP_PORT,
+            // exactOptionalPropertyTypes: `undefined` ochiq uzatilmaydi.
+            ...(env.SMTP_USER !== undefined && { user: env.SMTP_USER }),
+            ...(env.SMTP_PASSWORD !== undefined && { password: env.SMTP_PASSWORD }),
+            from: env.SMTP_FROM,
+          }
+        : null,
   };
 }

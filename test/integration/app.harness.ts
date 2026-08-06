@@ -54,6 +54,10 @@ export async function createTestApp(): Promise<TestApp> {
   process.env.JWT_ACCESS_SECRET = 'farzin-test-access-secret-0123456789-abcdefgh';
   process.env.JWT_REFRESH_SECRET = 'farzin-test-refresh-secret-9876543210-hgfedcba';
   process.env.LOG_LEVEL = process.env.LOG_LEVEL ?? 'warn';
+  // EMAIL kanali testda O'CHIQ (bo'sh SMTP_HOST → mail=null): .env'dagi
+  // lokal mailpit sozlamasi harness'ga sizib kirmasin — SMTP yetkazish
+  // jsonTransport bilan unit darajada sinaladi (email.channel.spec.ts).
+  process.env.SMTP_HOST = '';
 
   const { AppModule } = await import('../../src/app.module');
 

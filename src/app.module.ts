@@ -15,6 +15,7 @@ import { BillingModule } from './modules/billing/billing.module';
 import { FairplayModule } from './modules/fairplay/fairplay.module';
 import { HealthModule } from './modules/health/health.module';
 import { IdentityModule } from './modules/identity/identity.module';
+import { NotificationModule } from './modules/notification/notification.module';
 import { OrgModule } from './modules/org/org.module';
 import { PlayModule } from './modules/play/play.module';
 import { PlayerModule } from './modules/player/player.module';
@@ -140,13 +141,14 @@ import { RedisModule } from './shared/redis/redis.module';
     BillingModule,
     PlayModule,
     FairplayModule,
+    NotificationModule,
 
     //
     // TODO(Faza 2): PairingModule     — Swiss Dutch  ← eng qiyin qism
     // TODO(Faza 7): SchoolModule      — B2G
     // TODO(Faza 8): BroadcastModule   — DGT, jonli tablo
     //
-    // TODO: NotificationModule, TrainingModule, AnalyticsModule
+    // TODO: TrainingModule, AnalyticsModule
     //
     // To'liq reja: docs/14-roadmap.md
   ],
