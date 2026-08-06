@@ -14,6 +14,7 @@ import helmet from 'helmet';
 
 import { AppModule } from './app.module';
 import { type AppConfig, NodeEnv } from './config/configuration';
+import { RedisIoAdapter } from './shared/redis/redis-io.adapter';
 import { ConfigService } from '@nestjs/config';
 
 /**
@@ -120,6 +121,20 @@ async function bootstrap(): Promise<void> {
       swaggerOptions: { persistAuthorization: true },
     });
   }
+
+  // --- Socket.IO Redis adapter (docs/07-realtime-and-clock.md §10.1) -------
+  // Ko'p instance orasida room broadcast. Pub/sub uchun ikkita ALOHIDA
+  // ioredis ulanishi ochiladi (shared REDIS tokeni ishlatilmaydi —
+  // subscribe holatidagi klient boshqa buyruq yubora olmaydi).
+  const redisCfg = config.get('redis', { infer: true });
+  const ioAdapter = new RedisIoAdapter(app);
+  await ioAdapter.connectToRedis({
+    host: redisCfg.host,
+    port: redisCfg.port,
+    ...(redisCfg.password !== undefined && { password: redisCfg.password }),
+    db: redisCfg.db,
+  });
+  app.useWebSocketAdapter(ioAdapter);
 
   // Kubernetes SIGTERM yuboradi — ochiq so'rovlar tugashi kerak.
   app.enableShutdownHooks();

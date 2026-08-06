@@ -15,6 +15,7 @@ import { BillingModule } from './modules/billing/billing.module';
 import { HealthModule } from './modules/health/health.module';
 import { IdentityModule } from './modules/identity/identity.module';
 import { OrgModule } from './modules/org/org.module';
+import { PlayModule } from './modules/play/play.module';
 import { PlayerModule } from './modules/player/player.module';
 import { RatingModule } from './modules/rating/rating.module';
 import { TournamentModule } from './modules/tournament/tournament.module';
@@ -134,10 +135,10 @@ import { RedisModule } from './shared/redis/redis.module';
     ArbiterModule,
     RatingModule,
     BillingModule,
+    PlayModule,
 
     //
     // TODO(Faza 2): PairingModule     — Swiss Dutch  ← eng qiyin qism
-    // TODO(Faza 5): PlayModule        — onlayn o'yin, WebSocket
     // TODO(Faza 6): FairPlayModule    — Stockfish tahlili
     // TODO(Faza 7): SchoolModule      — B2G
     // TODO(Faza 8): BroadcastModule   — DGT, jonli tablo
