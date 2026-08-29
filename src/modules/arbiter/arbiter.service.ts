@@ -8,12 +8,14 @@ import {
 import { writeSectionPgn } from '../../core/export/pgn-writer';
 import { writeSectionTrf } from '../../core/export/trf-writer';
 import { RoundRobinEngine } from '../../core/pairing/round-robin.engine';
-import { SwissDutchEngine } from '../../core/pairing/swiss-dutch.engine';
+import { PairingIntegrityError, SwissDutchEngine } from '../../core/pairing/swiss-dutch.engine';
 import {
   PairingImpossibleError,
   type PairingResult as EnginePairingResult,
   type RoundId,
 } from '../../core/pairing/pairing.types';
+import { pairingAlgorithmLabel } from '../../shared/metrics/metrics.labels';
+import { MetricsService } from '../../shared/metrics/metrics.service';
 import { TieBreakCalculator } from '../../core/tiebreak/tiebreak.calculator';
 import {
   TIE_BREAK_KEYS,
@@ -89,6 +91,7 @@ export class ArbiterService {
   constructor(
     private readonly repo: ArbiterRepository,
     private readonly rbac: RbacService,
+    private readonly metrics: MetricsService,
   ) {}
 
   // --- Tur generatsiyasi ------------------------------------------------------
@@ -146,6 +149,14 @@ export class ArbiterService {
     const players = buildPairingStates(toSeeds(participants), history);
 
     const engine = this.engines[section.pairingSystem];
+
+    // ── Kuzatuvchanlik (docs/15-observability.md §3.3 PAIRING) ────────────
+    // Vaqt SHU YERDA o'lchanadi, dvigatel ichida emas: core/ sof qoladi
+    // (ADR-0001, arch:check `core-must-stay-pure`). Yorliqlar — algoritm
+    // va o'yinchi soni GURUHI; `sectionId` metrikaga TUSHMAYDI (§3.4).
+    const algorithm = pairingAlgorithmLabel(section.pairingSystem);
+    const sectionSize = players.length;
+
     const startedAt = Date.now();
     let engineResult: EnginePairingResult;
     try {
@@ -158,14 +169,31 @@ export class ArbiterService {
       });
     } catch (error) {
       if (error instanceof PairingImpossibleError) {
+        // KUTILGAN holat (hakam qo'lda aralashadi), bug emas.
+        this.metrics.incPairingFailure({ algorithm, reason: 'NO_VALID_PAIRING' });
         throw new BusinessRuleError('PAIRING_IMPOSSIBLE', error.message, {
           sectionId,
           roundNumber: nextNumber,
         });
       }
+      if (error instanceof PairingIntegrityError) {
+        // ⚠️  JIMGINA HALOKAT (docs/15 §0): natija chiqdi-yu FIDE C.04.3
+        //     absolyut talabini buzdi. Bu counter > 0 bo'lsa alert
+        //     turnirni TO'XTATISHGA chaqiradi (§6.4).
+        this.metrics.incPairingFailure({ algorithm, reason: 'ABSOLUTE_CRITERIA_VIOLATION' });
+        this.metrics.incCriteriaViolation({ criterion: error.criterion });
+        throw error;
+      }
+      this.metrics.incPairingFailure({ algorithm, reason: 'UNEXPECTED' });
       throw error;
     }
     const durationMs = Date.now() - startedAt;
+    this.metrics.observePairingDuration(durationMs / 1000, { algorithm, sectionSize });
+    if (engineResult.diagnostics !== undefined) {
+      // Float soni — SIFAT signali (§3.3): xato emas, lekin o'sib borsa
+      // juftlashtirish sifati pasayayotganini bildiradi.
+      this.metrics.observePairingFloatCount(engineResult.diagnostics.floatCount, { sectionSize });
+    }
 
     // Bye — Pairing qatori sifatida: blackRegistrationId NULL, natija
     // darhol BYE_FULL (PAB = 1 ochko, pairing.types.ts ByeType izohi).

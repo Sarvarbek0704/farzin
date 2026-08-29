@@ -247,6 +247,15 @@ export class PlayRepository {
     });
     return rows.map((r) => toGameRow(r, r._count.moves));
   }
+
+  /**
+   * `farzin_active_games{type="online"}` manbai
+   * (docs/15-observability.md §3.3). Arzon COUNT — `status` ustunida
+   * indeks bor va faol o'yinlar soni har doim kichik.
+   */
+  async countActiveGames(): Promise<number> {
+    return await this.prisma.onlineGame.count({ where: { status: 'ACTIVE' } });
+  }
 }
 
 // --- Mapper'lar -----------------------------------------------------------------

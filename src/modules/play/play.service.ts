@@ -1,5 +1,6 @@
 import { Inject, Injectable, Logger } from '@nestjs/common';
 import { EventEmitter2 } from '@nestjs/event-emitter';
+import { Interval } from '@nestjs/schedule';
 
 import {
   applyMove,
@@ -23,6 +24,7 @@ import {
   ConflictError,
   NotFoundError,
 } from '../../core/errors/domain.error';
+import { MetricsService } from '../../shared/metrics/metrics.service';
 import { PLAYER_PORT, type PlayerPort, type PlayerSummary } from '../player/player.port';
 import { RATING_PORT, type RatingPort } from '../rating/rating.port';
 import { ClockStore } from './clock.store';
@@ -107,7 +109,33 @@ export class PlayService {
     @Inject(PLAYER_PORT) private readonly players: PlayerPort,
     @Inject(RATING_PORT) private readonly ratings: RatingPort,
     private readonly events: EventEmitter2,
+    private readonly metrics: MetricsService,
   ) {}
+
+  // --- Kuzatuvchanlik (docs/15-observability.md §3.3 O'YIN) ---------------------
+
+  /**
+   * `farzin_active_games{type="online"}` — HPA va turnir kuni
+   * dashboard'i manbai (docs/11 §4.4, docs/15 §5.3).
+   *
+   * Gauge davriy so'rov bilan yangilanadi, hodisa bilan emas: hodisaga
+   * asoslangan hisoblagich bitta o'tkazib yuborilgan `finish` dan keyin
+   * abadiy noto'g'ri qoladi va uni hech kim sezmaydi.
+   *
+   * `type="tournament"` va `type="broadcast"` ATAYLAB YOZILMAYDI: OTB
+   * turnir taxtasi "jonli o'yin" sifatida modellashtirilmagan (Pairing
+   * natijasi kiritilmaganligi — o'ynayotganini bildirmaydi), broadcast
+   * moduli esa hali yo'q (docs/14 Faza 8). Bo'sh qator — nol yozishdan
+   * halolroq.
+   */
+  @Interval(30_000)
+  async refreshActiveGamesMetric(): Promise<void> {
+    try {
+      this.metrics.setActiveGames(await this.repo.countActiveGames(), { type: 'online' });
+    } catch (err) {
+      this.logger.warn(`Faol o'yinlar metrikasi yangilanmadi: ${String(err)}`);
+    }
+  }
 
   // --- Yaratish -----------------------------------------------------------------
 
@@ -236,6 +264,9 @@ export class PlayService {
   async makeMove(userId: string, gameId: string, uci: string): Promise<MoveResult> {
     // 1. Vaqtni ENG BIRINCHI o'lchaymiz (docs/07 §5.2 1-qadam).
     const now = Date.now();
+    // Kuzatuvchanlik: SLO #2 manbai (docs/15 §6.2 — p95 < 150 ms).
+    // Monotonik soat: NTP sakrashi o'lchovni buzmasin.
+    const processingStartedAt = process.hrtime.bigint();
 
     const game = await this.repo.findGame(gameId);
     if (game?.status !== 'ACTIVE') {
@@ -368,6 +399,18 @@ export class PlayService {
     }
 
     const clock = toClockPayload(newClock, endStatus !== null, now);
+
+    // ⏱️  FAQAT QABUL QILINGAN yurish o'lchanadi: SLI "yurish qayta
+    // ishlash" haqida, rad etilgan niyat (noqonuniy yurish, navbat emas)
+    // haqida emas — ular boshqa taqsimot va SLO'ni buzib ko'rsatardi.
+    // Broadcast gateway'da, service transportni bilmaydi — shuning uchun
+    // o'lchov "service pipeline'i tugadi" nuqtasida to'xtaydi (§3.3
+    // ta'rifidan hujjatlangan chetlanish).
+    this.metrics.observeMoveProcessing(
+      Number(process.hrtime.bigint() - processingStartedAt) / 1e9,
+      { gameType: game.timeCategory },
+    );
+
     return {
       ok: true,
       move: {
@@ -474,13 +517,35 @@ export class PlayService {
    * chaqiruvchi qayta rejalashtiradi; flag tasdiqlansa o'yin TIMEOUT bilan
    * tugaydi (FIDE 6.9 tekshiruvi finishByTimeout ichida — claim yo'li bilan
    * BIR XIL mantiq, actor=null: bu server qarori).
+   *
+   * @param expectedWakeAtMs Taymer AYNAN qachon uyg'onishi rejalashtirilgan
+   *   edi (gateway `armClockTimers` da hisoblaydi). Berilsa —
+   *   `farzin_clock_drift_seconds` yoziladi.
+   *
+   *   NIMA O'LCHANADI (halol ta'rif): serverning REJALASHTIRGAN vaqti
+   *   bilan HAQIQATDA uyg'ongan vaqti orasidagi farq — ya'ni event loop
+   *   kechikishi. docs/15 §3.3 buni "server hisobi vs kutilgan" deb
+   *   ta'riflaydi va uni ADOLAT metrikasi deb ataydi: drift o'sganda flag
+   *   kech aniqlanadi va vaqti tugagan o'yinchi qo'shimcha o'ylash vaqti
+   *   oladi.
+   *
+   *   NIMA O'LCHANMAYDI: o'yinchining qurilma soati bilan server soati
+   *   orasidagi farq. Buning uchun klient timestamp'i kerak, u esa
+   *   ishonchsiz va hozircha protokolimizda yo'q (docs/07 §3.3 monotonik
+   *   hot-path bosqichi). Soxta manba qo'shishdan ko'ra o'lchanadigan
+   *   haqiqiy signal afzal.
    */
-  async checkFlag(gameId: string): Promise<FlagCheckResult> {
+  async checkFlag(gameId: string, expectedWakeAtMs?: number): Promise<FlagCheckResult> {
     const now = Date.now();
     const game = await this.repo.findGame(gameId);
     if (game?.status !== 'ACTIVE' || game.plyCount === 0) {
       // Tugagan yoki soat hali yurmagan (oqning 1-yurishi bepul, §3.8).
       return { kind: 'stop' };
+    }
+    if (expectedWakeAtMs !== undefined) {
+      this.metrics.observeClockDrift(Math.abs(now - expectedWakeAtMs) / 1000, {
+        gameType: game.timeCategory,
+      });
     }
     const config = clockConfig(game);
     const entry = await this.clocks.load(gameId);

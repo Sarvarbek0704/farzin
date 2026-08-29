@@ -25,6 +25,7 @@ import { RbacGuard } from './modules/identity/rbac.port';
 import { JwtAuthGuard } from './shared/auth/jwt-auth.guard';
 import { AuditModule } from './shared/audit/audit.module';
 import { ProblemDetailsFilter } from './shared/errors/problem-details.filter';
+import { MetricsModule } from './shared/metrics/metrics.module';
 import { OutboxModule } from './shared/outbox/outbox.module';
 import { PrismaModule } from './shared/prisma/prisma.module';
 import { QueueModule } from './shared/queue/queue.module';
@@ -102,7 +103,12 @@ import { RedisModule } from './shared/redis/redis.module';
           censor: '[REDACTED]',
         },
         autoLogging: {
-          ignore: (req): boolean => (req.url ?? '').startsWith('/health'),
+          // Sog'liq probe'lari va Prometheus scrape'i (har 15s) log'ni
+          // ko'mib tashlamasin — docs/15-observability.md §2.2.
+          ignore: (req): boolean => {
+            const url = req.url ?? '';
+            return url.startsWith('/health') || url.startsWith('/metrics');
+          },
         },
       },
     }),
@@ -123,6 +129,10 @@ import { RedisModule } from './shared/redis/redis.module';
     ScheduleModule.forRoot(),
 
     // --- Umumiy infratuzilma ----------------------------------------------
+    // Metrika ENG BIRINCHI: qolgan modullar MetricsService'ni inject
+    // qiladi (@Global) va /metrics endpointi ular bilan birga tug'iladi.
+    // docs/15-observability.md §3
+    MetricsModule,
     PrismaModule,
     RedisModule,
     AuditModule,

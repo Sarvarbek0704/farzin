@@ -70,8 +70,10 @@ async function bootstrap(): Promise<void> {
   });
 
   // --- API (docs/04-api-spec.md §2.1) --------------------------------------
+  // `metrics` — prefiks va versiyadan CHIQARILADI: Prometheus scrape
+  // konfiguratsiyasi `/metrics` ni kutadi (docs/15-observability.md §3).
   app.setGlobalPrefix(apiPrefix, {
-    exclude: ['health', 'health/live', 'health/ready'],
+    exclude: ['health', 'health/live', 'health/ready', 'metrics'],
   });
   app.enableVersioning({ type: VersioningType.URI, defaultVersion: '1' });
 

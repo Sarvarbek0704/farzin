@@ -73,7 +73,9 @@ export async function createTestApp(): Promise<TestApp> {
   app.use(cookieParser());
 
   // API shakli (docs/04-api-spec.md §2.1)
-  app.setGlobalPrefix('api', { exclude: ['health', 'health/live', 'health/ready'] });
+  app.setGlobalPrefix('api', {
+    exclude: ['health', 'health/live', 'health/ready', 'metrics'],
+  });
   app.enableVersioning({ type: VersioningType.URI, defaultVersion: '1' });
 
   // Validatsiya (docs/10-security.md §6, docs/04-api-spec.md §2.5) —

@@ -1,4 +1,5 @@
 import { Injectable, Logger } from '@nestjs/common';
+import { Interval } from '@nestjs/schedule';
 
 import {
   BusinessRuleError,
@@ -6,7 +7,9 @@ import {
   NotFoundError,
 } from '../../core/errors/domain.error';
 import { Glicko2Service } from '../../core/rating/glicko2.service';
-import { DEFAULT_GLICKO2_CONFIG } from '../../core/rating/glicko2.types';
+import { DEFAULT_GLICKO2_CONFIG, Glicko2ConvergenceError } from '../../core/rating/glicko2.types';
+import { playEnvironmentLabel, timeCategoryLabel } from '../../shared/metrics/metrics.labels';
+import { MetricsService } from '../../shared/metrics/metrics.service';
 import {
   DEFAULT_PAGE_SIZE,
   decodeCursor,
@@ -27,12 +30,14 @@ import { RatingRepository } from './rating.repository';
 import {
   isValidRatingCombo,
   type LeaderboardRow,
+  PLAY_ENVIRONMENTS,
   type PlayEnvironment,
   type RatingHistoryRow,
   type RatingPeriodRow,
   TAU_DEFAULT,
   TAU_MAX,
   TAU_MIN,
+  TIME_CATEGORIES,
   type TimeCategory,
 } from './rating.types';
 
@@ -71,7 +76,56 @@ export class RatingService implements RatingPort {
   constructor(
     private readonly repo: RatingRepository,
     private readonly rbac: RbacService,
+    private readonly metrics: MetricsService,
   ) {}
+
+  // --- Kuzatuvchanlik (docs/15-observability.md §3.3 REYTING) ------------------
+
+  /**
+   * `farzin_rating_period_lag_seconds` — "davr yopilishi kerak edi, lekin
+   * yopilmagan" vaqti.
+   *
+   * NEGA REJALI VAZIFA, HODISA EMAS: kechikish hodisasi YO'Q. Aynan
+   * "hech narsa sodir bo'lmayapti" holatini o'lchash kerak (docs/15 §3.3
+   * izohi: reyting jimgina eskiradi). Shuning uchun gauge davriy so'rov
+   * bilan yangilanadi.
+   *
+   * HAR TSIKLDA BARCHA kombinatsiya yoziladi (kechikishi yo'qlariga 0):
+   * aks holda kechikish tuzatilgach gauge oxirgi "yomon" qiymatda muzlab
+   * qoladi va alert abadiy yonadi.
+   */
+  @Interval(60_000)
+  async refreshPeriodLagMetric(): Promise<void> {
+    try {
+      const now = new Date();
+      const pending = await this.repo.oldestUncomputedPeriodEnds(now);
+      const lagByCombo = new Map<string, number>(
+        pending.map((p) => [
+          `${p.environment}:${p.timeCategory}`,
+          Math.max(0, (now.getTime() - p.endsAt.getTime()) / 1000),
+        ]),
+      );
+
+      for (const environment of PLAY_ENVIRONMENTS) {
+        for (const timeCategory of TIME_CATEGORIES) {
+          if (!isValidRatingCombo(environment, timeCategory)) {
+            continue; // OTB_BULLET mavjud emas (docs/06 §5.1)
+          }
+          this.metrics.setRatingPeriodLag(
+            lagByCombo.get(`${environment}:${timeCategory}`) ?? 0,
+            {
+              environment: playEnvironmentLabel(environment),
+              timeCategory: timeCategoryLabel(timeCategory),
+            },
+          );
+        }
+      }
+    } catch (err) {
+      // Metrika yangilanmagani biznes oqimini to'xtatmaydi — u kuzatadi,
+      // boshqarmaydi. Lekin jimgina o'tmaydi ham.
+      this.logger.warn(`Rating period lag metrikasi yangilanmadi: ${String(err)}`);
+    }
+  }
 
   // --- RatingPeriod boshqaruvi -------------------------------------------------
 
@@ -169,7 +223,24 @@ export class RatingService implements RatingPort {
       tau: period.tau,
     });
 
-    const results = computePeriodResults(calculator, games, states);
+    // ── Kuzatuvchanlik (docs/15 §3.3 REYTING) ────────────────────────────
+    // Sof hisob core/ da; vaqt SHU YERDA o'lchanadi (core/ bog'liqliksiz
+    // qoladi — ADR-0001). `periodId` metrikaga TUSHMAYDI (§3.4) — u
+    // log'da va audit'da bor.
+    const computeStartedAt = Date.now();
+    let results;
+    try {
+      results = computePeriodResults(calculator, games, states);
+    } catch (error) {
+      if (error instanceof Glicko2ConvergenceError) {
+        // Illinois algoritmi odatda < 20 qadamda yaqinlashadi. Yaqinlashmasa
+        // — matematik muammo bor va REYTING ISHONCHSIZ (docs/15 §3.3).
+        // Nol tolerantlik: bu counter > 0 → `page` alert.
+        this.metrics.incGlickoConvergenceFailure();
+      }
+      throw error;
+    }
+    this.metrics.observeRatingRecomputeDuration((Date.now() - computeStartedAt) / 1000);
 
     // Clamp monitoringi (docs/06 §10.4): jimgina tuzatib ketilmaydi —
     // WARN log, alert nomzodi.
@@ -177,6 +248,9 @@ export class RatingService implements RatingPort {
       for (const warning of result.clampWarnings) {
         this.logger.warn(`Glicko-2 clamp: ${warning} (period=${periodId})`);
       }
+      // RD taqsimoti — reyting ishonchliligi sog'ligi (§3.3, §5.4
+      // dashboard'i). Bu histogram, o'yinchi bo'yicha yorliq YO'Q.
+      this.metrics.observeRatingDeviation(result.after.deviation);
     }
 
     return await this.repo.applyPeriodResults({

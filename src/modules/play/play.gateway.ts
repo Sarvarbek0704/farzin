@@ -16,6 +16,7 @@ import type { Server, Socket } from 'socket.io';
 import type { ClockSide } from '../../core/clock/chess-clock';
 import { DomainError, NotFoundError } from '../../core/errors/domain.error';
 import type { AppConfig } from '../../config/configuration';
+import { MetricsService } from '../../shared/metrics/metrics.service';
 import { ClockStore } from './clock.store';
 import { CLOCK_TICK_INTERVAL_MS, FLAG_EPSILON_MS, flagDelayMs, GameTimers, graceMsFor } from './game-timers';
 import { PlayService } from './play.service';
@@ -126,11 +127,23 @@ export class PlayGateway implements OnGatewayConnection, OnGatewayDisconnect {
   /** PLAY_DISCONNECT_GRACE_MS override (test/ops); null → docs/07 §3.8 jadvali. */
   private readonly graceOverrideMs: number | null;
 
+  /**
+   * `farzin_websocket_connections{namespace="play"}` manbai
+   * (docs/15-observability.md §3.3; HPA — docs/11 §4.4).
+   *
+   * HALOL CHEKLOV: bu SHU instance'dagi socket soni. Ko'p instance'da
+   * Prometheus ularni `sum()` bilan qo'shadi — aynan HPA'ga kerak
+   * ko'rinish. Redis'dagi global hisoblagich ATAYLAB olinmadi: u yangi
+   * nomuvofiqlik manbai bo'lardi (crash → oqib qolgan hisob).
+   */
+  private wsConnections = 0;
+
   constructor(
     private readonly play: PlayService,
     private readonly jwt: JwtService,
     private readonly clocks: ClockStore,
     private readonly timers: GameTimers,
+    private readonly metrics: MetricsService,
     config: ConfigService<AppConfig, true>,
   ) {
     this.graceOverrideMs = config.get('play', { infer: true }).disconnectGraceMsOverride;
@@ -139,6 +152,12 @@ export class PlayGateway implements OnGatewayConnection, OnGatewayDisconnect {
   // --- Ulanish -------------------------------------------------------------------
 
   async handleConnection(socket: Socket): Promise<void> {
+    // Metrika: ulanish RESURSNI band qiladi — autentifikatsiya natijasidan
+    // qat'i nazar sanaladi. `counted` bayrog'i ikki marta ayirishni
+    // to'sadi (rad etilgan ulanish ham disconnect hodisasini beradi).
+    (socket.data as Record<string, unknown>).counted = true;
+    this.trackWsConnections(1);
+
     const auth = socket.handshake.auth as Record<string, unknown>;
     const token = typeof auth.token === 'string' ? auth.token : null;
     if (token === null) {
@@ -160,6 +179,11 @@ export class PlayGateway implements OnGatewayConnection, OnGatewayDisconnect {
    * `opponent_gone` yuboriladi.
    */
   handleDisconnect(socket: Socket): void {
+    const data = socket.data as Record<string, unknown>;
+    if (data.counted === true) {
+      data.counted = false;
+      this.trackWsConnections(-1);
+    }
     this.moveWindows.delete(socket.id);
     const games = this.playerGamesBySocket.get(socket.id);
     this.playerGamesBySocket.delete(socket.id);
@@ -171,6 +195,22 @@ export class PlayGateway implements OnGatewayConnection, OnGatewayDisconnect {
         this.swallow(`diskonnekt kuzatuvi: game=${gameId}`),
       );
     }
+  }
+
+  /**
+   * WS ulanishlari gauge'ini ±1 ga SURIB yangilaydi (docs/15 §3.3).
+   *
+   * Nega hisob shu yerda qo'lda yuritiladi: `server.engine.clientsCount`
+   * faqat qo'l siqish TUGAGANDAN keyin aniq bo'ladi va rad etilgan
+   * socket'ni o'z vaqtida ayirmaydi. `counted` bayrog'i bilan juftlangan
+   * ±1 esa har bir socket AYNAN bir marta sanalishini kafolatlaydi.
+   *
+   * `Math.max(0, …)` — himoya: hodisalar tartibi buzilsa ham gauge
+   * manfiyga tushmaydi (manfiy qiymat HPA hisobini buzardi).
+   */
+  private trackWsConnections(delta: number): void {
+    this.wsConnections = Math.max(0, this.wsConnections + delta);
+    this.metrics.setWebsocketConnections(this.wsConnections, { namespace: 'play' });
   }
 
   private rejectConnection(socket: Socket, code: GameErrorCode, message: string): void {

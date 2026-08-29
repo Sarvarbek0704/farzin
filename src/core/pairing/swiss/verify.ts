@@ -20,6 +20,20 @@ import { Color, type PlayerId, type RoundId } from '../pairing.types';
 import { colorOutcomeFlags, type SwissPlayer } from './swiss-types';
 
 /**
+ * Buzilgan absolyut talab — YOPIQ to'plam.
+ *
+ * Nega yopiq: bu qiymat modul qatlamida
+ * `farzin_pairing_criteria_violations_total{criterion=...}` metrikasining
+ * yorlig'iga aylanadi (docs/15-observability.md §3.3). Erkin matn yorliq
+ * bo'lsa — kardinallik portlaydi (§3.4). Sabab MATNI (`reason`) baribir
+ * saqlanadi va u log/trace'ga ketadi — u yerda cheklov yo'q.
+ *
+ * Raqamlash verify.ts sarlavhasidagi FIDE C.04.3 2026-02 talqinida:
+ * C1 — takroriy juftlik, C2 — PAB huquqi, C3 — rang chegaralari.
+ */
+export type PairingCriterion = 'C1_REPEAT' | 'C2_BYE' | 'C3_COLOR' | 'COVERAGE';
+
+/**
  * Ichki izchillik buzilishi — bu KUTILMAGAN holat (PairingImpossibleError
  * dan farqli). 500 sifatida ko'tariladi va darhol bug sifatida tekshirilishi
  * shart.
@@ -29,6 +43,7 @@ export class PairingIntegrityError extends Error {
 
   constructor(
     readonly roundId: RoundId,
+    readonly criterion: PairingCriterion,
     readonly reason: string,
   ) {
     super(`Round ${roundId} juftlashtirish butunligi buzildi: ${reason}`);
@@ -55,6 +70,7 @@ export function verifyAbsoluteCriteria(
     if (seen.has(p.state.playerId)) {
       throw new PairingIntegrityError(
         roundId,
+        'COVERAGE',
         `o'yinchi ${p.state.playerId} ikki marta ishtirok etdi (${where})`,
       );
     }
@@ -72,6 +88,7 @@ export function verifyAbsoluteCriteria(
     ) {
       throw new PairingIntegrityError(
         roundId,
+        'C1_REPEAT',
         `C1 buzildi: ${pair.white.state.playerId} va ${pair.black.state.playerId} avval o'ynagan`,
       );
     }
@@ -87,12 +104,14 @@ export function verifyAbsoluteCriteria(
         if (flags.exceedsColorDiff) {
           throw new PairingIntegrityError(
             roundId,
+            'C3_COLOR',
             `rang chegarasi buzildi: ${p.state.playerId} uchun |CD| > 2 (topscorer emas)`,
           );
         }
         if (flags.threeInARow) {
           throw new PairingIntegrityError(
             roundId,
+            'C3_COLOR',
             `rang chegarasi buzildi: ${p.state.playerId} uch marta ketma-ket bir xil rang (topscorer emas)`,
           );
         }
@@ -106,6 +125,7 @@ export function verifyAbsoluteCriteria(
     if (!pab.pabEligible) {
       throw new PairingIntegrityError(
         roundId,
+        'C2_BYE',
         `C2 buzildi: ${pab.state.playerId} allaqachon bye/o'ynamasdan g'alaba olgan, PAB mumkin emas`,
       );
     }
@@ -114,6 +134,7 @@ export function verifyAbsoluteCriteria(
   if (seen.size !== activePlayers.length) {
     throw new PairingIntegrityError(
       roundId,
+      'COVERAGE',
       `qamrov buzildi: ${String(activePlayers.length)} aktiv o'yinchidan ${String(seen.size)} tasi qamrab olindi`,
     );
   }
@@ -121,6 +142,7 @@ export function verifyAbsoluteCriteria(
     if (!seen.has(p.state.playerId)) {
       throw new PairingIntegrityError(
         roundId,
+        'COVERAGE',
         `qamrov buzildi: ${p.state.playerId} juftliksiz va bye'siz qoldi`,
       );
     }

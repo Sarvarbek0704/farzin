@@ -1,10 +1,17 @@
-import { Inject, Injectable } from '@nestjs/common';
+import { Inject, Injectable, Logger } from '@nestjs/common';
+import { Interval } from '@nestjs/schedule';
 
 import {
   buildEntryFeePaymentEntries,
   reverseLedgerEntries,
 } from '../../core/billing/ledger';
 import { BusinessRuleError, ConflictError, NotFoundError } from '../../core/errors/domain.error';
+import {
+  paymentProviderLabel,
+  type PaymentFailureReason,
+  type PaymentOperationLabel,
+} from '../../shared/metrics/metrics.labels';
+import { MetricsService } from '../../shared/metrics/metrics.service';
 import {
   DEFAULT_PAGE_SIZE,
   decodeCursor,
@@ -45,11 +52,14 @@ import { ProviderRegistry } from './providers/provider.registry';
  */
 @Injectable()
 export class BillingService {
+  private readonly logger = new Logger(BillingService.name);
+
   constructor(
     private readonly repo: BillingRepository,
     private readonly rbac: RbacService,
     private readonly registry: ProviderRegistry,
     @Inject(PLAYER_PORT) private readonly players: PlayerPort,
+    private readonly metrics: MetricsService,
   ) {}
 
   // --- Invoys ------------------------------------------------------------------
@@ -182,7 +192,15 @@ export class BillingService {
       return this.replayOrConflict(existing, invoiceId, provider);
     }
 
+    // ── Kuzatuvchanlik (docs/15 §3.3 TO'LOV) ──────────────────────────────
+    // Urinish FAQAT shu yerda sanaladi — replay (yuqoridagi shox) yangi
+    // urinish emas, aks holda §6.4 failure-rate maxraji shishadi. Yorliq
+    // — provayder KODI; invoys/foydalanuvchi/karta hech qachon (§3.3).
+    const providerLabel = paymentProviderLabel(provider);
+    this.metrics.incPaymentAttempt({ provider: providerLabel });
+
     if (invoice.status !== 'CREATED' && invoice.status !== 'PENDING') {
+      this.failPayment(providerLabel, 'INVOICE_NOT_OPEN');
       throw new ConflictError("Invoys to'lovga ochiq emas", {
         invoiceId,
         status: invoice.status,
@@ -191,6 +209,7 @@ export class BillingService {
 
     const adapter = this.registry.get(provider);
     if (!adapter.configured) {
+      this.failPayment(providerLabel, 'PROVIDER_NOT_CONFIGURED');
       // Yetim CREATED Payment qatorlari qolmasin — sozlanmagan provayder
       // to'lov boshlashdan OLDIN rad etiladi (docs/09 §1.4: sandbox
       // hisob ma'lumotlari provayderdan olinadi, to'qilmaydi).
@@ -214,14 +233,16 @@ export class BillingService {
       return this.replayOrConflict(created.payment, invoiceId, provider);
     }
 
-    const checkout = await adapter.createCheckout({
-      paymentId: created.payment.id,
-      invoiceId,
-      invoiceNumber: invoice.number,
-      amountTiyin: BigInt(invoice.totalAmount),
-      currency: invoice.currency,
-      description: `Invoys ${invoice.number}`,
-    });
+    const checkout = await this.timedProviderCall(providerLabel, 'checkout', () =>
+      adapter.createCheckout({
+        paymentId: created.payment.id,
+        invoiceId,
+        invoiceNumber: invoice.number,
+        amountTiyin: BigInt(invoice.totalAmount),
+        currency: invoice.currency,
+        description: `Invoys ${invoice.number}`,
+      }),
+    );
     await this.repo.setProviderCheckout(created.payment.id, checkout.providerRef);
 
     return {
@@ -264,12 +285,19 @@ export class BillingService {
 
     // DR cash.manual / CR liability.organizer_payable (docs/09 §6.2).
     const entries = buildEntryFeePaymentEntries('MANUAL', BigInt(payment.amount));
-    const result = await this.repo.applyPaymentSuccess({
-      paymentId,
-      actorUserId: actor.userId,
-      entries,
-      reason: trimmedReason,
-    });
+    // Urinish bu yerda SANALMAYDI — u initiatePayment'da sanalgan
+    // (MANUAL ham invoys → initiate → confirm yo'lidan o'tadi).
+    const result = await this.timedProviderCall(
+      paymentProviderLabel('MANUAL'),
+      'confirm',
+      () =>
+        this.repo.applyPaymentSuccess({
+          paymentId,
+          actorUserId: actor.userId,
+          entries,
+          reason: trimmedReason,
+        }),
+    );
     return result.payment;
   }
 
@@ -291,10 +319,13 @@ export class BillingService {
     headers: Readonly<Record<string, string | string[] | undefined>>,
   ): Promise<{ received: true; duplicate: boolean }> {
     const adapter = this.registry.get(providerCode);
+    const providerLabel = paymentProviderLabel(providerCode);
 
     // 1. Imzo/normalizatsiya. Stub adapterlar shu yerda
     //    PROVIDER_NOT_CONFIGURED tashlaydi (422, yon ta'sirsiz).
-    const event = await adapter.verifyWebhook({ rawBody, headers });
+    const event = await this.timedProviderCall(providerLabel, 'webhook', () =>
+      adapter.verifyWebhook({ rawBody, headers }),
+    );
 
     // 2. To'lovni topish: avval provayder tranzaksiya ID, keyin
     //    merchant param orqali qaytgan Farzin Payment ID.
@@ -315,6 +346,7 @@ export class BillingService {
       if (BigInt(payment.amount) !== event.amountTiyin || payment.currency !== event.currency) {
         // amount_mismatch — yuqori jiddiylik (docs/09 §11.3); avtomatik
         // "tuzatish" YO'Q, xato qaytariladi va odam ko'radi.
+        this.failPayment(providerLabel, 'AMOUNT_MISMATCH');
         throw new BusinessRuleError('AMOUNT_MISMATCH', "Webhook summasi to'lov bilan mos emas", {
           paymentId: payment.id,
           expected: payment.amount,
@@ -369,14 +401,18 @@ export class BillingService {
     // stub'lari PROVIDER_NOT_CONFIGURED tashlaydi (hisob ma'lumotlari
     // kelguncha onlayn refund yopiq).
     const adapter = this.registry.get(payment.provider);
-    const providerResult = await adapter.refund({
-      paymentId: payment.id,
-      providerTransactionId: payment.providerTransactionId,
-      amountTiyin: BigInt(payment.amount),
-      currency: payment.currency,
-      reason: trimmedReason,
-    });
+    const providerLabel = paymentProviderLabel(payment.provider);
+    const providerResult = await this.timedProviderCall(providerLabel, 'refund', () =>
+      adapter.refund({
+        paymentId: payment.id,
+        providerTransactionId: payment.providerTransactionId,
+        amountTiyin: BigInt(payment.amount),
+        currency: payment.currency,
+        reason: trimmedReason,
+      }),
+    );
     if (!providerResult.accepted) {
+      this.failPayment(providerLabel, 'REFUND_REJECTED');
       throw new BusinessRuleError('REFUND_REJECTED', 'Provayder refund so\'rovini rad etdi', {
         paymentId,
       });
@@ -401,9 +437,8 @@ export class BillingService {
   /**
    * Ledger yaxlitligi hisoboti (docs/09 §11.4): hisob kesimida
    * debit/kredit va UMUMIY nomutanosiblik — HAR DOIM 0 bo'lishi shart.
-   * Bu qiymat farzin_ledger_imbalance_tiyin metrikasining manbai
-   * (docs/14 Faza 4 DoD; TODO(billing): Prometheus gauge — Faza 4
-   * observability qadami).
+   * Bu qiymat `farzin_ledger_imbalance_tiyin` metrikasining manbai
+   * (docs/15-observability.md §3.3, docs/14 Faza 4 DoD).
    *
    * Ruxsat: Payment 'read' GLOBAL scope bilan — scope'siz ref faqat
    * SUPER_ADMIN'dan o'tadi (scoped R grantlar own/hierarchy talab
@@ -429,6 +464,7 @@ export class BillingService {
     });
 
     const imbalance = totalDebit - totalCredit;
+    this.metrics.setLedgerImbalance(Number(imbalance));
     return {
       accounts,
       imbalanceTiyin: imbalance.toString(),
@@ -437,7 +473,68 @@ export class BillingService {
     };
   }
 
+  /**
+   * `farzin_ledger_imbalance_tiyin` — REJALI tekshiruv.
+   *
+   * NEGA ODAMGA TAYANMAYDI: yuqoridagi hisobot faqat kimdir endpointni
+   * ochganda hisoblanadi. Alert esa (docs/15 §6.4 `FarzinLedgerImbalance`,
+   * `for: 1m`) uzluksiz seriya talab qiladi — aks holda "pul yo'qoldi"
+   * holati keyingi audit kunigacha ko'rinmaydi. 5 daqiqa — arzon
+   * `GROUP BY account` SUM so'rovi uchun oqilona chastota.
+   *
+   * `Number()` konversiyasi: imbalans 0 bo'lishi SHART; nolga teng
+   * bo'lmagan qiymat ham 2^53 tiyindan (≈ 90 mlrd so'm) kichik bo'ladi —
+   * aniqlik yo'qolmaydi. Pul HISOBI baribir bigint'da (ADR-0006);
+   * bu faqat ko'rsatkich.
+   */
+  @Interval(300_000)
+  async refreshLedgerImbalanceMetric(): Promise<void> {
+    try {
+      const sums = await this.repo.ledgerBalances();
+      let imbalance = 0n;
+      for (const s of sums) {
+        imbalance += s.debitTiyin - s.creditTiyin;
+      }
+      this.metrics.setLedgerImbalance(Number(imbalance));
+    } catch (err) {
+      this.logger.warn(`Ledger imbalance metrikasi yangilanmadi: ${String(err)}`);
+    }
+  }
+
   // --- Yordamchilar -----------------------------------------------------------
+
+  /** Metrika yorlig'i tayyor holda — takroriy chaqiruvni qisqartiradi. */
+  private failPayment(
+    provider: ReturnType<typeof paymentProviderLabel>,
+    reason: PaymentFailureReason,
+  ): void {
+    this.metrics.incPaymentFailure({ provider, reason });
+  }
+
+  /**
+   * Provayder chaqiruvini o'lchash: davomiylik HAR IKKI holatda ham
+   * yoziladi (docs/15 §3.1 RED — sekin XATO ham sekin), xato esa
+   * `PROVIDER_ERROR` sifatida sanaladi. Xato TUTILMAYDI — u yuqoriga
+   * ketadi; metrika oqimni o'zgartirmaydi.
+   */
+  private async timedProviderCall<T>(
+    provider: ReturnType<typeof paymentProviderLabel>,
+    operation: PaymentOperationLabel,
+    call: () => Promise<T>,
+  ): Promise<T> {
+    const startedAt = Date.now();
+    try {
+      return await call();
+    } catch (err) {
+      this.failPayment(provider, 'PROVIDER_ERROR');
+      throw err;
+    } finally {
+      this.metrics.observePaymentDuration((Date.now() - startedAt) / 1000, {
+        provider,
+        operation,
+      });
+    }
+  }
 
   /** Replay yoki 422 IDEMPOTENCY_KEY_REUSE (docs/04 §5). */
   private replayOrConflict(

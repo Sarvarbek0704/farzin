@@ -164,6 +164,33 @@ export class RatingRepository {
     return row === null ? null : toPeriodRow(row);
   }
 
+  /**
+   * Muddati o'tgan, lekin HALI HISOBLANMAGAN davrlar — har (muhit, vaqt
+   * kategoriyasi) kesimida ENG ESKISI.
+   *
+   * `farzin_rating_period_lag_seconds` manbai (docs/15-observability.md
+   * §3.3). Bu metrika kerak, chunki kechikish JIMGINA bo'ladi: job
+   * ishlamasa hech qanday xato yo'q, faqat reyting eskiradi va o'yinchi
+   * noto'g'ri seed oladi.
+   *
+   * Arzon so'rov: `@@index([computedAt])` + kichik jadval (kategoriya
+   * bo'yicha oyiga bir necha qator).
+   */
+  async oldestUncomputedPeriodEnds(
+    now: Date,
+  ): Promise<{ environment: PlayEnvironment; timeCategory: TimeCategory; endsAt: Date }[]> {
+    const groups = await this.prisma.ratingPeriod.groupBy({
+      by: ['environment', 'timeCategory'],
+      where: { computedAt: null, endsAt: { lte: now } },
+      _min: { endsAt: true },
+    });
+    return groups.flatMap((g) =>
+      g._min.endsAt === null
+        ? []
+        : [{ environment: g.environment, timeCategory: g.timeCategory, endsAt: g._min.endsAt }],
+    );
+  }
+
   async listPeriods(
     first: number,
     afterId: string | null,

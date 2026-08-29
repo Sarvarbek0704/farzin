@@ -17,7 +17,7 @@ import { pairAllBrackets } from './swiss/score-brackets';
 import { prepareSwissPlayers, toAllocationSide, type SwissPlayer } from './swiss/swiss-types';
 import { verifyAbsoluteCriteria, type ColoredPair } from './swiss/verify';
 
-export { PairingIntegrityError } from './swiss/verify';
+export { PairingIntegrityError, type PairingCriterion } from './swiss/verify';
 
 /**
  * FIDE (Dutch) System — C.04.3, 2026-02-01 redaksiyasi.
