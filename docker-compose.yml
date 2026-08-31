@@ -106,7 +106,14 @@ services:
       - '9090:9090'
     volumes:
       - ./docker/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      # Alert va recording qoidalari. prometheus.yml dagi
+      # `rule_files: /etc/prometheus/rules/*.yml` aynan shu papkani o'qiydi.
+      - ./infra/prometheus:/etc/prometheus/rules:ro
       - prometheus_data:/prometheus
+    # `host.docker.internal` Linux'da default'da yo'q — HOST'da ishlayotgan
+    # API'ni scrape qilish uchun kerak (prometheus.yml farzin-api job'i).
+    extra_hosts:
+      - 'host.docker.internal:host-gateway'
 
   grafana:
     image: grafana/grafana:latest

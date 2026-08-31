@@ -1,0 +1,61 @@
+# =============================================================================
+#  FARZIN — Prometheus scrape konfiguratsiyasi (lokal dev)
+#
+#  Ishga tushirish:  docker compose --profile observability up -d
+#  UI:               http://localhost:9090
+#
+#  Bu fayl docker-compose.yml da mount qilinadi, lekin MAVJUD EMAS edi —
+#  natijada `--profile observability up` shu xato bilan yiqilardi:
+#    "error mounting .../prometheus.yml: not a directory"
+#  (docs/AUDIT.md JIDDIY-3.) Docker yo'q faylni PAPKA qilib yaratardi.
+#
+#  ⚠️  `job_name` qiymatlari MUHIM: infra/prometheus/farzin-rules.yml dagi
+#      SLO qoidalari `job="farzin-api"` bo'yicha filtrlaydi. Nomni
+#      o'zgartirsangiz qoidalarni ham o'zgartiring.
+# =============================================================================
+
+global:
+  # 15s — metrics.controller.ts izohida qabul qilingan oraliq
+  # ("scrape 15 soniyada bir marta va serializatsiya millisekundlar oladi").
+  scrape_interval: 15s
+  evaluation_interval: 30s
+  external_labels:
+    env: dev
+
+# Alert qoidalari. Compose faylida `infra/prometheus/` shu yo'lga
+# mount qilinadi (read-only).
+rule_files:
+  - /etc/prometheus/rules/*.yml
+
+# Alertmanager lokal dev'da YO'Q — alertlar Prometheus UI'ning
+# Alerts sahifasida ko'rinadi va shu yerda sinaladi. Prod'da bu blok
+# alertmanager target'i bilan to'ldiriladi (docs/11-infrastructure.md).
+# alerting:
+#   alertmanagers:
+#     - static_configs:
+#         - targets: ['alertmanager:9093']
+
+scrape_configs:
+  - job_name: prometheus
+    static_configs:
+      - targets: ['localhost:9090']
+
+  # --- Farzin API ------------------------------------------------------------
+  #  /metrics yo'li global prefiks va versiyadan CHIQARILGAN
+  #  (main.ts:76, metrics.controller.ts) — ya'ni `/metrics`,
+  #  `/api/v1/metrics` EMAS. Bu Prometheus'ning default `metrics_path`i,
+  #  shuning uchun ochiq yozilmagan.
+  #
+  #  `host.docker.internal` — konteynerdan HOST'da `pnpm start:dev` bilan
+  #  ishlayotgan API'ga ulanish uchun (eng ko'p uchraydigan dev holati).
+  #  API ham compose ichida bo'lsa `farzin-api:3000` ishlatiladi —
+  #  ikkalasi ham target sifatida berilgan, biri DOWN bo'lsa
+  #  FarzinTargetDown alert'i chiqadi, bu kutilgan.
+  - job_name: farzin-api
+    static_configs:
+      - targets: ['farzin-api:3000']
+        labels:
+          source: compose
+      - targets: ['host.docker.internal:3000']
+        labels:
+          source: host

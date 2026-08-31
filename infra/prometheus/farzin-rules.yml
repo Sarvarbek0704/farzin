@@ -1,0 +1,216 @@
+# =============================================================================
+#  FARZIN — Prometheus recording va alerting qoidalari
+#
+#  Manba: docs/15-observability.md §6.3 (SLO / error budget burn rate) va
+#  §6.4 (domen alertlari). Qiymatlar hujjatdan AYNAN olingan.
+#
+#  Bu fayl src/shared/metrics/metrics.service.ts:122 izohida nomma-nom
+#  ko'rsatilgan (`infra/prometheus/farzin-rules.yml`), lekin MAVJUD EMAS
+#  edi — docs/AUDIT.md JIDDIY-3: "metrikalar bor, ularni iste'mol qiladigan
+#  hech narsa yo'q". Endi bor.
+#
+#  ─────────────────────────────────────────────────────────────────────────
+#  ⚠️  SLO MAQSAD QIYMATLARI — TAKLIF, O'LCHANGAN HAQIQAT EMAS
+#
+#  docs/15 §6.2 buni ochiq yozadi: bu raqamlar real baseline (yuklama
+#  testi + birinchi oylar telemetriyasi) bilan TASDIQLANISHI yoki
+#  TUZATILISHI shart. SLO'ni real bajarilishdan yuqori qo'yish — o'zini
+#  doimiy nosozlikda deb hisoblash; past qo'yish — mazmunsiz.
+#  ─────────────────────────────────────────────────────────────────────────
+#
+#  Alert darajalari (§6.5, uchinchi daraja YO'Q):
+#    page   — hozir, tunda ham. Foydalanuvchi zarar ko'ryapti yoki
+#             ma'lumot yo'qolyapti.
+#    ticket — ish vaqtida. Muhim, lekin kutadi.
+#
+#  ⚠️  runbook_url'lar docs/runbooks/ ga ishora qiladi. Bu papka HALI YO'Q
+#      (docs/AUDIT.md KICHIK-14). §6.5 4-qoidasi "runbook'siz alert
+#      qo'shilmaydi" deydi — bu qoidadan ONGLI chekinish: alertsiz qolish
+#      runbooksiz alertdan yomonroq, chunki hozir HECH QANDAY alert yo'q.
+# =============================================================================
+
+groups:
+  # ===========================================================================
+  #  SLO — API availability (docs/15 §6.3)
+  # ===========================================================================
+  - name: farzin-slo-api-availability
+    interval: 30s
+    rules:
+      # SLI: 5xx bo'lmagan so'rovlar ulushi, uch oynada.
+      # `http_requests_total` — metrics.service.ts:224. Bu metrika ATAYLAB
+      # `farzin_` prefiksisiz (docs/15 §3.2 nomi shunday), qolgan biznes
+      # metrikalari esa prefiksli.
+      - record: farzin:api_availability:ratio_rate5m
+        expr: |
+          sum(rate(http_requests_total{job="farzin-api",status!~"5.."}[5m]))
+          /
+          sum(rate(http_requests_total{job="farzin-api"}[5m]))
+
+      - record: farzin:api_availability:ratio_rate1h
+        expr: |
+          sum(rate(http_requests_total{job="farzin-api",status!~"5.."}[1h]))
+          /
+          sum(rate(http_requests_total{job="farzin-api"}[1h]))
+
+      - record: farzin:api_availability:ratio_rate6h
+        expr: |
+          sum(rate(http_requests_total{job="farzin-api",status!~"5.."}[6h]))
+          /
+          sum(rate(http_requests_total{job="farzin-api"}[6h]))
+
+      # TEZ yonish: 14.4x tezlik = 30 kunlik budget ~2 kunda tugaydi.
+      # Ikki oynali shart (5m VA 1h) — qisqa sakrash yolg'on alert bermaydi.
+      - alert: FarzinApiErrorBudgetBurnFast
+        expr: |
+          (1 - farzin:api_availability:ratio_rate5m) > (14.4 * 0.005)
+          and
+          (1 - farzin:api_availability:ratio_rate1h) > (14.4 * 0.005)
+        for: 2m
+        labels:
+          severity: page
+          slo: api-availability
+        annotations:
+          summary: 'API error budget tez yonyapti (14.4x)'
+          description: "Joriy tezlikda 30 kunlik budget ~2 kunda tugaydi."
+          runbook_url: 'https://github.com/Sarvarbek0704/farzin/blob/main/docs/runbooks/api-errors.md'
+
+      # SEKIN yonish: 6x. Ticket — tunda uyg'otmaydi.
+      - alert: FarzinApiErrorBudgetBurnSlow
+        expr: |
+          (1 - farzin:api_availability:ratio_rate6h) > (6 * 0.005)
+        for: 15m
+        labels:
+          severity: ticket
+          slo: api-availability
+        annotations:
+          summary: 'API error budget sekin yonyapti (6x)'
+          runbook_url: 'https://github.com/Sarvarbek0704/farzin/blob/main/docs/runbooks/api-errors.md'
+
+  # ===========================================================================
+  #  DOMEN — kritik (docs/15 §6.4). Nol tolerantlik.
+  # ===========================================================================
+  - name: farzin-domain-critical
+    interval: 30s
+    rules:
+      # ENG YUQORI PRIORITET (docs/15 §3.3: "jimgina halokat").
+      # Bu buzilsa turnir natijasi FIDE C.04.3 ga mos EMAS.
+      # Seriya nol qiymat bilan oldindan e'lon qilinadi
+      # (metrics.service.ts primeZeroSeries), shuning uchun `increase`
+      # birinchi buzilishdayoq ishlaydi.
+      - alert: FarzinPairingCriteriaViolation
+        expr: increase(farzin_pairing_criteria_violations_total[5m]) > 0
+        for: 0m
+        labels:
+          severity: page
+        annotations:
+          summary: 'FIDE C.04.3 absolyut kriteriyasi buzildi ({{ $labels.criterion }})'
+          description: "Juftlashtirish noto'g'ri. Turnirni TO'XTATISH kerak."
+          runbook_url: 'https://github.com/Sarvarbek0704/farzin/blob/main/docs/runbooks/pairing-violation.md'
+
+      # Pul yo'qolgan yoki yaratilgan (ADR-0006, docs/09 §11.4).
+      # Bu gauge ATAYLAB oldindan e'lon qilinmaydi: uning 0 qiymati
+      # "tekshirildi va toza" degani (metrics.service.ts:255-258).
+      - alert: FarzinLedgerImbalance
+        expr: abs(farzin_ledger_imbalance_tiyin) > 0
+        for: 1m
+        labels:
+          severity: page
+        annotations:
+          summary: 'Ledger balansi buzildi: {{ $value }} tiyin'
+          description: "Debet ≠ kredit. Billing operatsiyalarini to'xtatish."
+          runbook_url: 'https://github.com/Sarvarbek0704/farzin/blob/main/docs/runbooks/ledger-imbalance.md'
+
+      - alert: FarzinGlickoConvergenceFailure
+        expr: increase(farzin_glicko_convergence_failures_total[15m]) > 0
+        for: 0m
+        labels:
+          severity: page
+        annotations:
+          summary: 'Glicko-2 sigma konvergensiya qilmadi'
+          description: "Reyting ishonchsiz. Recompute natijasini e'lon QILMASLIK."
+          runbook_url: 'https://github.com/Sarvarbek0704/farzin/blob/main/docs/runbooks/glicko-convergence.md'
+
+  # ===========================================================================
+  #  DOMEN — ogohlantirish (docs/15 §6.4)
+  # ===========================================================================
+  - name: farzin-domain-warning
+    interval: 30s
+    rules:
+      - alert: FarzinRatingPeriodLagHigh
+        expr: farzin_rating_period_lag_seconds > 7200
+        for: 10m
+        labels:
+          severity: ticket
+        annotations:
+          summary: 'Rating period 2 soatdan ortiq kechikdi'
+          runbook_url: 'https://github.com/Sarvarbek0704/farzin/blob/main/docs/runbooks/rating-period-lag.md'
+
+      # SLO #4: ≤100 o'yinchili seksiyada p95 < 10 s.
+      # Bucket yorliqlari: xs/s/m/l (metrics.labels.ts sectionSizeBucket).
+      - alert: FarzinPairingSlow
+        expr: |
+          histogram_quantile(0.95,
+            sum(rate(farzin_pairing_duration_seconds_bucket{section_size_bucket=~"xs|s|m"}[10m]))
+            by (le)) > 10
+        for: 5m
+        labels:
+          severity: ticket
+        annotations:
+          summary: 'Juftlashtirish sekinlashdi (p95 > 10s)'
+          runbook_url: 'https://github.com/Sarvarbek0704/farzin/blob/main/docs/runbooks/pairing-slow.md'
+
+      # Adolat masalasi: drift = o'yinchi haqsiz vaqt yo'qotadi (docs/07 §3.3).
+      - alert: FarzinClockDriftHigh
+        expr: |
+          histogram_quantile(0.99,
+            sum(rate(farzin_clock_drift_seconds_bucket[5m])) by (le, game_type)) > 0.1
+        for: 5m
+        labels:
+          severity: ticket
+        annotations:
+          summary: 'Taymer drift yuqori ({{ $labels.game_type }}) — adolat xavfi'
+          runbook_url: 'https://github.com/Sarvarbek0704/farzin/blob/main/docs/runbooks/clock-drift.md'
+
+      - alert: FarzinPaymentFailureRateHigh
+        expr: |
+          sum(rate(farzin_payment_failures_total[15m])) by (provider)
+          /
+          sum(rate(farzin_payment_attempts_total[15m])) by (provider)
+          > 0.05
+        for: 10m
+        labels:
+          severity: ticket
+        annotations:
+          summary: "{{ $labels.provider }} to'lov xatosi 5% dan oshdi"
+          runbook_url: 'https://github.com/Sarvarbek0704/farzin/blob/main/docs/runbooks/payment-failures.md'
+
+      # SLO #2: move latency p95 < 150 ms (docs/15 §6.2).
+      - alert: FarzinMoveProcessingSlow
+        expr: |
+          histogram_quantile(0.95,
+            sum(rate(farzin_move_processing_duration_seconds_bucket[10m])) by (le)) > 0.15
+        for: 5m
+        labels:
+          severity: ticket
+          slo: move-latency
+        annotations:
+          summary: "Yurish qayta ishlash sekinlashdi (p95 > 150 ms)"
+          runbook_url: 'https://github.com/Sarvarbek0704/farzin/blob/main/docs/runbooks/move-latency.md'
+
+  # ===========================================================================
+  #  MAVJUDLIK — target o'zi yo'qolganda
+  # ===========================================================================
+  - name: farzin-availability
+    interval: 30s
+    rules:
+      # Metrikalar yo'qolsa qolgan hamma alert JIM bo'ladi — shuning uchun
+      # bu alert boshqalarining ishonchliligi uchun MAJBURIY.
+      - alert: FarzinTargetDown
+        expr: up{job=~"farzin-.*"} == 0
+        for: 2m
+        labels:
+          severity: page
+        annotations:
+          summary: '{{ $labels.job }} scrape javob bermayapti ({{ $labels.instance }})'
+          description: "Target yiqilgan yoki tarmoq uzilgan. Boshqa alertlar ham JIM."
+          runbook_url: 'https://github.com/Sarvarbek0704/farzin/blob/main/docs/runbooks/target-down.md'
