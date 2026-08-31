@@ -97,32 +97,6 @@ USER node
 
 ENTRYPOINT ["dumb-init", "--"]
 
-# --- 4-bosqich: API (default target) ----------------------------------------
-#
-#  ⚠️  STOCKFISH BU YERDA ATAYLAB YO'Q.
-#
-#  src/worker.ts sarlavhasi va analysis.processor.ts:41-43 aniq yozadi:
-#  "API processi bu navbatni QAYTA ISHLAMAYDI — Stockfish CPU'ni to'liq
-#  yeydi va HTTP javob vaqtini buzadi". Ya'ni API'da shaxmat dvigateli
-#  hech qachon ishga tushmaydi — uni image'ga qo'shish ~50 MB va
-#  ortiqcha hujum sirtidan boshqa hech narsa bermaydi.
-#
-#  (Ilgari bu qatorda `apk add stockfish` turgan edi va BUTUN BUILD
-#  yiqilardi: paket Alpine'ning main/community repolarida yo'q —
-#  docs/AUDIT.md KRITIK-1.)
-FROM runtime-base AS runner
-
-EXPOSE 3000
-
-# Yo'l `/health/live` — `/api/health/live` EMAS: main.ts:76 health va
-# metrics yo'llarini global prefiksdan CHIQARADI. Noto'g'ri yo'l bilan
-# konteyner abadiy `unhealthy` bo'lib qolardi va compose'dagi
-# `depends_on: service_healthy` hech qachon ochilmasdi.
-HEALTHCHECK --interval=30s --timeout=5s --start-period=20s --retries=3 \
-  CMD node -e "require('http').get('http://127.0.0.1:3000/health/live',r=>process.exit(r.statusCode===200?0:1)).on('error',()=>process.exit(1))"
-
-CMD ["node", "dist/main"]
-
 # --- 4-bosqich (muqobil): worker --------------------------------------------
 #
 #  Stockfish — fair-play tahlili uchun (docs/08-fair-play.md §8).
@@ -152,3 +126,34 @@ USER node
 ENV STOCKFISH_PATH=/usr/bin/stockfish
 
 CMD ["node", "dist/worker"]
+
+# --- 5-bosqich: API — OXIRGI bosqich, ya'ni DEFAULT target -------------------
+#
+#  ⚠️  TARTIB MUHIM: `--target` siz `docker build .` OXIRGI bosqichni
+#      quradi. API default bo'lishi kerak (compose, CI va odam shuni
+#      kutadi), shuning uchun `runner` fayl oxirida turadi va `worker`
+#      undan OLDIN keladi. Bosqichlarni joyini almashtirmang.
+#
+#  ⚠️  STOCKFISH BU YERDA ATAYLAB YO'Q.
+#
+#  src/worker.ts sarlavhasi va analysis.processor.ts:41-43 aniq yozadi:
+#  "API processi bu navbatni QAYTA ISHLAMAYDI — Stockfish CPU'ni to'liq
+#  yeydi va HTTP javob vaqtini buzadi". Ya'ni API'da shaxmat dvigateli
+#  hech qachon ishga tushmaydi — uni image'ga qo'shish ~50 MB va
+#  ortiqcha hujum sirtidan boshqa hech narsa bermaydi.
+#
+#  (Ilgari bu qatorda `apk add stockfish` turgan edi va BUTUN BUILD
+#  yiqilardi: paket Alpine'ning main/community repolarida yo'q —
+#  docs/AUDIT.md KRITIK-1.)
+FROM runtime-base AS runner
+
+EXPOSE 3000
+
+# Yo'l `/health/live` — `/api/health/live` EMAS: main.ts:76 health va
+# metrics yo'llarini global prefiksdan CHIQARADI. Noto'g'ri yo'l bilan
+# konteyner abadiy `unhealthy` bo'lib qolardi va compose'dagi
+# `depends_on: service_healthy` hech qachon ochilmasdi.
+HEALTHCHECK --interval=30s --timeout=5s --start-period=20s --retries=3 \
+  CMD node -e "require('http').get('http://127.0.0.1:3000/health/live',r=>process.exit(r.statusCode===200?0:1)).on('error',()=>process.exit(1))"
+
+CMD ["node", "dist/main"]

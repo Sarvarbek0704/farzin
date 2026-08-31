@@ -5,20 +5,20 @@
 
 name: CI
 
-# ⚠️  Avtomatik trigger vaqtincha o'chirilgan — bu hisobda GitHub Actions
-#     hozircha mavjud emas. Pipeline to'liq yozilgan va ishlashga tayyor;
-#     Actions yoqilgandan keyin quyidagi `push`/`pull_request` blokini
-#     qayta yoqish kifoya.
+# Avtomatik trigger YOQILGAN (docs/AUDIT.md JIDDIY-1).
 #
-#     Hozircha qo'lda ishga tushiriladi: Actions → CI → Run workflow.
-#     Lokal ekvivalenti (CI bilan bir xil tekshiruvlar):
-#       pnpm lint && pnpm typecheck && pnpm arch:check && pnpm test:unit && pnpm build
+# Ilgari bu blok izohga olingan edi ("Actions bu hisobda mavjud emas") va
+# natijada 25 commit davomida HECH NARSA tekshirilmadi — buzilgan
+# `docker build` (KRITIK-1) aynan shu sababdan sezilmay qoldi.
+#
+# Lokal ekvivalenti (CI bilan bir xil tekshiruvlar):
+#   pnpm lint && pnpm typecheck && pnpm arch:check && pnpm test:unit && pnpm build
 on:
   workflow_dispatch:
-  # push:
-  #   branches: [main]
-  # pull_request:
-  #   branches: [main]
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -149,20 +149,32 @@ jobs:
       - run: pnpm build
 
   # --- Docker image ---------------------------------------------------------
+  #  IKKALA maqsad ham quriladi. Ilgari faqat default target qurilardi va
+  #  bu job umuman ishlamas edi (trigger o'chiq) — natijada buzilgan
+  #  `apk add stockfish` 25 commit davomida sezilmay qoldi (KRITIK-1).
   docker:
-    name: Docker build
+    name: Docker build (api + worker)
     runs-on: ubuntu-latest
     timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - target: runner
+            tag: farzin:ci-api
+          - target: worker
+            tag: farzin:ci-worker
     steps:
       - uses: actions/checkout@v4
       - uses: docker/setup-buildx-action@v3
       - uses: docker/build-push-action@v6
         with:
           context: .
+          target: ${{ matrix.target }}
           push: false
-          tags: farzin:ci
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
+          tags: ${{ matrix.tag }}
+          cache-from: type=gha,scope=${{ matrix.target }}
+          cache-to: type=gha,mode=max,scope=${{ matrix.target }}
 
   # --- Xavfsizlik -----------------------------------------------------------
   security:
