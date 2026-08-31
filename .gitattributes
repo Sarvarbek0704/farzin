@@ -1,0 +1,58 @@
+# =============================================================================
+#  FARZIN — qator oxiri (line ending) normallashtirish
+#
+#  MUAMMO (docs/AUDIT.md KICHIK-3): bu fayl bo'lmaganda Windows'da
+#  `core.autocrlf=true` har faylni CRLF bilan checkout qiladi, `.prettierrc`
+#  esa `endOfLine: "lf"` talab qiladi. Natijada:
+#
+#    - `pnpm format:check` Windows'da HAR DOIM yiqiladi (123 faylda),
+#      Linux CI'da esa o'tadi — ya'ni CI va ishlab chiquvchi mashinasi
+#      turli javob beradi (tekshirildi: CRLF olib tashlansa farq NOL);
+#    - `lint-staged` dagi `prettier --write` har staged faylni to'liq
+#      qayta yozadi va diff'ni shovqinga to'ldiradi.
+#
+#  YECHIM: repoda hamma narsa LF. `text=auto eol=lf` — fayl matn ekanini
+#  git o'zi aniqlaydi, ishchi nusxada ham LF qoladi (autocrlf'dan qat'i
+#  nazar), demak Windows va Linux bir xil natija beradi.
+#
+#  ⚠️  Mavjud ishchi nusxada CRLF qolib ketgan bo'lsa, bir marta:
+#        git add --renormalize .
+# =============================================================================
+
+* text=auto eol=lf
+
+# --- Aniq matn turlari (ishonchlilik uchun ochiq ko'rsatilgan) ---------------
+*.ts        text eol=lf
+*.js        text eol=lf
+*.mjs       text eol=lf
+*.cjs       text eol=lf
+*.json      text eol=lf
+*.md        text eol=lf
+*.yml       text eol=lf
+*.yaml      text eol=lf
+*.prisma    text eol=lf
+*.sql       text eol=lf
+*.env*      text eol=lf
+Dockerfile  text eol=lf
+.gitignore  text eol=lf
+.editorconfig text eol=lf
+
+# Shell skriptlari va git hook'lari — CRLF ularni ISHLAMAYDIGAN qiladi
+# (`#!/bin/sh\r` → "bad interpreter"). Husky hook'lari shu jumlada.
+*.sh        text eol=lf
+.husky/*    text eol=lf
+
+# --- Binar fayllar: git ularga TEGMASIN --------------------------------------
+*.png       binary
+*.jpg       binary
+*.jpeg      binary
+*.gif       binary
+*.ico       binary
+*.svg       text eol=lf
+*.woff      binary
+*.woff2     binary
+*.pdf       binary
+*.zip       binary
+
+# --- Diff'da shovqin qilmasin ------------------------------------------------
+pnpm-lock.yaml  linguist-generated=true -diff
