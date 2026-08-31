@@ -25,11 +25,7 @@ export const STARTING_FEN = 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq 
 
 /** O'yinni tugatuvchi pozitsion holatlar (prisma OnlineGameStatus'ning kichik to'plami). */
 export type PositionEnd =
-  | 'CHECKMATE'
-  | 'STALEMATE'
-  | 'THREEFOLD_REPETITION'
-  | 'FIFTY_MOVE_RULE'
-  | 'INSUFFICIENT_MATERIAL';
+  'CHECKMATE' | 'STALEMATE' | 'THREEFOLD_REPETITION' | 'FIFTY_MOVE_RULE' | 'INSUFFICIENT_MATERIAL';
 
 export interface MoveFlags {
   readonly check: boolean;
@@ -315,9 +311,7 @@ class ZobristHasher {
 
   constructor(seed: bigint) {
     const rng = new Xorshift64(seed);
-    this.pieceKeys = Array.from({ length: 12 }, () =>
-      Array.from({ length: 64 }, () => rng.next()),
-    );
+    this.pieceKeys = Array.from({ length: 12 }, () => Array.from({ length: 64 }, () => rng.next()));
     this.sideKey = rng.next();
     this.castlingKeys = Array.from({ length: 16 }, () => rng.next());
     this.epFileKeys = Array.from({ length: 8 }, () => rng.next());

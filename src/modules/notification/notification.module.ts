@@ -3,7 +3,10 @@ import { ConfigService } from '@nestjs/config';
 import { createTransport, type Transporter } from 'nodemailer';
 
 import type { AppConfig } from '../../config/configuration';
-import { NOTIFICATION_CHANNEL_ADAPTERS, type NotificationChannelAdapter } from './channels/channel.port';
+import {
+  NOTIFICATION_CHANNEL_ADAPTERS,
+  type NotificationChannelAdapter,
+} from './channels/channel.port';
 import { EmailChannel, MAIL_FROM, MAIL_TRANSPORT } from './channels/email.channel';
 import { InAppChannel } from './channels/in-app.channel';
 import { PushChannel } from './channels/push.channel';

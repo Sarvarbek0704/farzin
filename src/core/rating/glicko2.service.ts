@@ -91,11 +91,7 @@ export class Glicko2Service implements Glicko2Calculator {
     const muPrime = mu + phiPrime * phiPrime * outcomeSum;
 
     // Qadam 11-12 — asl shkalaga qaytish va chegaralash.
-    return this.clamp(
-      GLICKO2_SCALE * muPrime + 1500,
-      GLICKO2_SCALE * phiPrime,
-      sigmaPrime,
-    );
+    return this.clamp(GLICKO2_SCALE * muPrime + 1500, GLICKO2_SCALE * phiPrime, sigmaPrime);
   }
 
   /**

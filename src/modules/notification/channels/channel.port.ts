@@ -1,4 +1,8 @@
-import type { NotificationChannelValue, NotificationRow, RecipientUser } from '../notification.types';
+import type {
+  NotificationChannelValue,
+  NotificationRow,
+  RecipientUser,
+} from '../notification.types';
 
 /**
  * Yetkazish kanali adapteri — billing PaymentProviderAdapter pattern'i

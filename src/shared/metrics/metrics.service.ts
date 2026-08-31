@@ -121,10 +121,9 @@ function createInstruments(meter: Meter): Instruments {
      * Nolga teng bo'lmagan HAR QANDAY qiymatda `page` alert
      * (infra/prometheus/farzin-rules.yml).
      */
-    pairingCriteriaViolations: meter.createCounter(
-      'farzin_pairing_criteria_violations_total',
-      { description: "FIDE absolyut kriteriya buzilishi (HECH QACHON > 0 bo'lmasligi kerak)" },
-    ),
+    pairingCriteriaViolations: meter.createCounter('farzin_pairing_criteria_violations_total', {
+      description: "FIDE absolyut kriteriya buzilishi (HECH QACHON > 0 bo'lmasligi kerak)",
+    }),
     pairingFloatCount: histogram(
       'farzin_pairing_float_count',
       'Raunddagi downfloat soni — sifat signali',
@@ -140,7 +139,7 @@ function createInstruments(meter: Meter): Instruments {
     }),
     moveProcessingDuration: histogram(
       'farzin_move_processing_duration_seconds',
-      "Yurish qabul qilishdan raqibga yuborishgacha (SLO manbai)",
+      'Yurish qabul qilishdan raqibga yuborishgacha (SLO manbai)',
       BUCKETS.moveProcessing,
     ),
     clockDrift: histogram(
@@ -193,7 +192,7 @@ function createInstruments(meter: Meter): Instruments {
 
     // ---------- TURNIR ----------
     activeTournaments: meter.createGauge('farzin_active_tournaments', {
-      description: "Davom etayotgan turnirlar",
+      description: 'Davom etayotgan turnirlar',
     }),
     resultEntryLag: histogram(
       'farzin_result_entry_lag_seconds',

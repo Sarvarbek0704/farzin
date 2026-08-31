@@ -26,11 +26,7 @@ export type OnlineGameStatusValue =
   | 'ABORTED';
 
 export type ClockTypeValue =
-  | 'SUDDEN_DEATH'
-  | 'FISCHER_INCREMENT'
-  | 'BRONSTEIN_DELAY'
-  | 'SIMPLE_DELAY'
-  | 'MULTI_STAGE';
+  'SUDDEN_DEATH' | 'FISCHER_INCREMENT' | 'BRONSTEIN_DELAY' | 'SIMPLE_DELAY' | 'MULTI_STAGE';
 
 export type TimeCategoryValue = 'CLASSICAL' | 'RAPID' | 'BLITZ' | 'BULLET';
 
@@ -202,9 +198,7 @@ export interface GameErrorPayload {
 }
 
 /** docs/07 §7.2 Ack — barcha client→server event'lar uchun bir xil shakl. */
-export type Ack<T> =
-  | { ok: true; data: T }
-  | { ok: false; error: GameErrorPayload };
+export type Ack<T> = { ok: true; data: T } | { ok: false; error: GameErrorPayload };
 
 export interface MoveAckData {
   ply: number;
@@ -253,9 +247,7 @@ export type FlagCheckResult =
   | { kind: 'stop' };
 
 /** Matchmaking navbatiga qo'shilish natijasi. */
-export type MatchmakingJoinResult =
-  | { status: 'queued' }
-  | { status: 'matched'; gameId: string };
+export type MatchmakingJoinResult = { status: 'queued' } | { status: 'matched'; gameId: string };
 
 /** EventEmitter2 orqali gateway'ga yetkaziladigan ichki hodisa. */
 export const PLAY_MATCHED_EVENT = 'play.matched';

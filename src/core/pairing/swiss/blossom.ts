@@ -77,7 +77,7 @@ export function maximumWeightMatching(
       throw new Error(`blossom: yaroqsiz qirra (${String(e.u)}, ${String(e.v)})`);
     }
     if (e.weight < 0n) {
-      throw new Error('blossom: manfiy og\'irlik qo\'llab-quvvatlanmaydi');
+      throw new Error("blossom: manfiy og'irlik qo'llab-quvvatlanmaydi");
     }
   }
 
@@ -167,7 +167,7 @@ export function maximumWeightMatching(
       const base = req(blossombase[b], 'blossombase');
       const mateBase = req(mate[base], 'mate[base]');
       if (mateBase < 0) {
-        throw new Error('blossom ichki xato: T-blossom asosining juftligi yo\'q');
+        throw new Error("blossom ichki xato: T-blossom asosining juftligi yo'q");
       }
       assignLabel(req(endpoint[mateBase], 'endpoint'), 1, mateBase ^ 1);
     }
@@ -215,7 +215,7 @@ export function maximumWeightMatching(
     let bw = req(inblossom[w], 'inblossom[w]');
     const b = unusedblossoms.pop();
     if (b === undefined) {
-      throw new Error('blossom ichki xato: bo\'sh blossom raqami qolmadi');
+      throw new Error("blossom ichki xato: bo'sh blossom raqami qolmadi");
     }
     blossombase[b] = base;
     blossomparent[b] = -1;
@@ -366,12 +366,8 @@ export function maximumWeightMatching(
             throw new Error('blossom ichki xato: kutilgan T-tugun emas');
           }
           label[reachable] = 0;
-          label[
-            req(
-              endpoint[req(mate[req(blossombase[bv], 'blossombase')], 'mate')],
-              'endpoint',
-            )
-          ] = 0;
+          label[req(endpoint[req(mate[req(blossombase[bv], 'blossombase')], 'mate')], 'endpoint')] =
+            0;
           assignLabel(reachable, 2, req(labelend[reachable], 'labelend'));
         }
         j += jstep;
@@ -450,7 +446,7 @@ export function maximumWeightMatching(
       for (;;) {
         const bs = req(inblossom[s], 'inblossom');
         if (req(label[bs], 'label') !== 1) {
-          throw new Error('blossom ichki xato: augment yo\'lida S-blossom emas');
+          throw new Error("blossom ichki xato: augment yo'lida S-blossom emas");
         }
         if (bs >= nvertex) {
           augmentBlossom(bs, s);
@@ -462,7 +458,7 @@ export function maximumWeightMatching(
         const t = req(endpoint[req(labelend[bs], 'labelend')], 'endpoint');
         const bt = req(inblossom[t], 'inblossom');
         if (req(label[bt], 'label') !== 2) {
-          throw new Error('blossom ichki xato: augment yo\'lida T-blossom emas');
+          throw new Error("blossom ichki xato: augment yo'lida T-blossom emas");
         }
         s = req(endpoint[req(labelend[bt], 'labelend')], 'endpoint');
         const j = req(endpoint[req(labelend[bt], 'labelend') ^ 1], 'endpoint');
@@ -486,7 +482,10 @@ export function maximumWeightMatching(
     queue = [];
 
     for (let v = 0; v < nvertex; v += 1) {
-      if (req(mate[v], 'mate') === -1 && req(label[req(inblossom[v], 'inblossom')], 'label') === 0) {
+      if (
+        req(mate[v], 'mate') === -1 &&
+        req(label[req(inblossom[v], 'inblossom')], 'label') === 0
+      ) {
         assignLabel(v, 1, -1);
       }
     }
@@ -621,7 +620,10 @@ export function maximumWeightMatching(
         }
       }
       for (let b = nvertex; b < 2 * nvertex; b += 1) {
-        if (req(blossombase[b], 'blossombase') >= 0 && req(blossomparent[b], 'blossomparent') === -1) {
+        if (
+          req(blossombase[b], 'blossombase') >= 0 &&
+          req(blossomparent[b], 'blossomparent') === -1
+        ) {
           const lbl = req(label[b], 'label');
           if (lbl === 1) {
             dualvar[b] = req(dualvar[b], 'dualvar') + delta;

@@ -67,12 +67,7 @@ export class ClockStore {
   /** Yangi o'yin uchun boshlang'ich yozuv (SET — o'yin ID unikal, NX shart emas). */
   async init(gameId: string, state: ClockState): Promise<void> {
     const entry: ClockEntry = { version: 1, state };
-    await this.redis.set(
-      this.key(gameId),
-      JSON.stringify(entry),
-      'EX',
-      ClockStore.TTL_SECONDS,
-    );
+    await this.redis.set(this.key(gameId), JSON.stringify(entry), 'EX', ClockStore.TTL_SECONDS);
   }
 
   async load(gameId: string): Promise<ClockEntry | null> {

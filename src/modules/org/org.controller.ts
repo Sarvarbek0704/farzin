@@ -14,12 +14,7 @@ import { ApiBearerAuth, ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagg
 
 import { Public } from '../../shared/auth/public.decorator';
 import { type Actor, CurrentActor, RequirePermission } from '../identity/rbac.port';
-import {
-  CreateClubDto,
-  CreateFederationDto,
-  CreateRegionDto,
-  UpdateClubDto,
-} from './dto/org.dtos';
+import { CreateClubDto, CreateFederationDto, CreateRegionDto, UpdateClubDto } from './dto/org.dtos';
 import type { ClubRow, FederationRow, RegionRow } from './org.repository';
 import { OrgService } from './org.service';
 

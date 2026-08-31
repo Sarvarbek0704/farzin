@@ -603,10 +603,7 @@ export class RatingRepository {
         isProvisional: false,
         player: { deletedAt: null },
         ...(cursor !== null && {
-          OR: [
-            { rating: { lt: cursor.rating } },
-            { rating: cursor.rating, id: { gt: cursor.id } },
-          ],
+          OR: [{ rating: { lt: cursor.rating } }, { rating: cursor.rating, id: { gt: cursor.id } }],
         }),
       },
       orderBy: [{ rating: 'desc' }, { id: 'asc' }],

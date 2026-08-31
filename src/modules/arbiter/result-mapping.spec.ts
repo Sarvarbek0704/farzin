@@ -89,7 +89,7 @@ describe('sideOf', () => {
   });
 });
 
-describe('buildScoreViews — 3 o\'yinchili fixture', () => {
+describe("buildScoreViews — 3 o'yinchili fixture", () => {
   /**
    * 3 o'yinchi (A, B, C), round-robin, 3 tur (har turda bitta bye):
    *   R1: A(oq) 1-0 B;         C — BYE_FULL
@@ -139,7 +139,7 @@ describe('buildScoreViews — 3 o\'yinchili fixture', () => {
     expect(byId.get('C')?.colorHistory).toEqual(['BLACK']);
   });
 
-  it('games — GameRecord shakli (virtual opponent bayrog\'i bilan)', () => {
+  it("games — GameRecord shakli (virtual opponent bayrog'i bilan)", () => {
     expect(byId.get('A')?.games).toEqual([
       { opponentId: 'B', color: 'WHITE', result: 1, playedOverBoard: true },
       // Forfeit: raqib bor, lekin taxtada o'ynalmagan → color null.
@@ -148,7 +148,7 @@ describe('buildScoreViews — 3 o\'yinchili fixture', () => {
     ]);
   });
 
-  it("UNPLAYED yozuv jadvalga kirmaydi", () => {
+  it('UNPLAYED yozuv jadvalga kirmaydi', () => {
     const withUnplayed = buildScoreViews(
       ['A', 'B'],
       [

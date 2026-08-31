@@ -37,9 +37,7 @@ function player(
   games: readonly GameRecord[],
   rating?: number,
 ): PlayerTieBreakInput {
-  return rating === undefined
-    ? { playerId, points, games }
-    : { playerId, points, games, rating };
+  return rating === undefined ? { playerId, points, games } : { playerId, points, games, rating };
 }
 
 const calc = new TieBreakCalculator();
@@ -72,30 +70,10 @@ const calc = new TieBreakCalculator();
  *   BLACK_GAMES: A=2 (R2,R3), B=2 (R1,R3), C=0, D=2 (R1,R2)
  */
 const goldenA: readonly PlayerTieBreakInput[] = [
-  player(
-    'A',
-    2.5,
-    [game('B', 'WHITE', 1), game('C', 'BLACK', 1), game('D', 'BLACK', 0.5)],
-    2000,
-  ),
-  player(
-    'B',
-    1.5,
-    [game('A', 'BLACK', 0), game('D', 'WHITE', 1), game('C', 'BLACK', 0.5)],
-    1800,
-  ),
-  player(
-    'C',
-    1.5,
-    [game('D', 'WHITE', 1), game('A', 'WHITE', 0), game('B', 'WHITE', 0.5)],
-    1600,
-  ),
-  player(
-    'D',
-    0.5,
-    [game('C', 'BLACK', 0), game('B', 'BLACK', 0), game('A', 'WHITE', 0.5)],
-    1400,
-  ),
+  player('A', 2.5, [game('B', 'WHITE', 1), game('C', 'BLACK', 1), game('D', 'BLACK', 0.5)], 2000),
+  player('B', 1.5, [game('A', 'BLACK', 0), game('D', 'WHITE', 1), game('C', 'BLACK', 0.5)], 1800),
+  player('C', 1.5, [game('D', 'WHITE', 1), game('A', 'WHITE', 0), game('B', 'WHITE', 0.5)], 1600),
+  player('D', 0.5, [game('C', 'BLACK', 0), game('B', 'BLACK', 0), game('A', 'WHITE', 0.5)], 1400),
 ];
 
 describe('TieBreakCalculator', () => {
@@ -203,7 +181,11 @@ describe('TieBreakCalculator', () => {
    */
   describe('golden B — bye va virtual opponent (§7.1)', () => {
     const goldenB: readonly PlayerTieBreakInput[] = [
-      player('E', 2.5, [game('F', 'WHITE', 1), game(null, null, 1, false), game('G', 'WHITE', 0.5)]),
+      player('E', 2.5, [
+        game('F', 'WHITE', 1),
+        game(null, null, 1, false),
+        game('G', 'WHITE', 0.5),
+      ]),
       player('F', 2, [game('E', 'BLACK', 0), game('G', 'WHITE', 1), game('H', 'WHITE', 1)]),
       player('G', 1.5, [game('H', 'WHITE', 1), game('F', 'BLACK', 0), game('E', 'BLACK', 0.5)]),
       player('H', 0, [game('G', 'BLACK', 0), game(null, null, 0, false), game('F', 'BLACK', 0)]),
@@ -422,10 +404,10 @@ describe('TieBreakCalculator', () => {
         const indices = Array.from({ length: n }, (_, i) => i);
         return fc
           .record({
-            perms: fc.array(
-              fc.shuffledSubarray(indices, { minLength: n, maxLength: n }),
-              { minLength: rounds, maxLength: rounds },
-            ),
+            perms: fc.array(fc.shuffledSubarray(indices, { minLength: n, maxLength: n }), {
+              minLength: rounds,
+              maxLength: rounds,
+            }),
             results: fc.array(
               fc.array(fc.constantFrom<GameScore>(0, 0.5, 1), {
                 minLength: Math.floor(n / 2),
@@ -438,9 +420,7 @@ describe('TieBreakCalculator', () => {
               maxLength: rounds,
             }),
           })
-          .map(({ perms, results, byeResults }) =>
-            buildTournament(n, perms, results, byeResults),
-          );
+          .map(({ perms, results, byeResults }) => buildTournament(n, perms, results, byeResults));
       });
 
     function buildTournament(
@@ -467,7 +447,12 @@ describe('TieBreakCalculator', () => {
       });
 
       return games.map((g, i) =>
-        player(id(i), g.reduce((acc, x) => acc + x.result, 0), g, 1000 + i * 50),
+        player(
+          id(i),
+          g.reduce((acc, x) => acc + x.result, 0),
+          g,
+          1000 + i * 50,
+        ),
       );
     }
 

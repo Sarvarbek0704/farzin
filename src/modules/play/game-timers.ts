@@ -59,10 +59,7 @@ export const DISCONNECT_GRACE_MS: Readonly<Record<TimeCategoryValue, number>> = 
  * bilan abandonment oqimini tekshiradi, ops ham vaqtincha burashi mumkin)
  * yoki §3.8 jadvali.
  */
-export function graceMsFor(
-  category: TimeCategoryValue,
-  overrideMs: number | null,
-): number {
+export function graceMsFor(category: TimeCategoryValue, overrideMs: number | null): number {
   return overrideMs ?? DISCONNECT_GRACE_MS[category];
 }
 

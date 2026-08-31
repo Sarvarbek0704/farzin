@@ -147,8 +147,7 @@ export function buildPairingStates(
           hasReceivedBye = true;
         }
       } else {
-        const opponentId =
-          side === 'WHITE' ? entry.blackRegistrationId : entry.whiteRegistrationId;
+        const opponentId = side === 'WHITE' ? entry.blackRegistrationId : entry.whiteRegistrationId;
         opponentIds.add(opponentId as PlayerId);
         // C2 blokeri: forfeit g'alaba = o'ynamasdan g'alaba ochkosi.
         if (

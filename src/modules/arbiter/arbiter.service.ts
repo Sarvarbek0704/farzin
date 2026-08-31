@@ -1,10 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
 
-import {
-  BusinessRuleError,
-  ConflictError,
-  NotFoundError,
-} from '../../core/errors/domain.error';
+import { BusinessRuleError, ConflictError, NotFoundError } from '../../core/errors/domain.error';
 import { writeSectionPgn } from '../../core/export/pgn-writer';
 import { writeSectionTrf } from '../../core/export/trf-writer';
 import { RoundRobinEngine } from '../../core/pairing/round-robin.engine';
@@ -262,8 +258,8 @@ export class ArbiterService {
       throw new BusinessRuleError(
         'RESULT_NOT_APPLICABLE',
         isBye
-          ? "Bye juftligiga faqat BYE_FULL/BYE_HALF/BYE_ZERO natija kiritiladi"
-          : "Oddiy juftlikka bye natijasi kiritilmaydi",
+          ? 'Bye juftligiga faqat BYE_FULL/BYE_HALF/BYE_ZERO natija kiritiladi'
+          : 'Oddiy juftlikka bye natijasi kiritilmaydi',
         { pairingId, result, isBye },
       );
     }
@@ -314,7 +310,7 @@ export class ArbiterService {
     if (unplayedBoards.length > 0) {
       throw new BusinessRuleError(
         'ROUND_HAS_UNPLAYED_GAMES',
-        "Turda natijasi kiritilmagan taxtalar bor — tur yopilmaydi",
+        'Turda natijasi kiritilmagan taxtalar bor — tur yopilmaydi',
         { roundId, boards: unplayedBoards },
       );
     }
@@ -511,7 +507,7 @@ export class ArbiterService {
     if (section.tournament.status !== 'IN_PROGRESS') {
       throw new BusinessRuleError(
         'TOURNAMENT_NOT_IN_PROGRESS',
-        "Juftlashtirish va natija kiritish faqat IN_PROGRESS holatidagi turnirda",
+        'Juftlashtirish va natija kiritish faqat IN_PROGRESS holatidagi turnirda',
         { status: section.tournament.status },
       );
     }

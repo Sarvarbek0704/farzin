@@ -103,10 +103,11 @@ describe('Notification (integration)', () => {
 
   it("to'liq halqa: tur yakuni → outbox → ikkala o'yinchiga IN_APP 'round.completed'", async () => {
     // --- Mini turnir oqimi (audit-atomicity.spec.ts bilan bir xil) --------
-    const fed = await request(t.server)
-      .post('/api/v1/federations')
-      .set(bearer(adminToken))
-      .send({ name: "O'zbekiston shaxmat federatsiyasi", shortName: 'UzChess', countryCode: 'UZB' });
+    const fed = await request(t.server).post('/api/v1/federations').set(bearer(adminToken)).send({
+      name: "O'zbekiston shaxmat federatsiyasi",
+      shortName: 'UzChess',
+      countryCode: 'UZB',
+    });
     expect(fed.status).toBe(201);
 
     const region = await request(t.server)
@@ -118,7 +119,11 @@ describe('Notification (integration)', () => {
     const club = await request(t.server)
       .post('/api/v1/clubs')
       .set(bearer(adminToken))
-      .send({ regionId: region.body.id as string, name: 'Toshkent shaxmat klubi', slug: 'toshkent-klubi' });
+      .send({
+        regionId: region.body.id as string,
+        name: 'Toshkent shaxmat klubi',
+        slug: 'toshkent-klubi',
+      });
     expect(club.status).toBe(201);
 
     const tournament = await request(t.server)
@@ -241,9 +246,7 @@ describe('Notification (integration)', () => {
 
   it("API: o'z ro'yxati, unread-count, mark-read — faqat o'ziniki", async () => {
     // Ro'yxat — p1 faqat O'Z xabarini ko'radi.
-    const list = await request(t.server)
-      .get('/api/v1/notifications')
-      .set(bearer(player1Token));
+    const list = await request(t.server).get('/api/v1/notifications').set(bearer(player1Token));
     expect(list.status).toBe(200);
     expect(list.body.items).toHaveLength(1);
     const item = list.body.items[0] as Record<string, unknown>;
@@ -287,10 +290,8 @@ describe('Notification (integration)', () => {
     expect(unreadAfter.body.count).toBe(0);
   });
 
-  it("IDOR: boshqa userning xabari → 404 (403 emas)", async () => {
-    const p2List = await request(t.server)
-      .get('/api/v1/notifications')
-      .set(bearer(player2Token));
+  it('IDOR: boshqa userning xabari → 404 (403 emas)', async () => {
+    const p2List = await request(t.server).get('/api/v1/notifications').set(bearer(player2Token));
     const p2NotificationId = p2List.body.items[0].id as string;
 
     // p1 p2'ning xabarini o'qilgan qilolmaydi — resurs "mavjud emas".

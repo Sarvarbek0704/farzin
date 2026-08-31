@@ -90,7 +90,7 @@ describe('POLICY reestri ↔ §4.1 matritsa (lockstep)', () => {
     expect([...keys].sort()).toEqual([...ALL_ROLES].sort());
   });
 
-  it("har bir Grant resursi matritsadagi 32 qatorning biri", () => {
+  it('har bir Grant resursi matritsadagi 32 qatorning biri', () => {
     for (const role of ALL_ROLES) {
       for (const grant of POLICY[role]) {
         expect(ALL_RESOURCES).toContain(grant.resource);
@@ -98,7 +98,7 @@ describe('POLICY reestri ↔ §4.1 matritsa (lockstep)', () => {
     }
   });
 
-  it("bir rolda bir resurs uchun faqat bitta Grant (katak = grant)", () => {
+  it('bir rolda bir resurs uchun faqat bitta Grant (katak = grant)', () => {
     for (const role of ALL_ROLES) {
       const resources = POLICY[role].map((g) => g.resource);
       expect(new Set(resources).size).toBe(resources.length);
@@ -116,7 +116,7 @@ describe('POLICY reestri ↔ §4.1 matritsa (lockstep)', () => {
 });
 
 describe('Matritsa invariantlari (§4.1 izohi, §4.3)', () => {
-  it("AuditLog: HECH BIR rol yoza olmaydi — log tizim tomonidan yoziladi", () => {
+  it('AuditLog: HECH BIR rol yoza olmaydi — log tizim tomonidan yoziladi', () => {
     for (const role of ALL_ROLES) {
       const grant = POLICY[role].find((g) => g.resource === 'AuditLog');
       if (grant) {
@@ -141,7 +141,7 @@ describe('Matritsa invariantlari (§4.1 izohi, §4.3)', () => {
     }
   });
 
-  it('SUPER_ADMIN AuditLog ni o\'qiy oladi, lekin o\'chira olmaydi', () => {
+  it("SUPER_ADMIN AuditLog ni o'qiy oladi, lekin o'chira olmaydi", () => {
     const admin = actorWith('SUPER_ADMIN', { kind: 'global' });
     expect(service.can(admin, 'read', { type: 'AuditLog' }, NOW)).toBe(true);
     expect(service.can(admin, 'delete', { type: 'AuditLog' }, NOW)).toBe(false);
@@ -167,15 +167,15 @@ describe('Matritsa invariantlari (§4.1 izohi, §4.3)', () => {
     }
     // Xulq-atvor: bola nomidan to'lay oladi, natija kirita olmaydi.
     const parent = actorWith('PARENT', { kind: 'own' });
-    expect(
-      service.can(parent, 'create', { type: 'Payment', ownerUserId: 'user-1' }, NOW),
-    ).toBe(true);
-    expect(
-      service.can(parent, 'create', { type: 'GameResult', ownerUserId: 'user-1' }, NOW),
-    ).toBe(false);
-    expect(
-      service.can(parent, 'update', { type: 'Player', ownerUserId: 'user-1' }, NOW),
-    ).toBe(false);
+    expect(service.can(parent, 'create', { type: 'Payment', ownerUserId: 'user-1' }, NOW)).toBe(
+      true,
+    );
+    expect(service.can(parent, 'create', { type: 'GameResult', ownerUserId: 'user-1' }, NOW)).toBe(
+      false,
+    );
+    expect(service.can(parent, 'update', { type: 'Player', ownerUserId: 'user-1' }, NOW)).toBe(
+      false,
+    );
   });
 
   it("CLUB_ADMIN da FairPlayCase umuman yo'q — bosim manbai bo'lishi mumkin", () => {
@@ -217,14 +217,14 @@ describe('RbacService.can — scope semantikasi (§4.2)', () => {
     ).toBe(false);
   });
 
-  it("CLUB_ADMIN (A klubi) B klubini yangilay olmaydi — IDOR holati", () => {
+  it('CLUB_ADMIN (A klubi) B klubini yangilay olmaydi — IDOR holati', () => {
     const clubAdmin = actorWith('CLUB_ADMIN', { kind: 'club', clubId: 'club-a' });
     expect(service.can(clubAdmin, 'update', { type: 'Club', clubId: 'club-a' }, NOW)).toBe(true);
     expect(service.can(clubAdmin, 'update', { type: 'Club', clubId: 'club-b' }, NOW)).toBe(false);
     // Boshqa klubning turniri ham yopiq.
-    expect(
-      service.can(clubAdmin, 'create', { type: 'Tournament', clubId: 'club-b' }, NOW),
-    ).toBe(false);
+    expect(service.can(clubAdmin, 'create', { type: 'Tournament', clubId: 'club-b' }, NOW)).toBe(
+      false,
+    );
   });
 
   it("PLAYER o'z profilini yangilaydi, boshqanikini EMAS", () => {
@@ -242,12 +242,12 @@ describe('RbacService.can — scope semantikasi (§4.2)', () => {
     // Tournament — PLAYER uchun yulduqchasiz R: scope talab qilinmaydi.
     expect(service.can(player, 'read', { type: 'Tournament', clubId: 'club-x' }, NOW)).toBe(true);
     // RatingHistory — PLAYER uchun R*: faqat o'ziniki.
-    expect(
-      service.can(player, 'read', { type: 'RatingHistory', ownerUserId: 'user-1' }, NOW),
-    ).toBe(true);
-    expect(
-      service.can(player, 'read', { type: 'RatingHistory', ownerUserId: 'user-2' }, NOW),
-    ).toBe(false);
+    expect(service.can(player, 'read', { type: 'RatingHistory', ownerUserId: 'user-1' }, NOW)).toBe(
+      true,
+    );
+    expect(service.can(player, 'read', { type: 'RatingHistory', ownerUserId: 'user-2' }, NOW)).toBe(
+      false,
+    );
   });
 
   it("muddati o'tgan biriktirma hech narsa bermaydi (ARBITER validUntil)", () => {
@@ -259,8 +259,9 @@ describe('RbacService.can — scope semantikasi (§4.2)', () => {
 
     const expired = actorWith('ARBITER', scope, new Date('2026-07-01T00:00:00Z'));
     expect(service.can(expired, 'create', resource, NOW)).toBe(false);
-    expect(service.writableFields(expired, { type: 'Tournament', tournamentId: 'tour-1' }, NOW))
-      .toEqual([]);
+    expect(
+      service.writableFields(expired, { type: 'Tournament', tournamentId: 'tour-1' }, NOW),
+    ).toEqual([]);
   });
 
   it("scope noaniq bo'lsa — rad (ResourceRef da mos maydon yo'q)", () => {

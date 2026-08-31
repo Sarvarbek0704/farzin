@@ -77,7 +77,7 @@ export class PlayController {
     summary:
       "Navbatga turish. Juftlik topilsa o'yin DARHOL yaratiladi (docs/07 §9.5 — tasdiqlash dialogi yo'q)",
   })
-  @ApiResponse({ status: 422, description: 'Allaqachon navbatda / profil yo\'q' })
+  @ApiResponse({ status: 422, description: "Allaqachon navbatda / profil yo'q" })
   joinQueue(
     @CurrentActor() actor: Actor,
     @Body() dto: MatchmakingJoinDto,

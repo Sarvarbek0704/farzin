@@ -56,7 +56,7 @@ export class EmailChannel implements NotificationChannelAdapter {
   async send(notification: NotificationRow, user: RecipientUser): Promise<void> {
     if (this.transport === null || user.email === null) {
       // Service enabled/canDeliverTo bilan filtrlaydi — bu himoya qatlami.
-      throw new Error('EMAIL kanali sozlanmagan yoki manzil yo\'q');
+      throw new Error("EMAIL kanali sozlanmagan yoki manzil yo'q");
     }
     const rendered = renderTemplate(notification.templateKey, user.locale, notification.payload);
     if (rendered === null) {

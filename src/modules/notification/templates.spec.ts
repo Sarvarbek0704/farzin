@@ -1,7 +1,4 @@
-import {
-  NOTIFICATION_LOCALES,
-  TEMPLATE_KEYS,
-} from './notification.types';
+import { NOTIFICATION_LOCALES, TEMPLATE_KEYS } from './notification.types';
 import { formatAmountTiyin, normalizeLocale, renderTemplate } from './templates';
 
 /**
@@ -31,7 +28,7 @@ describe('notification templates', () => {
 
   it.each(
     TEMPLATE_KEYS.flatMap((key) => NOTIFICATION_LOCALES.map((locale) => [key, locale] as const)),
-  )('%s × %s — bo\'sh bo\'lmagan subject/body', (key, locale) => {
+  )("%s × %s — bo'sh bo'lmagan subject/body", (key, locale) => {
     const rendered = renderTemplate(key, locale, payload);
     expect(rendered).not.toBeNull();
     expect(rendered!.subject.trim().length).toBeGreaterThan(0);
@@ -58,7 +55,7 @@ describe('notification templates', () => {
     }
   });
 
-  it("tur raqami va turnir nomi round.completed matnida bor", () => {
+  it('tur raqami va turnir nomi round.completed matnida bor', () => {
     const rendered = renderTemplate('round.completed', 'uz-Latn', payload)!;
     expect(rendered.subject).toContain('3');
     expect(rendered.body).toContain('Toshkent rapid 2026');
@@ -79,7 +76,7 @@ describe('notification templates', () => {
       }
     });
 
-    it("boshqa hamma narsa → uz-Latn", () => {
+    it('boshqa hamma narsa → uz-Latn', () => {
       expect(normalizeLocale('fr')).toBe('uz-Latn');
       expect(normalizeLocale('')).toBe('uz-Latn');
       expect(normalizeLocale('UZ-LATN')).toBe('uz-Latn');
@@ -94,7 +91,7 @@ describe('notification templates', () => {
       expect(formatted).not.toContain('5000000');
     });
 
-    it("buzuq summa → xom fallback (throw emas)", () => {
+    it('buzuq summa → xom fallback (throw emas)', () => {
       expect(formatAmountTiyin('bu-son-emas', 'UZS', 'uz-Latn')).toBe('bu-son-emas UZS');
     });
 

@@ -54,7 +54,7 @@ describe('eligibleChannels (sof kanal tanlash)', () => {
     expect(eligibleChannels(['IN_APP', 'SMS'], map, user())).toEqual(['IN_APP']);
   });
 
-  it("EMAIL tasdiqlanmagan manzilga tanlanmaydi (canDeliverTo)", () => {
+  it('EMAIL tasdiqlanmagan manzilga tanlanmaydi (canDeliverTo)', () => {
     const map = new Map([
       ['IN_APP', adapter('IN_APP')],
       ['EMAIL', adapter('EMAIL', { canDeliverTo: (u) => u.email !== null && u.emailVerified })],
@@ -119,10 +119,12 @@ describe('NotificationService.notifyUsers (dispatch)', () => {
     const emailSend = jest.fn().mockRejectedValue(new Error('SMTP down'));
     const repo: RepoMock = {
       recipientsByIds: jest.fn().mockResolvedValue([user()]),
-      createBatchIdempotent: jest.fn().mockResolvedValue([
-        row({ id: 'n1', channel: 'IN_APP' }),
-        row({ id: 'n2', channel: 'EMAIL' }),
-      ]),
+      createBatchIdempotent: jest
+        .fn()
+        .mockResolvedValue([
+          row({ id: 'n1', channel: 'IN_APP' }),
+          row({ id: 'n2', channel: 'EMAIL' }),
+        ]),
       markSent: jest.fn().mockResolvedValue(undefined),
       markFailed: jest.fn().mockResolvedValue(undefined),
     };
@@ -189,7 +191,7 @@ describe('NotificationService.notifyUsers (dispatch)', () => {
     expect(repo.createBatchIdempotent).not.toHaveBeenCalled();
   });
 
-  it("DB yozuv xatosi TASHQARIGA chiqadi (outbox retry, ADR-0008) — dispatch emas", async () => {
+  it('DB yozuv xatosi TASHQARIGA chiqadi (outbox retry, ADR-0008) — dispatch emas', async () => {
     const repo: RepoMock = {
       recipientsByIds: jest.fn().mockResolvedValue([user()]),
       createBatchIdempotent: jest.fn().mockRejectedValue(new Error('DB down')),

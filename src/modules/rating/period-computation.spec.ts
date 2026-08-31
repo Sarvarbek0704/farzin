@@ -95,10 +95,7 @@ describe('isEstablished — ikkala shart ham (docs/06 §4.2)', () => {
 
 describe('groupGamesByPlayer', () => {
   it("har partiya ikki nuqtai nazar beradi va pairingId bo'yicha sortlanadi", () => {
-    const grouped = groupGamesByPlayer([
-      game('p2', A, B, 'DRAW'),
-      game('p1', B, A, 'WHITE_WIN'),
-    ]);
+    const grouped = groupGamesByPlayer([game('p2', A, B, 'DRAW'), game('p1', B, A, 'WHITE_WIN')]);
     const aGames = grouped.get(A);
     expect(aGames).toEqual([
       { pairingId: 'p1', opponentId: B, score: 0 },
@@ -109,12 +106,9 @@ describe('groupGamesByPlayer', () => {
   });
 });
 
-describe('computePeriodResults — ko\'p o\'yinchili davr', () => {
+describe("computePeriodResults — ko'p o'yinchili davr", () => {
   // Fixture: A yutdi B ni; C va D durrang; E o'ynamadi (idle).
-  const games: RatedGame[] = [
-    game('pair-1', A, B, 'WHITE_WIN'),
-    game('pair-2', C, D, 'DRAW'),
-  ];
+  const games: RatedGame[] = [game('pair-1', A, B, 'WHITE_WIN'), game('pair-2', C, D, 'DRAW')];
   const states = new Map<string, PrePeriodState>([
     [A, state()],
     [B, state()],
@@ -178,17 +172,13 @@ describe('computePeriodResults — ko\'p o\'yinchili davr', () => {
   });
 });
 
-describe('provisional → established o\'tish (docs/06 §4.2)', () => {
+describe("provisional → established o'tish (docs/06 §4.2)", () => {
   it("8-o'yin + RD ≤ 110 → established bo'ladi", () => {
     const states = new Map<string, PrePeriodState>([
       [A, state({ rating: 1550, deviation: 60, gamesPlayed: 7, isProvisional: true })],
       [B, state({ rating: 1500, deviation: 50, gamesPlayed: 40, isProvisional: false })],
     ]);
-    const results = computePeriodResults(
-      calculator,
-      [game('pair-1', A, B, 'WHITE_WIN')],
-      states,
-    );
+    const results = computePeriodResults(calculator, [game('pair-1', A, B, 'WHITE_WIN')], states);
     const a = resultOf(results, A);
     expect(a.gamesPlayedTotal).toBe(8);
     expect(a.after.deviation).toBeLessThanOrEqual(110);
@@ -200,11 +190,7 @@ describe('provisional → established o\'tish (docs/06 §4.2)', () => {
       [A, state({ deviation: 250, gamesPlayed: 10, isProvisional: true })],
       [B, state()],
     ]);
-    const results = computePeriodResults(
-      calculator,
-      [game('pair-1', A, B, 'WHITE_WIN')],
-      states,
-    );
+    const results = computePeriodResults(calculator, [game('pair-1', A, B, 'WHITE_WIN')], states);
     const a = resultOf(results, A);
     expect(a.after.deviation).toBeGreaterThan(110);
     expect(a.isProvisional).toBe(true);
@@ -222,7 +208,7 @@ describe('provisional → established o\'tish (docs/06 §4.2)', () => {
   });
 });
 
-describe('peak reyting (established bo\'lgandan keyin)', () => {
+describe("peak reyting (established bo'lgandan keyin)", () => {
   it("established o'yinchi rekordni yangilasa peak o'zgaradi", () => {
     const states = new Map<string, PrePeriodState>([
       [
@@ -237,11 +223,7 @@ describe('peak reyting (established bo\'lgandan keyin)', () => {
       ],
       [B, state({ rating: 1900, deviation: 50, gamesPlayed: 60, isProvisional: false })],
     ]);
-    const results = computePeriodResults(
-      calculator,
-      [game('pair-1', A, B, 'WHITE_WIN')],
-      states,
-    );
+    const results = computePeriodResults(calculator, [game('pair-1', A, B, 'WHITE_WIN')], states);
     const a = resultOf(results, A);
     expect(a.after.rating).toBeGreaterThan(1805);
     expect(a.peakChanged).toBe(true);
@@ -262,11 +244,7 @@ describe('peak reyting (established bo\'lgandan keyin)', () => {
       ],
       [B, state({ rating: 1700, deviation: 50, gamesPlayed: 60, isProvisional: false })],
     ]);
-    const results = computePeriodResults(
-      calculator,
-      [game('pair-1', B, A, 'WHITE_WIN')],
-      states,
-    );
+    const results = computePeriodResults(calculator, [game('pair-1', B, A, 'WHITE_WIN')], states);
     const a = resultOf(results, A);
     expect(a.after.rating).toBeLessThan(1800);
     expect(a.peakChanged).toBe(false);
@@ -301,7 +279,7 @@ describe('idempotentlik va determinizm (docs/06 §9.3, §3.2)', () => {
     [C, state({ rating: 1700, deviation: 70, gamesPlayed: 25, isProvisional: false })],
   ]);
 
-  it("bir xil kirish ikki marta → AYNAN bir xil chiqish", () => {
+  it('bir xil kirish ikki marta → AYNAN bir xil chiqish', () => {
     const first = computePeriodResults(calculator, games, states);
     const second = computePeriodResults(calculator, games, states);
     expect(second).toEqual(first);

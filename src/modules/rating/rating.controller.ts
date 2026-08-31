@@ -40,8 +40,7 @@ export class RatingController {
   @Public()
   @Get('ratings')
   @ApiOperation({
-    summary:
-      "Reyting ro'yxati (leaderboard) — kategoriya bo'yicha, provisional ko'rsatilmaydi",
+    summary: "Reyting ro'yxati (leaderboard) — kategoriya bo'yicha, provisional ko'rsatilmaydi",
   })
   @ApiResponse({ status: 422, description: 'INVALID_RATING_CATEGORY — OTB+BULLET mavjud emas' })
   leaderboard(@Query() query: LeaderboardQuery): Promise<Page<LeaderboardRow>> {

@@ -6,11 +6,7 @@ import { AuditService } from '../../shared/audit/audit.service';
 import { OutboxService } from '../../shared/outbox/outbox.service';
 import { PrismaService } from '../../shared/prisma/prisma.service';
 import type { PairingSystem } from '../tournament/tournament.types';
-import type {
-  PairingHistoryEntry,
-  PairingResultValue,
-  RoundStatusValue,
-} from './arbiter.types';
+import type { PairingHistoryEntry, PairingResultValue, RoundStatusValue } from './arbiter.types';
 
 /**
  * Arbiter ma'lumot qatlami — Prisma FAQAT shu faylda

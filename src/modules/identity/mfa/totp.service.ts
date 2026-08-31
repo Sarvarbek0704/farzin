@@ -53,12 +53,7 @@ export class TotpService {
     const box = this.requireBox();
     const secret = authenticator.generateSecret();
     // Redis'da ham shifrlangan — hech qayerda ochiq sir yotmaydi.
-    await this.redis.set(
-      `totp:pending:${userId}`,
-      box.encrypt(secret),
-      'EX',
-      PENDING_TTL_SECONDS,
-    );
+    await this.redis.set(`totp:pending:${userId}`, box.encrypt(secret), 'EX', PENDING_TTL_SECONDS);
     return { otpauthUrl: authenticator.keyuri(accountLabel, 'Farzin', secret) };
   }
 

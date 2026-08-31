@@ -18,7 +18,13 @@ import { DomainError, NotFoundError } from '../../core/errors/domain.error';
 import type { AppConfig } from '../../config/configuration';
 import { MetricsService } from '../../shared/metrics/metrics.service';
 import { ClockStore } from './clock.store';
-import { CLOCK_TICK_INTERVAL_MS, FLAG_EPSILON_MS, flagDelayMs, GameTimers, graceMsFor } from './game-timers';
+import {
+  CLOCK_TICK_INTERVAL_MS,
+  FLAG_EPSILON_MS,
+  flagDelayMs,
+  GameTimers,
+  graceMsFor,
+} from './game-timers';
 import { PlayService } from './play.service';
 import {
   PLAY_MATCHED_EVENT,
@@ -233,7 +239,7 @@ export class PlayGateway implements OnGatewayConnection, OnGatewayDisconnect {
   ): Promise<Ack<GameStatePayload>> {
     const userId = this.userIdOf(socket);
     if (userId === null) {
-      return ackError('token_expired', 'Autentifikatsiya yo\'q');
+      return ackError('token_expired', "Autentifikatsiya yo'q");
     }
     const gameId = gameRef(payload);
     if (gameId === null) {
@@ -262,14 +268,14 @@ export class PlayGateway implements OnGatewayConnection, OnGatewayDisconnect {
   ): Promise<Ack<MoveAckData>> {
     const userId = this.userIdOf(socket);
     if (userId === null) {
-      return ackError('token_expired', 'Autentifikatsiya yo\'q');
+      return ackError('token_expired', "Autentifikatsiya yo'q");
     }
     if (!this.allowMove(socket.id)) {
-      return ackError('rate_limited', "Juda tez — 10 yurish/s chegarasi");
+      return ackError('rate_limited', 'Juda tez — 10 yurish/s chegarasi');
     }
     const intent = moveIntent(payload);
     if (intent === null) {
-      return ackError('illegal_move', 'Yurish payload\'i buzuq');
+      return ackError('illegal_move', "Yurish payload'i buzuq");
     }
 
     const result = await this.play.makeMove(userId, intent.gameId, intent.uci);
@@ -353,7 +359,7 @@ export class PlayGateway implements OnGatewayConnection, OnGatewayDisconnect {
   ): Promise<Ack<ClaimTimeoutAckData>> {
     const userId = this.userIdOf(socket);
     if (userId === null) {
-      return ackError('token_expired', 'Autentifikatsiya yo\'q');
+      return ackError('token_expired', "Autentifikatsiya yo'q");
     }
     const gameId = gameRef(payload);
     if (gameId === null) {
@@ -395,7 +401,7 @@ export class PlayGateway implements OnGatewayConnection, OnGatewayDisconnect {
   ): Promise<Ack<null>> {
     const userId = this.userIdOf(socket);
     if (userId === null) {
-      return ackError('token_expired', 'Autentifikatsiya yo\'q');
+      return ackError('token_expired', "Autentifikatsiya yo'q");
     }
     const gameId = gameRef(payload);
     if (gameId === null) {

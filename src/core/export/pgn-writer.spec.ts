@@ -209,7 +209,7 @@ describe('writeSectionPgn', () => {
     expect(writeSectionPgn(goldenData())).toBe(GOLDEN_EXPECTED);
   });
 
-  it('deterministik: kirish massivlari tartibi chiqishga ta\'sir qilmaydi', () => {
+  it("deterministik: kirish massivlari tartibi chiqishga ta'sir qilmaydi", () => {
     const data = goldenData();
     const shuffled: SectionExportData = {
       ...data,
@@ -222,7 +222,7 @@ describe('writeSectionPgn', () => {
     expect(writeSectionPgn(data)).toBe(writeSectionPgn(data));
   });
 
-  it("bye va UNPLAYED juftliklar partiya sifatida chiqmaydi", () => {
+  it('bye va UNPLAYED juftliklar partiya sifatida chiqmaydi', () => {
     const data = goldenData();
     const withExtras: SectionExportData = {
       ...data,
@@ -254,7 +254,7 @@ describe('writeSectionPgn', () => {
     expect(output).toContain('[Event "Memorial \\"Chust\\" \\\\ 2026 - A guruh"]');
   });
 
-  it("Site yo'q — \"?\", sana umuman yo'q — \"????.??.??\"", () => {
+  it('Site yo\'q — "?", sana umuman yo\'q — "????.??.??"', () => {
     const data: SectionExportData = {
       ...goldenData(),
       site: null,
@@ -274,7 +274,7 @@ describe('writeSectionPgn', () => {
     expect(writeSectionPgn(data)).toContain('[Black "?"]');
   });
 
-  it('saqlangan movetext natija tokeni bilan tugamasa — token qo\'shiladi', () => {
+  it("saqlangan movetext natija tokeni bilan tugamasa — token qo'shiladi", () => {
     const data: SectionExportData = {
       ...goldenData(),
       rounds: [
@@ -284,7 +284,7 @@ describe('writeSectionPgn', () => {
     expect(writeSectionPgn(data)).toContain('\n\n1. d4 d5 2. c4 1/2-1/2\n');
   });
 
-  it('movetext 80 ustunda so\'z chegarasida buklanadi (PGN spec §3.2)', () => {
+  it("movetext 80 ustunda so'z chegarasida buklanadi (PGN spec §3.2)", () => {
     // 30 ta yurish — bir qatordan aniq uzun.
     const moves = Array.from({ length: 30 }, (_, i) => `${String(i + 1)}. Nf3 Nf6`).join(' ');
     const data: SectionExportData = {

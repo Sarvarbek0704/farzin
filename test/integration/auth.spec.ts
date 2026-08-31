@@ -57,7 +57,9 @@ describe('Auth oqimi (integration)', () => {
     expect(cookieLine).toContain('Path=/api/v1/auth');
     expect(cookieLine).toContain('SameSite=Strict');
 
-    const me = await request(t.server).get('/api/v1/auth/me').set(bearer(res.body.accessToken as string));
+    const me = await request(t.server)
+      .get('/api/v1/auth/me')
+      .set(bearer(res.body.accessToken as string));
     expect(me.status).toBe(200);
     expect(me.body.userId).toBe(userIdFromToken(res.body.accessToken as string));
 
@@ -140,7 +142,7 @@ describe('Auth oqimi (integration)', () => {
     expect(alive).toBe(0);
   });
 
-  it("logout → 204, cookie tozalanadi, keyingi refresh 401", async () => {
+  it('logout → 204, cookie tozalanadi, keyingi refresh 401', async () => {
     const reg = await registerUser(t.server, { email: 'logout@test.uz' });
     const cookie = extractRefreshCookie(reg);
 
@@ -157,7 +159,7 @@ describe('Auth oqimi (integration)', () => {
     expectProblem(after, 401, 'UNAUTHORIZED');
   });
 
-  it("sirlar hech qayerda OCHIQ saqlanmaydi: parol faqat Argon2, token faqat SHA-256", async () => {
+  it('sirlar hech qayerda OCHIQ saqlanmaydi: parol faqat Argon2, token faqat SHA-256', async () => {
     // docs/14-roadmap.md Faza 0 DoD: "Log'da parol/token yo'qligi".
     // Log oqimiga bevosita ulanib bo'lmaydi (pino sonic-boom fd=1),
     // shuning uchun kafolat SAQLASH qatlamida tekshiriladi: parol va

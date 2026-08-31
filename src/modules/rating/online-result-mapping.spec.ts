@@ -55,13 +55,10 @@ describe('online-result-mapping', () => {
     expect(onlineRatedResult(status, 'WHITE')).toBe('DRAW');
   });
 
-  it.each(['PENDING', 'ACTIVE', 'ABORTED'] as const)(
-    '%s → null (reytingga kirmaydi)',
-    (status) => {
-      expect(onlineRatedResult(status, null)).toBeNull();
-      expect(onlineRatedResult(status, 'WHITE')).toBeNull();
-    },
-  );
+  it.each(['PENDING', 'ACTIVE', 'ABORTED'] as const)('%s → null (reytingga kirmaydi)', (status) => {
+    expect(onlineRatedResult(status, null)).toBeNull();
+    expect(onlineRatedResult(status, 'WHITE')).toBeNull();
+  });
 
   it("g'olibsiz ABANDONED (ikkalasi ketgan) → null — o'ynalgan natija yo'q", () => {
     expect(onlineRatedResult('ABANDONED', null)).toBeNull();

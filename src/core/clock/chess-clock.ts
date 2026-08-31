@@ -47,11 +47,7 @@ export type ClockSide = 'w' | 'b';
 
 /** prisma `ClockType` enum bilan aynan mos literal union (haqiqat manbai — schema). */
 export type ChessClockType =
-  | 'SUDDEN_DEATH'
-  | 'FISCHER_INCREMENT'
-  | 'BRONSTEIN_DELAY'
-  | 'SIMPLE_DELAY'
-  | 'MULTI_STAGE';
+  'SUDDEN_DEATH' | 'FISCHER_INCREMENT' | 'BRONSTEIN_DELAY' | 'SIMPLE_DELAY' | 'MULTI_STAGE';
 
 export interface ClockConfig {
   readonly clockType: ChessClockType;

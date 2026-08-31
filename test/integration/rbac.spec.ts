@@ -42,20 +42,23 @@ describe('RBAC (integration)', () => {
   }
 
   it('anonim → POST /federations → 401 (default yopiq: JwtAuthGuard)', async () => {
-    const res = await request(t.server)
-      .post('/api/v1/federations')
-      .send({ name: "O'zbekiston shaxmat federatsiyasi", shortName: 'UzChess', countryCode: 'UZB' });
+    const res = await request(t.server).post('/api/v1/federations').send({
+      name: "O'zbekiston shaxmat federatsiyasi",
+      shortName: 'UzChess',
+      countryCode: 'UZB',
+    });
 
     expectProblem(res, 401, 'UNAUTHORIZED');
   });
 
-  it("PLAYER → POST /federations → 404 (403 EMAS — mavjudlik oshkor qilinmaydi)", async () => {
+  it('PLAYER → POST /federations → 404 (403 EMAS — mavjudlik oshkor qilinmaydi)', async () => {
     const { token } = await registerAndGetToken('player@test.uz');
 
-    const res = await request(t.server)
-      .post('/api/v1/federations')
-      .set(bearer(token))
-      .send({ name: "O'zbekiston shaxmat federatsiyasi", shortName: 'UzChess', countryCode: 'UZB' });
+    const res = await request(t.server).post('/api/v1/federations').set(bearer(token)).send({
+      name: "O'zbekiston shaxmat federatsiyasi",
+      shortName: 'UzChess',
+      countryCode: 'UZB',
+    });
 
     expectProblem(res, 404, 'NOT_FOUND');
   });
@@ -66,10 +69,11 @@ describe('RBAC (integration)', () => {
     // authz.service.ts) — rol darhol kuchga kiradi.
     await grantRole(t.prisma, t.redis, userId, 'SUPER_ADMIN');
 
-    const res = await request(t.server)
-      .post('/api/v1/federations')
-      .set(bearer(token))
-      .send({ name: "O'zbekiston shaxmat federatsiyasi", shortName: 'UzChess', countryCode: 'UZB' });
+    const res = await request(t.server).post('/api/v1/federations').set(bearer(token)).send({
+      name: "O'zbekiston shaxmat federatsiyasi",
+      shortName: 'UzChess',
+      countryCode: 'UZB',
+    });
 
     expect(res.status).toBe(201);
     expect(res.body.id).toBeDefined();

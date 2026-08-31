@@ -90,9 +90,7 @@ import { METRICS_EXPORTER, METRICS_METER, METRICS_METER_PROVIDER } from './metri
   ],
   exports: [MetricsService],
 })
-export class MetricsModule
-  implements NestModule, OnApplicationBootstrap, OnApplicationShutdown
-{
+export class MetricsModule implements NestModule, OnApplicationBootstrap, OnApplicationShutdown {
   constructor(
     @Inject(METRICS_METER_PROVIDER) private readonly provider: otelMetrics.MeterProvider,
     private readonly metrics: MetricsService,
@@ -103,9 +101,7 @@ export class MetricsModule
     // shart (http-metrics.middleware.ts izohi). `'*'` naqshi NestJS 11
     // tomonidan Express 5 uchun ham qo'llab-quvvatlanadi (nestjs-pino
     // ham aynan shuni ishlatadi).
-    consumer
-      .apply(HttpMetricsMiddleware)
-      .forRoutes({ path: '*', method: RequestMethod.ALL });
+    consumer.apply(HttpMetricsMiddleware).forRoutes({ path: '*', method: RequestMethod.ALL });
   }
 
   onApplicationBootstrap(): void {

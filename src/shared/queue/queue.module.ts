@@ -44,7 +44,11 @@ class QueueShutdown implements OnApplicationShutdown {
   constructor(private readonly queues: readonly Queue[]) {}
 
   async onApplicationShutdown(): Promise<void> {
-    await Promise.all(this.queues.map(async (q) => { await q.close(); }));
+    await Promise.all(
+      this.queues.map(async (q) => {
+        await q.close();
+      }),
+    );
   }
 }
 

@@ -55,7 +55,9 @@ describe('core/fairplay/suspicion-aggregation', () => {
           const i = indexSeed % signals.length;
           const base = signals[i]!;
           const bumped: SuspicionSignal[] = signals.map((s, j) =>
-            j === i ? { kind: s.kind, strength: Math.min(1, Math.max(0, base.strength) + bump) } : s,
+            j === i
+              ? { kind: s.kind, strength: Math.min(1, Math.max(0, base.strength) + bump) }
+              : s,
           );
           const before = aggregateSuspicion(signals) ?? 0;
           const after = aggregateSuspicion(bumped) ?? 0;
@@ -98,7 +100,7 @@ describe('core/fairplay/suspicion-aggregation', () => {
     expect(many).toBe(one);
   });
 
-  it('kuch chegaradan tashqarida bo\'lsa clamp qilinadi', () => {
+  it("kuch chegaradan tashqarida bo'lsa clamp qilinadi", () => {
     expect(aggregateSuspicion([{ kind: 'MANUAL_REPORT', strength: 7 }])).toBe(1);
     expect(aggregateSuspicion([{ kind: 'MANUAL_REPORT', strength: -3 }])).toBe(0);
   });

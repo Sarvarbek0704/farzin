@@ -43,7 +43,9 @@ describe('play (integration)', () => {
         reconnection: false,
       });
       openSockets.push(socket);
-      const timer = setTimeout(() => { reject(new Error('WS ulanish timeout')); }, 10_000);
+      const timer = setTimeout(() => {
+        reject(new Error('WS ulanish timeout'));
+      }, 10_000);
       socket.on('connect', () => {
         clearTimeout(timer);
         resolve(socket);
@@ -69,10 +71,9 @@ describe('play (integration)', () => {
 
   function waitFor<T>(socket: ClientSocket, event: string, timeoutMs = 5_000): Promise<T> {
     return new Promise((resolve, reject) => {
-      const timer = setTimeout(
-        () => { reject(new Error(`event kutish timeout: ${event}`)); },
-        timeoutMs,
-      );
+      const timer = setTimeout(() => {
+        reject(new Error(`event kutish timeout: ${event}`));
+      }, timeoutMs);
       socket.once(event, (payload: T) => {
         clearTimeout(timer);
         resolve(payload);
@@ -161,7 +162,7 @@ describe('play (integration)', () => {
 
   // --- Auth --------------------------------------------------------------------------
 
-  it("yaroqsiz JWT bilan ulanish → game:error + majburiy uzish (docs/07 §7.1)", async () => {
+  it('yaroqsiz JWT bilan ulanish → game:error + majburiy uzish (docs/07 §7.1)', async () => {
     const socket = io(`http://127.0.0.1:${String(port)}/play`, {
       transports: ['websocket'],
       auth: { token: 'buzuq-token' },
@@ -169,10 +170,14 @@ describe('play (integration)', () => {
       reconnection: false,
     });
     const errP = new Promise<Record<string, unknown>>((resolve) => {
-      socket.once('game:error', (p: Record<string, unknown>) => { resolve(p); });
+      socket.once('game:error', (p: Record<string, unknown>) => {
+        resolve(p);
+      });
     });
     const discP = new Promise<void>((resolve) => {
-      socket.once('disconnect', () => { resolve(); });
+      socket.once('disconnect', () => {
+        resolve();
+      });
     });
     const err = await errP;
     await discP;
@@ -186,16 +191,13 @@ describe('play (integration)', () => {
     let gameId = '';
 
     it("REST: chaqiriq yaratish → ACTIVE o'yin, chaqiruvchi OQ", async () => {
-      const res = await request(t.server)
-        .post('/api/v1/play/challenges')
-        .set(bearer(tokenA))
-        .send({
-          opponentPlayerId: playerIdB,
-          timeCategory: 'BLITZ',
-          clockType: 'SUDDEN_DEATH',
-          baseTimeSeconds: 180,
-          incrementSeconds: 0,
-        });
+      const res = await request(t.server).post('/api/v1/play/challenges').set(bearer(tokenA)).send({
+        opponentPlayerId: playerIdB,
+        timeCategory: 'BLITZ',
+        clockType: 'SUDDEN_DEATH',
+        baseTimeSeconds: 180,
+        incrementSeconds: 0,
+      });
       expect(res.status).toBe(201);
       expect(res.body.status).toBe('ACTIVE');
       expect(res.body.viewerRole).toBe('white');
@@ -255,7 +257,7 @@ describe('play (integration)', () => {
       expect(await t.prisma.move.count({ where: { gameId } })).toBe(0);
     });
 
-    it("navbat qorada emas: qora birinchi yura olmaydi → not_your_turn", async () => {
+    it('navbat qorada emas: qora birinchi yura olmaydi → not_your_turn', async () => {
       const ack = await emitAck<{ ok: boolean; error: Record<string, unknown> }>(
         socketB,
         'game:move',

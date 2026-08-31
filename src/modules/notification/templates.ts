@@ -194,8 +194,7 @@ const TEMPLATES: Record<TemplateKey, LocaleTable> = {
     'uz-Cyrl': (p) => ({
       subject: `Янги fair-play иши`,
       body:
-        `Янги fair-play иши очилди (иш: ${s(p, 'caseId')}). ` +
-        `Комиссия панелида кўриб чиқинг.`,
+        `Янги fair-play иши очилди (иш: ${s(p, 'caseId')}). ` + `Комиссия панелида кўриб чиқинг.`,
     }),
     ru: (p) => ({
       subject: `Новое дело fair-play`,

@@ -1,10 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { OnEvent } from '@nestjs/event-emitter';
 
-import {
-  PLAY_GAME_FINISHED_EVENT,
-  type PlayGameFinishedEvent,
-} from '../../play/play.types';
+import { PLAY_GAME_FINISHED_EVENT, type PlayGameFinishedEvent } from '../../play/play.types';
 import { NotificationRepository } from '../notification.repository';
 import { NotificationService } from '../notification.service';
 import type { OutboxEventEnvelope } from '../notification.types';
@@ -181,10 +178,7 @@ export class NotificationOutboxListeners {
       if (event.status === 'ABORTED' || event.status === 'ABANDONED') {
         return; // o'ynalmagan o'yin — xabar shovqin bo'lardi
       }
-      const userIds = await this.repo.userIdsForPlayers([
-        event.whitePlayerId,
-        event.blackPlayerId,
-      ]);
+      const userIds = await this.repo.userIdsForPlayers([event.whitePlayerId, event.blackPlayerId]);
       await this.service.notifyUsers({
         eventId: `game-finished:${event.gameId}`,
         templateKey: 'game.finished',

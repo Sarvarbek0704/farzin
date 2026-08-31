@@ -1,12 +1,7 @@
 import { Inject, Injectable, Logger } from '@nestjs/common';
 
 import { NotFoundError } from '../../core/errors/domain.error';
-import {
-  DEFAULT_PAGE_SIZE,
-  decodeCursor,
-  type Page,
-  toPage,
-} from '../../shared/pagination/cursor';
+import { DEFAULT_PAGE_SIZE, decodeCursor, type Page, toPage } from '../../shared/pagination/cursor';
 import {
   NOTIFICATION_CHANNEL_ADAPTERS,
   type NotificationChannelAdapter,

@@ -231,7 +231,9 @@ export class WeightScheme {
     let w = this.basePair;
 
     // [C7] — juftlashganlik bonusi, ochkoga eksponensial.
-    w += this.baseC7 * (this.vp(pu.scoreX2 - minScoreX2, 'C7') + this.vp(pv.scoreX2 - minScoreX2, 'C7'));
+    w +=
+      this.baseC7 *
+      (this.vp(pu.scoreX2 - minScoreX2, 'C7') + this.vp(pv.scoreX2 - minScoreX2, 'C7'));
 
     // SD — juftlik ichidagi ochko farqi (birlashtirilgan bracketlar uchun).
     const dX2 = Math.abs(pu.scoreX2 - pv.scoreX2);

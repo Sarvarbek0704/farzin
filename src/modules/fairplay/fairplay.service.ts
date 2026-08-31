@@ -1,11 +1,7 @@
 import { Inject, Injectable, Logger } from '@nestjs/common';
 import { Queue } from 'bullmq';
 
-import {
-  BusinessRuleError,
-  ConflictError,
-  NotFoundError,
-} from '../../core/errors/domain.error';
+import { BusinessRuleError, ConflictError, NotFoundError } from '../../core/errors/domain.error';
 import {
   DEFAULT_PAGE_SIZE,
   decodeCursor,
@@ -264,7 +260,7 @@ export class FairplayService {
       actorUserId: actor.userId,
     });
     if (decided === null) {
-      throw new ConflictError("Ish allaqachon hal qilingan — qaror bir marta chiqadi", { caseId });
+      throw new ConflictError('Ish allaqachon hal qilingan — qaror bir marta chiqadi', { caseId });
     }
     return decided;
   }
@@ -305,7 +301,7 @@ export class FairplayService {
     if (fpCase.status !== 'CLOSED_WARNING' && fpCase.status !== 'CLOSED_SANCTION') {
       throw new BusinessRuleError(
         'APPEAL_NOT_AVAILABLE',
-        'Apellyatsiya faqat qaror chiqqan ish bo\'yicha beriladi',
+        "Apellyatsiya faqat qaror chiqqan ish bo'yicha beriladi",
         { caseId, status: fpCase.status },
       );
     }
@@ -321,7 +317,7 @@ export class FairplayService {
     }
     const active = await this.repo.findActiveAppealForCase(caseId);
     if (active !== null) {
-      throw new ConflictError('Bu ish bo\'yicha ochiq apellyatsiya allaqachon bor', {
+      throw new ConflictError("Bu ish bo'yicha ochiq apellyatsiya allaqachon bor", {
         caseId,
         appealId: active.id,
       });

@@ -1,7 +1,14 @@
 import request from 'supertest';
 
 import { AnalysisProcessor } from '../../src/modules/fairplay/analysis.processor';
-import { bearer, expectProblem, grantRole, registerUser, resetState, userIdFromToken } from './helpers';
+import {
+  bearer,
+  expectProblem,
+  grantRole,
+  registerUser,
+  resetState,
+  userIdFromToken,
+} from './helpers';
 import { createTestApp, type TestApp } from './app.harness';
 
 /**
@@ -39,7 +46,7 @@ describe('fairplay (integration)', () => {
   let caseBId = '';
   let appealId = '';
 
-  const RATIONALE = "Ikkala mustaqil xulosa ham vaqt naqshini tasdiqladi — 4-daraja sanksiya";
+  const RATIONALE = 'Ikkala mustaqil xulosa ham vaqt naqshini tasdiqladi — 4-daraja sanksiya';
 
   beforeAll(async () => {
     t = await createTestApp();
@@ -110,7 +117,7 @@ describe('fairplay (integration)', () => {
         fenAfter: `fen-${String(ply)}`,
         positionHash: `hash-${String(ply)}`,
         // Oq: ~4s har yurish (bot-simon). Qora: og'ir dumli inson naqshi.
-        thinkTimeMs: isWhite ? 4_000 : (ply % 10 === 0 ? 55_000 : 1_500 + (ply % 7) * 900),
+        thinkTimeMs: isWhite ? 4_000 : ply % 10 === 0 ? 55_000 : 1_500 + (ply % 7) * 900,
         clockAfterMs: 500_000,
       };
     });
@@ -147,7 +154,7 @@ describe('fairplay (integration)', () => {
     expect(audit).not.toBeNull();
   });
 
-  it('shikoyatchi ishtirokchi bo\'lmasa suspectPlayerId talab qilinadi (422)', async () => {
+  it("shikoyatchi ishtirokchi bo'lmasa suspectPlayerId talab qilinadi (422)", async () => {
     const res = await request(t.server)
       .post('/api/v1/fairplay/reports')
       .set(bearer(tokenClub))
@@ -184,7 +191,7 @@ describe('fairplay (integration)', () => {
     expect(flagged!.actorUserId).toBeNull(); // tizim harakati
   });
 
-  it('protsessor IDEMPOTENT — qayta ishga tushirish signal/report ko\'paytirmaydi', async () => {
+  it("protsessor IDEMPOTENT — qayta ishga tushirish signal/report ko'paytirmaydi", async () => {
     const processor = t.app.get(AnalysisProcessor);
     await processor.process({ gameId, playerId: playerIdA });
 
@@ -220,7 +227,7 @@ describe('fairplay (integration)', () => {
 
   // --- Komissiya ro'yxati va kirish nazorati ----------------------------------------
 
-  it('SUPER_ADMIN: ro\'yxat aggregateScore DESC + cursor', async () => {
+  it("SUPER_ADMIN: ro'yxat aggregateScore DESC + cursor", async () => {
     // Ikkinchi (pastroq skorli) ish — tartiblashni tekshirish uchun.
     const caseB = await t.prisma.fairPlayCase.create({
       data: { playerId: playerIdB, status: 'OPEN', aggregateScore: 0.2 },
@@ -236,7 +243,9 @@ describe('fairplay (integration)', () => {
     expect(page1.body.pageInfo.hasNextPage).toBe(true);
 
     const page2 = await request(t.server)
-      .get(`/api/v1/fairplay/cases?first=1&after=${encodeURIComponent(page1.body.pageInfo.endCursor as string)}`)
+      .get(
+        `/api/v1/fairplay/cases?first=1&after=${encodeURIComponent(page1.body.pageInfo.endCursor as string)}`,
+      )
       .set(bearer(tokenSA1));
     expect(page2.status).toBe(200);
     expect(page2.body.items[0].id).toBe(caseBId);
@@ -307,7 +316,7 @@ describe('fairplay (integration)', () => {
     expectProblem(res, 422, 'SANCTION_WITHOUT_SANCTION_DECISION');
   });
 
-  it('decide yozma asos bilan → sanksiya + audit (sanksiyaga YAGONA yo\'l)', async () => {
+  it("decide yozma asos bilan → sanksiya + audit (sanksiyaga YAGONA yo'l)", async () => {
     const res = await request(t.server)
       .post(`/api/v1/fairplay/cases/${caseAId}/decide`)
       .set(bearer(tokenSA1))

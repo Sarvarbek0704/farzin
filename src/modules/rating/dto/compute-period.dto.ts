@@ -7,7 +7,7 @@ import { IsString, MaxLength, MinLength } from 'class-validator';
  */
 export class ComputePeriodDto {
   @ApiProperty({
-    example: 'Oylik reja bo\'yicha davr yakuni',
+    example: "Oylik reja bo'yicha davr yakuni",
     description: 'Nega hisoblanmoqda — auditga kiradi',
   })
   @IsString()

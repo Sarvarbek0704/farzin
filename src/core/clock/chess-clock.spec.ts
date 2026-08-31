@@ -33,7 +33,11 @@ describe('chess-clock (core)', () => {
     incrementMs: 3_000,
   };
   const SUDDEN_5_0: ClockConfig = { clockType: 'SUDDEN_DEATH', baseMs: 300_000, incrementMs: 0 };
-  const SIMPLE_5_3: ClockConfig = { clockType: 'SIMPLE_DELAY', baseMs: 300_000, incrementMs: 3_000 };
+  const SIMPLE_5_3: ClockConfig = {
+    clockType: 'SIMPLE_DELAY',
+    baseMs: 300_000,
+    incrementMs: 3_000,
+  };
 
   describe("qo'lda tekshirilgan vektorlar", () => {
     it('Fischer 3+2: 5s sarflab yurdi → 180000 − 5000 + 2000 = 177000 (docs/07 §13.1)', () => {
@@ -60,7 +64,7 @@ describe('chess-clock (core)', () => {
       expect(r.state.whiteRemainingMs).toBe(293_000);
     });
 
-    it("Bronstein: vaqt hech qachon yurish boshidagi qiymatdan OSHMAYDI (docs/07 §3.1)", () => {
+    it('Bronstein: vaqt hech qachon yurish boshidagi qiymatdan OSHMAYDI (docs/07 §3.1)', () => {
       let state = createClock(BRONSTEIN_5_3, 'w', 0);
       let now = 0;
       for (let i = 0; i < 20; i += 1) {
@@ -73,7 +77,7 @@ describe('chess-clock (core)', () => {
       }
     });
 
-    it('Sudden death: increment YO\'Q — 5s sarf → 295000', () => {
+    it("Sudden death: increment YO'Q — 5s sarf → 295000", () => {
       const s0 = createClock(SUDDEN_5_0, 'w', 0);
       const r = applyMove(SUDDEN_5_0, s0, 5_000);
       expect(r.flagged).toBe(false);
@@ -89,8 +93,12 @@ describe('chess-clock (core)', () => {
       }
     });
 
-    it('MULTI_STAGE → NOT_IMPLEMENTED (docs/07 §3.2: stage konfiguratsiyasi schema\'da yo\'q)', () => {
-      const cfg: ClockConfig = { clockType: 'MULTI_STAGE', baseMs: 90 * 60_000, incrementMs: 30_000 };
+    it("MULTI_STAGE → NOT_IMPLEMENTED (docs/07 §3.2: stage konfiguratsiyasi schema'da yo'q)", () => {
+      const cfg: ClockConfig = {
+        clockType: 'MULTI_STAGE',
+        baseMs: 90 * 60_000,
+        incrementMs: 30_000,
+      };
       expect(() => createClock(cfg, 'w', 0)).toThrow(BusinessRuleError);
       try {
         createClock(cfg, 'w', 0);
@@ -133,7 +141,7 @@ describe('chess-clock (core)', () => {
     });
   });
 
-  describe('remaining — jonli ko\'rinish', () => {
+  describe("remaining — jonli ko'rinish", () => {
     it("navbati bo'lmagan tomon soati YURMAYDI", () => {
       const s0 = createClock(SUDDEN_5_0, 'w', 0);
       expect(remaining(SUDDEN_5_0, s0, 'b', 200_000)).toBe(300_000);
@@ -214,7 +222,7 @@ describe('chess-clock (core)', () => {
       );
     });
 
-    it('increment faqat TUGALLANGAN yurishdan keyin — flag bo\'lgan yurishda increment yo\'q', () => {
+    it("increment faqat TUGALLANGAN yurishdan keyin — flag bo'lgan yurishda increment yo'q", () => {
       fc.assert(
         fc.property(
           fc.integer({ min: 1_000, max: 600_000 }),

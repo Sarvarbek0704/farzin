@@ -117,17 +117,15 @@ export interface RequestWithActor {
  *   @Patch(':id')
  *   update(@CurrentActor() actor: Actor, ...) {}
  */
-export const CurrentActor = createParamDecorator(
-  (_data: unknown, ctx: ExecutionContext): Actor => {
-    const request = ctx.switchToHttp().getRequest<RequestWithActor>();
-    if (request.actor === undefined) {
-      // JwtAuthGuard + RbacGuard dan o'tgan so'rovda aktor har doim bor.
-      // Bu holat — guard tartibi buzilgani alomati.
-      throw new Error("Aktor biriktirilmagan — guard tartibini tekshiring");
-    }
-    return request.actor;
-  },
-);
+export const CurrentActor = createParamDecorator((_data: unknown, ctx: ExecutionContext): Actor => {
+  const request = ctx.switchToHttp().getRequest<RequestWithActor>();
+  if (request.actor === undefined) {
+    // JwtAuthGuard + RbacGuard dan o'tgan so'rovda aktor har doim bor.
+    // Bu holat — guard tartibi buzilgani alomati.
+    throw new Error('Aktor biriktirilmagan — guard tartibini tekshiring');
+  }
+  return request.actor;
+});
 
 /**
  * Rol-darajali gate: aktorning BIRORTA amal qilmagan biriktirmasi shu

@@ -95,7 +95,7 @@ export class FairplayController {
   @ApiBearerAuth('access-token')
   @RequirePermission('FairPlayCase', 'update')
   @ApiOperation({
-    summary: 'KOMISSIYA QARORI — yozma asos MAJBURIY; sanksiyaga yagona yo\'l (docs/08 §4)',
+    summary: "KOMISSIYA QARORI — yozma asos MAJBURIY; sanksiyaga yagona yo'l (docs/08 §4)",
   })
   @ApiResponse({ status: 422, description: 'RATIONALE_REQUIRED | SANCTION_UNTIL_*' })
   @ApiResponse({ status: 409, description: 'Ish allaqachon hal qilingan' })

@@ -18,12 +18,7 @@
 // --- Schema enum'lari ---------------------------------------------------------
 
 export type FairPlayCaseStatusValue =
-  | 'OPEN'
-  | 'UNDER_REVIEW'
-  | 'CLOSED_NO_ACTION'
-  | 'CLOSED_WARNING'
-  | 'CLOSED_SANCTION'
-  | 'APPEALED';
+  'OPEN' | 'UNDER_REVIEW' | 'CLOSED_NO_ACTION' | 'CLOSED_WARNING' | 'CLOSED_SANCTION' | 'APPEALED';
 
 export type FairPlaySignalTypeValue =
   | 'ENGINE_CORRELATION'
@@ -34,12 +29,7 @@ export type FairPlaySignalTypeValue =
   | 'MULTI_ACCOUNT'
   | 'MANUAL_REPORT';
 
-export type AppealStatusValue =
-  | 'SUBMITTED'
-  | 'UNDER_REVIEW'
-  | 'UPHELD'
-  | 'REJECTED'
-  | 'WITHDRAWN';
+export type AppealStatusValue = 'SUBMITTED' | 'UNDER_REVIEW' | 'UPHELD' | 'REJECTED' | 'WITHDRAWN';
 
 /** Komissiya qarori — decide endpointida ruxsat etilgan terminal holatlar. */
 export type CaseDecisionValue = 'CLOSED_NO_ACTION' | 'CLOSED_WARNING' | 'CLOSED_SANCTION';

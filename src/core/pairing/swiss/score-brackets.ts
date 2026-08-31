@@ -76,7 +76,7 @@ export function pairAllBrackets(
         `${String(players.length)} aktiv o'yinchini C1 (takror juftlik) va C3 ` +
           `(bir xil absolyut rang afzalligi) cheklovlarini buzmasdan to'liq ` +
           `juftlab bo'lmaydi${needPab ? " (yoki C2 bo'yicha PAB olishga haqli o'yinchi qolmadi)" : ''}. ` +
-          'Hakam qo\'lda aralashishi kerak (FIDE C.04.3 Article 1.9.3).',
+          "Hakam qo'lda aralashishi kerak (FIDE C.04.3 Article 1.9.3).",
       );
     }
     // Oxirgi ikki scoregroup birlashtiriladi va qaytadan uriniladi.
@@ -212,7 +212,7 @@ function pairBracket(
     const slot = slots[i];
     const m = mate[i];
     if (slot === undefined || m === undefined) {
-      throw new Error('score-brackets ichki xato: matching natijasi to\'liq emas');
+      throw new Error("score-brackets ichki xato: matching natijasi to'liq emas");
     }
     if (m === -1) {
       if (isLast) {

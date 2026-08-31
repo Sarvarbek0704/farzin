@@ -111,11 +111,9 @@ describe('SwissDutchEngine', () => {
       expect(result.diagnostics?.relaxedCriteria).toEqual([]);
     });
 
-    it('initialColor = BLACK bo\'lsa 5.2.5 ranglari teskari', async () => {
+    it("initialColor = BLACK bo'lsa 5.2.5 ranglari teskari", async () => {
       const players = Array.from({ length: 8 }, (_, i) => makePlayer(i + 1));
-      const result = await engine.pair(
-        makeRequest(players, 1, 7, { initialColor: Color.Black }),
-      );
+      const result = await engine.pair(makeRequest(players, 1, 7, { initialColor: Color.Black }));
       expect(boards(result)).toEqual([
         ['P5', 'P1'],
         ['P2', 'P6'],
@@ -124,7 +122,7 @@ describe('SwissDutchEngine', () => {
       ]);
     });
 
-    it("toq son (7): PAB eng past rankdagiga (C5 teng → eng katta TPN), qolgani S1–S2", async () => {
+    it('toq son (7): PAB eng past rankdagiga (C5 teng → eng katta TPN), qolgani S1–S2', async () => {
       /**
        * QO'LDA HISOB: 7 aktiv → dummy tugun oxirgi (yagona) bracketda.
        * C5 (ochko) va C9 (o'ynalmaganlar) hamma uchun teng → TB darajasi:
@@ -149,7 +147,11 @@ describe('SwissDutchEngine', () => {
       const result = await engine.pair(makeRequest(players, 1, 9));
       const expected: (readonly [string, string])[] = [];
       for (let k = 1; k <= 10; k += 1) {
-        expected.push(k % 2 === 1 ? [`P${String(k)}`, `P${String(k + 10)}`] : [`P${String(k + 10)}`, `P${String(k)}`]);
+        expected.push(
+          k % 2 === 1
+            ? [`P${String(k)}`, `P${String(k + 10)}`]
+            : [`P${String(k + 10)}`, `P${String(k)}`],
+        );
       }
       expect(boards(result)).toEqual(expected);
     });
@@ -190,7 +192,7 @@ describe('SwissDutchEngine', () => {
       makePlayer(6, { points: 0.5, opponentIds: opp(3), colorHistory: [B], floatHistory: [NONE] }),
     ];
 
-    it('2-tur: C1 to\'sig\'i butun bracketni pastga tushiradi', async () => {
+    it("2-tur: C1 to'sig'i butun bracketni pastga tushiradi", async () => {
       const result = await engine.pair(makeRequest(round2Players, 2, 5));
       expect(boards(result)).toEqual([
         ['P5', 'P1'],
@@ -223,7 +225,7 @@ describe('SwissDutchEngine', () => {
      *  Bracket 0 {2,4}: 2-4 C1 ✓; mild qora vs absolute oq → 5.2.1: 4 oq, 2 qora.
      *  Taxtalar: 1-6, 3-5, 4-2. Hech bir kriteriy buzilmaydi.
      */
-    it('3-tur: absolyut rang afzalliklari (CD=±2) to\'g\'ri boshqariladi', async () => {
+    it("3-tur: absolyut rang afzalliklari (CD=±2) to'g'ri boshqariladi", async () => {
       const round3Players = [
         makePlayer(1, {
           points: 1.5,
@@ -381,7 +383,7 @@ describe('SwissDutchEngine', () => {
       expect(() => engine.pair(makeRequest(players, 2, 3))).toThrow(PairingImpossibleError);
     });
 
-    it('yakka haqli o\'yinchi → PAB oladi', async () => {
+    it("yakka haqli o'yinchi → PAB oladi", async () => {
       const players = [makePlayer(1, { points: 0 })];
       const result = await engine.pair(makeRequest(players, 1, 3));
       expect(result.pairings).toEqual([]);

@@ -127,9 +127,7 @@ export class AuthService {
       this.limiter.consume(emailKey, LOGIN_LIMIT, LOGIN_WINDOW_SECONDS),
     ]);
     if (!byIp.allowed || !byEmail.allowed) {
-      throw new TooManyAttemptsError(
-        Math.max(byIp.retryAfterSeconds, byEmail.retryAfterSeconds),
-      );
+      throw new TooManyAttemptsError(Math.max(byIp.retryAfterSeconds, byEmail.retryAfterSeconds));
     }
 
     const user = await this.users.findByEmail(email);

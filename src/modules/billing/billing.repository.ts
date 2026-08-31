@@ -172,7 +172,7 @@ export class BillingRepository {
       }
     }
 
-    throw new ConflictError('Invoys raqami generatsiyasi muvaffaqiyatsiz — qayta urinib ko\'ring', {
+    throw new ConflictError("Invoys raqami generatsiyasi muvaffaqiyatsiz — qayta urinib ko'ring", {
       attempts: MAX_ATTEMPTS,
       cause: lastError instanceof Error ? lastError.message : String(lastError),
     });

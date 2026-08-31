@@ -27,7 +27,7 @@ describe('matchmaking logic (pure)', () => {
       expect(parseBucketKey(bucketKey(pool))).toEqual(pool);
     });
 
-    it("buzuq kalit → null", () => {
+    it('buzuq kalit → null', () => {
       expect(parseBucketKey('game:clock:abc')).toBeNull();
       expect(parseBucketKey('game:mm:BLITZ:FISCHER_INCREMENT:x:2')).toBeNull();
     });
@@ -36,7 +36,7 @@ describe('matchmaking logic (pure)', () => {
   describe('currentDelta (docs/07 §9.2)', () => {
     const cfg = DEFAULT_MATCHMAKING_CONFIG;
 
-    it('boshlang\'ich oyna ±200', () => {
+    it("boshlang'ich oyna ±200", () => {
       expect(currentDelta(cfg, 0)).toBe(200);
       expect(currentDelta(cfg, 9_999)).toBe(200);
     });
@@ -51,7 +51,7 @@ describe('matchmaking logic (pure)', () => {
       expect(currentDelta(cfg, 10 * 60_000)).toBe(500);
     });
 
-    it('manfiy kutish — boshlang\'ich oyna (himoya)', () => {
+    it("manfiy kutish — boshlang'ich oyna (himoya)", () => {
       expect(currentDelta(cfg, -5_000)).toBe(200);
     });
   });

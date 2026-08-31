@@ -44,7 +44,7 @@ describe('buildPairingStates', () => {
   const states = buildPairingStates(participants, history);
   const byId = new Map(states.map((s) => [String(s.playerId), s]));
 
-  it('ochkolar natijalardan yig\'iladi (bye ham kiradi)', () => {
+  it("ochkolar natijalardan yig'iladi (bye ham kiradi)", () => {
     expect(byId.get('A')?.points).toBe(1.5); // 1 + 0.5
     expect(byId.get('B')?.points).toBe(1); // 0 + bye
     expect(byId.get('C')?.points).toBe(1.5); // bye + 0.5
@@ -62,7 +62,7 @@ describe('buildPairingStates', () => {
     expect(byId.get('C')?.colorHistory).toEqual([Color.White]);
   });
 
-  it('hasReceivedBye — o\'tmishdagi BYE_FULL dan', () => {
+  it("hasReceivedBye — o'tmishdagi BYE_FULL dan", () => {
     expect(byId.get('A')?.hasReceivedBye).toBe(false);
     expect(byId.get('B')?.hasReceivedBye).toBe(true);
     expect(byId.get('C')?.hasReceivedBye).toBe(true);
@@ -77,7 +77,7 @@ describe('buildPairingStates', () => {
     expect(byId.get('C')?.rating).toBe(0); // reytingsiz → 0
   });
 
-  it("floatHistory — har yakunlangan tur uchun bitta element (FIDE 1.4)", () => {
+  it('floatHistory — har yakunlangan tur uchun bitta element (FIDE 1.4)', () => {
     // R1: A(0)–B(0) teng ochko → float yo'q; C BYE_FULL → Down (1.4.3).
     // R2: C(1.0)–A(1.0) teng → float yo'q; B BYE_FULL → Down.
     expect(byId.get('A')?.floatHistory).toEqual([FloatDirection.None, FloatDirection.None]);
@@ -86,10 +86,7 @@ describe('buildPairingStates', () => {
   });
 
   it('isWithdrawn va joinedAtRound uzatiladi', () => {
-    const [state] = buildPairingStates(
-      [seed('X', 5, { isWithdrawn: true, joinedAtRound: 3 })],
-      [],
-    );
+    const [state] = buildPairingStates([seed('X', 5, { isWithdrawn: true, joinedAtRound: 3 })], []);
     expect(state?.isWithdrawn).toBe(true);
     expect(state?.joinedAtRound).toBe(3);
   });
@@ -128,26 +125,27 @@ describe('buildPairingStates', () => {
       const states = buildPairingStates(
         [seed('A', 1), seed('B', 2), seed('C', 3)],
         [
-          { roundNumber: 1, whiteRegistrationId: 'A', blackRegistrationId: 'B', result: 'WHITE_WIN' },
-          { roundNumber: 1, whiteRegistrationId: 'C', blackRegistrationId: null, result: 'BYE_ZERO' },
+          {
+            roundNumber: 1,
+            whiteRegistrationId: 'A',
+            blackRegistrationId: 'B',
+            result: 'WHITE_WIN',
+          },
+          {
+            roundNumber: 1,
+            whiteRegistrationId: 'C',
+            blackRegistrationId: null,
+            result: 'BYE_ZERO',
+          },
           { roundNumber: 2, whiteRegistrationId: 'C', blackRegistrationId: 'A', result: 'DRAW' },
         ],
       );
       const byIdLocal = new Map(states.map((s) => [String(s.playerId), s]));
       // R2 boshida: A=1.0, C=0 → A Down, C Up.
-      expect(byIdLocal.get('A')?.floatHistory).toEqual([
-        FloatDirection.None,
-        FloatDirection.Down,
-      ]);
-      expect(byIdLocal.get('C')?.floatHistory).toEqual([
-        FloatDirection.None,
-        FloatDirection.Up,
-      ]);
+      expect(byIdLocal.get('A')?.floatHistory).toEqual([FloatDirection.None, FloatDirection.Down]);
+      expect(byIdLocal.get('C')?.floatHistory).toEqual([FloatDirection.None, FloatDirection.Up]);
       // BYE_ZERO — float emas (1.4.4).
-      expect(byIdLocal.get('B')?.floatHistory).toEqual([
-        FloatDirection.None,
-        FloatDirection.None,
-      ]);
+      expect(byIdLocal.get('B')?.floatHistory).toEqual([FloatDirection.None, FloatDirection.None]);
     });
 
     it("forfeit g'alaba: C2 blokeri (hasReceivedBye) va Down float (1.4.3)", () => {

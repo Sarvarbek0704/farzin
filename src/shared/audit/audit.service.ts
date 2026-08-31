@@ -68,7 +68,10 @@ export class AuditService {
   constructor(private readonly cls: ClsService) {}
 
   async write(tx: Prisma.TransactionClient, entry: AuditEntry): Promise<void> {
-    if (REASON_REQUIRED.has(entry.action) && (entry.reason === undefined || entry.reason.trim() === '')) {
+    if (
+      REASON_REQUIRED.has(entry.action) &&
+      (entry.reason === undefined || entry.reason.trim() === '')
+    ) {
       throw new BusinessRuleError(
         'AUDIT_REASON_REQUIRED',
         `"${entry.action}" harakati uchun sabab ko'rsatish majburiy`,

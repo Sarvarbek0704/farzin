@@ -57,7 +57,7 @@ export class NotificationController {
   @HttpCode(HttpStatus.OK)
   @ApiBearerAuth('access-token')
   @ApiOperation({ summary: "Xabarni o'qildi qilish — faqat o'ziniki, idempotent" })
-  @ApiResponse({ status: 404, description: "Boshqa userning xabari — 404 (403 emas)" })
+  @ApiResponse({ status: 404, description: 'Boshqa userning xabari — 404 (403 emas)' })
   markRead(
     @CurrentUser() user: AuthenticatedUser,
     @Param('id', ParseUUIDPipe) id: string,

@@ -6,7 +6,7 @@ import {
 } from './invoice-number';
 
 describe('invoice-number — FRZ-YYYY-NNNNNN', () => {
-  it('formatlash: 6 xonaga to\'ldiriladi', () => {
+  it("formatlash: 6 xonaga to'ldiriladi", () => {
     expect(formatInvoiceNumber(2026, 1)).toBe('FRZ-2026-000001');
     expect(formatInvoiceNumber(2026, 42)).toBe('FRZ-2026-000042');
     expect(formatInvoiceNumber(2026, 999_999)).toBe('FRZ-2026-999999');

@@ -27,7 +27,7 @@ describe('core/fairplay/timing-analysis', () => {
     }));
   }
 
-  it("bir tekis bot-simon seriya → yuqori kuch (past dispersiya = shubhali NAQSH, isbot emas)", () => {
+  it('bir tekis bot-simon seriya → yuqori kuch (past dispersiya = shubhali NAQSH, isbot emas)', () => {
     // Har yurish ~4s — "ko'chirish → o'qish → qaytarish" jarayoni (§2.2).
     const times = Array.from({ length: 30 }, (_, i) => 4_000 + (i % 3) * 50);
     const result = analyzeTiming(series(times));
@@ -52,7 +52,7 @@ describe('core/fairplay/timing-analysis', () => {
     expect(result!.strength).toBe(0);
   });
 
-  it('qisqa seriya → null (§9.3 minimal namuna — shovqindan signal YO\'Q)', () => {
+  it("qisqa seriya → null (§9.3 minimal namuna — shovqindan signal YO'Q)", () => {
     const times = Array.from({ length: TIMING_MIN_SAMPLE - 1 }, () => 5_000);
     expect(analyzeTiming(series(times))).toBeNull();
   });
@@ -71,12 +71,12 @@ describe('core/fairplay/timing-analysis', () => {
     expect(result!.excludedCount).toBe(4);
   });
 
-  it('faqat premove\'lardan iborat seriya → null (0 ga bo\'linish yo\'q)', () => {
+  it("faqat premove'lardan iborat seriya → null (0 ga bo'linish yo'q)", () => {
     const times = Array.from({ length: 40 }, () => 0);
     expect(analyzeTiming(series(times))).toBeNull();
   });
 
-  it("debyut yarim-yurishlari chiqariladi (§2.1 nazariya ≠ chit; bookPlies ochiq parametr)", () => {
+  it('debyut yarim-yurishlari chiqariladi (§2.1 nazariya ≠ chit; bookPlies ochiq parametr)', () => {
     // Hammasi debyut ichida — natija null bo'lishi kerak.
     const inBook: TimedPly[] = Array.from({ length: 40 }, (_, i) => ({
       ply: Math.min(i + 1, OPENING_PLIES_EXCLUDED),
@@ -85,7 +85,7 @@ describe('core/fairplay/timing-analysis', () => {
     expect(analyzeTiming(inBook)).toBeNull();
   });
 
-  it('kuch har doim 0..1 oralig\'ida', () => {
+  it("kuch har doim 0..1 oralig'ida", () => {
     for (const spread of [0, 100, 1_000, 20_000, 200_000]) {
       const times = Array.from({ length: 30 }, (_, i) => 3_000 + (i % 2) * spread);
       const result = analyzeTiming(series(times));
@@ -97,7 +97,7 @@ describe('core/fairplay/timing-analysis', () => {
   });
 
   describe('statistika yordamchilari', () => {
-    it('mean/variance/stddev — qo\'lda tekshirilgan qiymatlar', () => {
+    it("mean/variance/stddev — qo'lda tekshirilgan qiymatlar", () => {
       expect(mean([2, 4, 6])).toBe(4);
       expect(variance([2, 4, 6])).toBeCloseTo(8 / 3, 10);
       expect(standardDeviation([5, 5, 5])).toBe(0);

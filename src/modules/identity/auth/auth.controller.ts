@@ -1,14 +1,4 @@
-import {
-  Body,
-  Controller,
-  Get,
-  HttpCode,
-  HttpStatus,
-  Post,
-  Query,
-  Req,
-  Res,
-} from '@nestjs/common';
+import { Body, Controller, Get, HttpCode, HttpStatus, Post, Query, Req, Res } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { ApiBearerAuth, ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
 import type { Request, Response } from 'express';
@@ -51,7 +41,7 @@ export class AuthController {
   @Post('register')
   @HttpCode(HttpStatus.CREATED)
   @ApiOperation({ summary: "Ro'yxatdan o'tish (email + parol)" })
-  @ApiResponse({ status: 201, description: 'Access token body\'da, refresh httpOnly cookie\'da' })
+  @ApiResponse({ status: 201, description: "Access token body'da, refresh httpOnly cookie'da" })
   @ApiResponse({ status: 409, description: 'Email band' })
   @ApiResponse({ status: 429, description: 'Urinishlar chegarasi (3/soat, IP)' })
   async register(
@@ -69,7 +59,7 @@ export class AuthController {
   @ApiOperation({ summary: 'Kirish' })
   @ApiResponse({ status: 200 })
   @ApiResponse({ status: 401, description: "Email yoki parol noto'g'ri (qaysi biri — aytilmaydi)" })
-  @ApiResponse({ status: 429, description: '5/15min — IP va email bo\'yicha alohida' })
+  @ApiResponse({ status: 429, description: "5/15min — IP va email bo'yicha alohida" })
   async login(
     @Body() dto: LoginDto,
     @Req() req: Request,
@@ -86,7 +76,7 @@ export class AuthController {
     summary: 'Token yangilash (rotatsiya)',
     description:
       "Refresh token httpOnly cookie'dan o'qiladi — body bo'sh. " +
-      "Har token BIR MARTALIK: qayta ishlatish butun sessiya oilasini bekor qiladi.",
+      'Har token BIR MARTALIK: qayta ishlatish butun sessiya oilasini bekor qiladi.',
   })
   @ApiResponse({ status: 200 })
   @ApiResponse({ status: 401, description: 'Yaroqsiz/eskirgan/qayta ishlatilgan token' })

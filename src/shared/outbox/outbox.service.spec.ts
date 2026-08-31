@@ -2,19 +2,19 @@ import { backoffDelayMs, OUTBOX_EVENT_TYPES, OutboxService } from './outbox.serv
 
 describe('OutboxService', () => {
   describe('backoffDelayMs', () => {
-    it('eksponensial o\'sadi: 2s, 4s, 8s...', () => {
+    it("eksponensial o'sadi: 2s, 4s, 8s...", () => {
       expect(backoffDelayMs(1)).toBe(2_000);
       expect(backoffDelayMs(2)).toBe(4_000);
       expect(backoffDelayMs(3)).toBe(8_000);
     });
 
-    it("5 daqiqadan oshmaydi (cap)", () => {
+    it('5 daqiqadan oshmaydi (cap)', () => {
       expect(backoffDelayMs(9)).toBe(5 * 60 * 1_000);
       expect(backoffDelayMs(50)).toBe(5 * 60 * 1_000);
       expect(backoffDelayMs(1_000)).toBe(5 * 60 * 1_000);
     });
 
-    it('manfiy bo\'lmaydi va chekli', () => {
+    it("manfiy bo'lmaydi va chekli", () => {
       for (let i = 0; i <= 100; i += 1) {
         const delay = backoffDelayMs(i);
         expect(delay).toBeGreaterThan(0);

@@ -19,7 +19,7 @@ export class SecretBox {
   /** @param hexKey 64 hex belgi (32 bayt). Generatsiya: openssl rand -hex 32 */
   constructor(hexKey: string) {
     if (!/^[0-9a-fA-F]{64}$/.test(hexKey)) {
-      throw new Error('SecretBox kaliti aynan 64 hex belgi (32 bayt) bo\'lishi kerak');
+      throw new Error("SecretBox kaliti aynan 64 hex belgi (32 bayt) bo'lishi kerak");
     }
     this.key = Buffer.from(hexKey, 'hex');
   }

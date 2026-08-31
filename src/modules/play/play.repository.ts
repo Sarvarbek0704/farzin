@@ -181,7 +181,7 @@ export class PlayRepository {
     } catch (e) {
       if (e instanceof Prisma.PrismaClientKnownRequestError && e.code === 'P2002') {
         // Parallel yurish poygasi — bitta ply ikki marta (docs/07 §2.2 #5).
-        throw new ConflictError('Yurish allaqachon qabul qilingan (parallel so\'rov)', {
+        throw new ConflictError("Yurish allaqachon qabul qilingan (parallel so'rov)", {
           gameId,
           ply: move.ply,
         });

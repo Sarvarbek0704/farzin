@@ -63,13 +63,27 @@ export class PlayerRepository {
 
   async update(id: string, input: UpdatePlayerInput): Promise<PlayerRow> {
     const data: Prisma.PlayerUpdateInput = {};
-    if (input.firstName !== undefined) {data.firstName = input.firstName;}
-    if (input.lastName !== undefined) {data.lastName = input.lastName;}
-    if (input.middleName !== undefined) {data.middleName = input.middleName;}
-    if (input.fullNameCyrl !== undefined) {data.fullNameCyrl = input.fullNameCyrl;}
-    if (input.birthDate !== undefined) {data.birthDate = input.birthDate;}
-    if (input.gender !== undefined) {data.gender = input.gender;}
-    if (input.isPublic !== undefined) {data.isPublic = input.isPublic;}
+    if (input.firstName !== undefined) {
+      data.firstName = input.firstName;
+    }
+    if (input.lastName !== undefined) {
+      data.lastName = input.lastName;
+    }
+    if (input.middleName !== undefined) {
+      data.middleName = input.middleName;
+    }
+    if (input.fullNameCyrl !== undefined) {
+      data.fullNameCyrl = input.fullNameCyrl;
+    }
+    if (input.birthDate !== undefined) {
+      data.birthDate = input.birthDate;
+    }
+    if (input.gender !== undefined) {
+      data.gender = input.gender;
+    }
+    if (input.isPublic !== undefined) {
+      data.isPublic = input.isPublic;
+    }
     if (input.regionId !== undefined) {
       data.region =
         input.regionId === null ? { disconnect: true } : { connect: { id: input.regionId } };

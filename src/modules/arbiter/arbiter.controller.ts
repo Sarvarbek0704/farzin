@@ -15,12 +15,7 @@ import type { Response } from 'express';
 
 import { Public } from '../../shared/auth/public.decorator';
 import { type Actor, CurrentActor, RequirePermission } from '../identity/rbac.port';
-import type {
-  PairingRow,
-  RoundRow,
-  RoundWithPairings,
-  StandingRow,
-} from './arbiter.repository';
+import type { PairingRow, RoundRow, RoundWithPairings, StandingRow } from './arbiter.repository';
 import { ArbiterService } from './arbiter.service';
 import { EnterResultDto } from './dto/enter-result.dto';
 
@@ -51,7 +46,11 @@ export class ArbiterController {
     summary:
       "Keyingi turni generatsiya qilish (round-robin/double round-robin) — oldingi tur COMPLETED bo'lishi shart",
   })
-  @ApiResponse({ status: 422, description: 'PAIRING_IMPOSSIBLE | PREVIOUS_ROUND_NOT_COMPLETED | PAIRING_SYSTEM_NOT_IMPLEMENTED' })
+  @ApiResponse({
+    status: 422,
+    description:
+      'PAIRING_IMPOSSIBLE | PREVIOUS_ROUND_NOT_COMPLETED | PAIRING_SYSTEM_NOT_IMPLEMENTED',
+  })
   generateRound(
     @CurrentActor() actor: Actor,
     @Param('sectionId', ParseUUIDPipe) sectionId: string,
@@ -78,7 +77,8 @@ export class ArbiterController {
   @ApiBearerAuth('access-token')
   @RequirePermission('Round', 'update')
   @ApiOperation({
-    summary: "Turni yakunlash — barcha natijalar kiritilgan bo'lishi shart (outbox: RoundCompleted)",
+    summary:
+      "Turni yakunlash — barcha natijalar kiritilgan bo'lishi shart (outbox: RoundCompleted)",
   })
   completeRound(
     @CurrentActor() actor: Actor,
@@ -124,7 +124,7 @@ export class ArbiterController {
   @Get('sections/:sectionId/export/pgn')
   @ApiProduces('application/x-chess-pgn')
   @ApiOperation({
-    summary: "Seksiya partiyalari PGN formatida (ommaviy) — bir fayl, tur/taxta tartibida",
+    summary: 'Seksiya partiyalari PGN formatida (ommaviy) — bir fayl, tur/taxta tartibida',
   })
   async exportPgn(
     @Param('sectionId', ParseUUIDPipe) sectionId: string,
@@ -141,8 +141,7 @@ export class ArbiterController {
   @Get('sections/:sectionId/export/trf')
   @ApiProduces('text/plain')
   @ApiOperation({
-    summary:
-      'Seksiya FIDE TRF16 formatida (ommaviy) — Chess-Results / Swiss-Manager import qiladi',
+    summary: 'Seksiya FIDE TRF16 formatida (ommaviy) — Chess-Results / Swiss-Manager import qiladi',
   })
   async exportTrf(
     @Param('sectionId', ParseUUIDPipe) sectionId: string,

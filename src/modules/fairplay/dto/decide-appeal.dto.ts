@@ -13,7 +13,9 @@ export class DecideAppealDto {
   @IsIn(['UPHELD', 'REJECTED'])
   status!: AppealDecisionValue;
 
-  @ApiPropertyOptional({ description: 'Yozma qaror matni (kamida 20 belgi) — 422 bilan tekshiriladi' })
+  @ApiPropertyOptional({
+    description: 'Yozma qaror matni (kamida 20 belgi) — 422 bilan tekshiriladi',
+  })
   @IsOptional()
   @IsString()
   @MaxLength(4000)

@@ -1,11 +1,7 @@
 import fc from 'fast-check';
 
 import { Glicko2Service } from './glicko2.service';
-import {
-  DEFAULT_GLICKO2_CONFIG,
-  type MatchOutcome,
-  type RatingSnapshot,
-} from './glicko2.types';
+import { DEFAULT_GLICKO2_CONFIG, type MatchOutcome, type RatingSnapshot } from './glicko2.types';
 
 /**
  * Glicko-2 testlari.
@@ -55,7 +51,7 @@ describe('Glicko2Service', () => {
   });
 
   describe("o'ynalmagan davr", () => {
-    it('RD o\'sadi, reyting va volatility o\'zgarmaydi', () => {
+    it("RD o'sadi, reyting va volatility o'zgarmaydi", () => {
       const before = snapshot(1650, 80, 0.06);
       const after = service.compute(before, []);
 
@@ -67,7 +63,7 @@ describe('Glicko2Service', () => {
       expect(after.deviation).toBeCloseTo(expected, 6);
     });
 
-    it("RD 350 dan oshmaydi (clamp) — docs/06 §3.4", () => {
+    it('RD 350 dan oshmaydi (clamp) — docs/06 §3.4', () => {
       const before = snapshot(1500, 349.9, 0.1);
       const after = service.compute(before, []);
       expect(after.deviation).toBe(350);
@@ -99,12 +95,12 @@ describe('Glicko2Service', () => {
       volatility: volArb,
     });
 
-    const outcomesArb = fc.array(
-      fc.record({ opponent: snapshotArb, score: scoreArb }),
-      { minLength: 0, maxLength: 15 },
-    );
+    const outcomesArb = fc.array(fc.record({ opponent: snapshotArb, score: scoreArb }), {
+      minLength: 0,
+      maxLength: 15,
+    });
 
-    it('natija har doim chekli va chegaralar ichida (NaN/Infinity yo\'q)', () => {
+    it("natija har doim chekli va chegaralar ichida (NaN/Infinity yo'q)", () => {
       fc.assert(
         fc.property(snapshotArb, outcomesArb, (current, outcomes) => {
           const result = service.compute(current, outcomes);
@@ -121,7 +117,7 @@ describe('Glicko2Service', () => {
       );
     });
 
-    it("determinizm: bir xil input → bir xil output", () => {
+    it('determinizm: bir xil input → bir xil output', () => {
       fc.assert(
         fc.property(snapshotArb, outcomesArb, (current, outcomes) => {
           const a = service.compute(current, outcomes);

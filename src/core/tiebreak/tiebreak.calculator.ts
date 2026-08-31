@@ -139,10 +139,7 @@ export class TieBreakCalculator {
    * @returns playerId'lar yakuniy tartibda (yuqori o'rin birinchi)
    * @throws {TieBreakDataError} kirish ma'lumoti ziddiyatli bo'lsa
    */
-  rank(
-    players: readonly PlayerTieBreakInput[],
-    order: readonly TieBreakKey[],
-  ): readonly string[] {
+  rank(players: readonly PlayerTieBreakInput[], order: readonly TieBreakKey[]): readonly string[] {
     const ctx = buildContext(players);
     const keys = dedupe(order);
     const values = new Map<TieBreakKey, InternalValues>();
@@ -262,10 +259,7 @@ function buildContext(players: readonly PlayerTieBreakInput[]): TieBreakContext 
   return { players, points2, byId, totalRounds };
 }
 
-function mapPlayers(
-  ctx: TieBreakContext,
-  fn: (p: PlayerTieBreakInput) => number,
-): InternalValues {
+function mapPlayers(ctx: TieBreakContext, fn: (p: PlayerTieBreakInput) => number): InternalValues {
   const out = new Map<string, number | null>();
   for (const p of ctx.players) {
     out.set(p.playerId, fn(p));

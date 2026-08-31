@@ -12,7 +12,7 @@ import {
  */
 describe('modules/fairplay/engine/stockfish-uci parserlar', () => {
   describe('parseInfoLine', () => {
-    it('to\'liq info qatori — depth, cp score, pv', () => {
+    it("to'liq info qatori — depth, cp score, pv", () => {
       const line =
         'info depth 12 seldepth 18 multipv 1 score cp 34 nodes 123456 nps 1000000 time 120 pv e2e4 e7e5 g1f3';
       expect(parseInfoLine(line)).toEqual({
@@ -35,7 +35,7 @@ describe('modules/fairplay/engine/stockfish-uci parserlar', () => {
       });
     });
 
-    it('pv\'siz score qatori — pvFirstMove null', () => {
+    it("pv'siz score qatori — pvFirstMove null", () => {
       expect(parseInfoLine('info depth 5 score cp 10')).toEqual({
         depth: 5,
         score: { unit: 'cp', value: 10 },
@@ -43,12 +43,12 @@ describe('modules/fairplay/engine/stockfish-uci parserlar', () => {
       });
     });
 
-    it('score\'siz info (currmove, nodes) → null', () => {
+    it("score'siz info (currmove, nodes) → null", () => {
       expect(parseInfoLine('info depth 12 currmove e2e4 currmovenumber 1')).toBeNull();
       expect(parseInfoLine('info nodes 500 nps 100000')).toBeNull();
     });
 
-    it('info bo\'lmagan qatorlar → null', () => {
+    it("info bo'lmagan qatorlar → null", () => {
       expect(parseInfoLine('bestmove e2e4')).toBeNull();
       expect(parseInfoLine('uciok')).toBeNull();
       expect(parseInfoLine('')).toBeNull();
@@ -60,7 +60,7 @@ describe('modules/fairplay/engine/stockfish-uci parserlar', () => {
   });
 
   describe('parseBestMove', () => {
-    it('ponder bilan va ponder\'siz', () => {
+    it("ponder bilan va ponder'siz", () => {
       expect(parseBestMove('bestmove e2e4 ponder e7e5')).toBe('e2e4');
       expect(parseBestMove('bestmove g8f6')).toBe('g8f6');
     });
@@ -73,7 +73,7 @@ describe('modules/fairplay/engine/stockfish-uci parserlar', () => {
       expect(parseBestMove('bestmove (none)')).toBeNull();
     });
 
-    it('bestmove bo\'lmagan qator → null', () => {
+    it("bestmove bo'lmagan qator → null", () => {
       expect(parseBestMove('info depth 1 score cp 0')).toBeNull();
       expect(parseBestMove('')).toBeNull();
     });
@@ -98,7 +98,8 @@ describe('modules/fairplay/engine/stockfish-uci parserlar', () => {
  * binary CI shartiga aylanmaydi).
  */
 const stockfishPath = process.env.STOCKFISH_PATH;
-const describeWithEngine = stockfishPath !== undefined && stockfishPath !== '' ? describe : describe.skip;
+const describeWithEngine =
+  stockfishPath !== undefined && stockfishPath !== '' ? describe : describe.skip;
 
 describeWithEngine('stockfish-uci.adapter (REAL binary — opt-in)', () => {
   let adapter: StockfishUciAdapter;
@@ -111,7 +112,7 @@ describeWithEngine('stockfish-uci.adapter (REAL binary — opt-in)', () => {
     await adapter.dispose();
   });
 
-  it('boshlang\'ich pozitsiyani baholaydi', async () => {
+  it("boshlang'ich pozitsiyani baholaydi", async () => {
     const result = await adapter.analyzePosition(
       'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1',
       8,

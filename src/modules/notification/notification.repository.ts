@@ -45,7 +45,7 @@ function toRow(n: Notification): NotificationRow {
     // payload'ni har doim obyekt sifatida yozamiz — bu defensiv keltirish.
     payload:
       typeof n.payload === 'object' && n.payload !== null && !Array.isArray(n.payload)
-        ? (n.payload)
+        ? n.payload
         : {},
     sentAt: n.sentAt,
     readAt: n.readAt,

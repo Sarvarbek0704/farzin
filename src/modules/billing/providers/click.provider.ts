@@ -57,8 +57,8 @@ export class ClickProvider implements PaymentProviderAdapter {
   private notConfigured(operation: string): BusinessRuleError {
     return new BusinessRuleError(
       'PROVIDER_NOT_CONFIGURED',
-      'Click provayderi hali sozlanmagan: sandbox hisob ma\'lumotlari va ' +
-        'merchant ro\'yxati kerak (docs.click.uz). docs/09 §1.4, §2.4',
+      "Click provayderi hali sozlanmagan: sandbox hisob ma'lumotlari va " +
+        "merchant ro'yxati kerak (docs.click.uz). docs/09 §1.4, §2.4",
       { provider: this.code, operation },
     );
   }

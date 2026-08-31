@@ -19,11 +19,7 @@ import {
   validateMove,
   STARTING_FEN,
 } from '../../core/chess/rules';
-import {
-  BusinessRuleError,
-  ConflictError,
-  NotFoundError,
-} from '../../core/errors/domain.error';
+import { BusinessRuleError, ConflictError, NotFoundError } from '../../core/errors/domain.error';
 import { MetricsService } from '../../shared/metrics/metrics.service';
 import { PLAYER_PORT, type PlayerPort, type PlayerSummary } from '../player/player.port';
 import { RATING_PORT, type RatingPort } from '../rating/rating.port';
@@ -222,8 +218,7 @@ export class PlayService {
       this.ratings.getCurrentRating(game.blackPlayerId, 'ONLINE', game.timeCategory),
     ]);
 
-    const drawOfferFrom =
-      game.status === 'ACTIVE' ? await this.clocks.getDrawOffer(gameId) : null;
+    const drawOfferFrom = game.status === 'ACTIVE' ? await this.clocks.getDrawOffer(gameId) : null;
 
     return {
       gameId: game.id,
@@ -301,7 +296,8 @@ export class PlayService {
       };
     } else {
       const entry = await this.clocks.load(gameId);
-      const state = entry?.state ?? this.reconstructClock(game, await this.repo.listMoves(gameId), now);
+      const state =
+        entry?.state ?? this.reconstructClock(game, await this.repo.listMoves(gameId), now);
       entryVersion = entry?.version ?? null;
 
       const applied = applyMove(config, state, now);
@@ -454,7 +450,7 @@ export class PlayService {
     const { game, side } = await this.requireActivePlayer(userId, gameId);
     const offer = await this.clocks.getDrawOffer(gameId);
     if (offer === null || offer === side) {
-      throw new BusinessRuleError('NO_DRAW_OFFER', 'Qabul qilinadigan durang taklifi yo\'q');
+      throw new BusinessRuleError('NO_DRAW_OFFER', "Qabul qilinadigan durang taklifi yo'q");
     }
     return this.requireFinished(await this.finishNoMove(game, 'DRAW_AGREED', null, userId));
   }
@@ -466,7 +462,10 @@ export class PlayService {
   async abort(userId: string, gameId: string): Promise<GameEndedPayload> {
     const { game } = await this.requireActivePlayer(userId, gameId);
     if (game.plyCount >= 2) {
-      throw new BusinessRuleError('ABORT_WINDOW_CLOSED', 'Abort oynasi yopilgan (2-yurishdan keyin)');
+      throw new BusinessRuleError(
+        'ABORT_WINDOW_CLOSED',
+        'Abort oynasi yopilgan (2-yurishdan keyin)',
+      );
     }
     return this.requireFinished(await this.finishNoMove(game, 'ABORTED', null, userId));
   }
@@ -728,10 +727,8 @@ export class PlayService {
 
     // Yakuniy soat: yuruvchi tomonning jonli qiymati "hozir" kesimida.
     const finalState: ClockState = {
-      whiteRemainingMs:
-        game.plyCount === 0 ? config.baseMs : remaining(config, state, 'w', now),
-      blackRemainingMs:
-        game.plyCount === 0 ? config.baseMs : remaining(config, state, 'b', now),
+      whiteRemainingMs: game.plyCount === 0 ? config.baseMs : remaining(config, state, 'w', now),
+      blackRemainingMs: game.plyCount === 0 ? config.baseMs : remaining(config, state, 'b', now),
       turn: state.turn,
       lastEventAtMs: now,
     };

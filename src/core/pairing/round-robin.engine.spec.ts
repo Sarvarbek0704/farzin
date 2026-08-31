@@ -243,7 +243,7 @@ describe('RoundRobinEngine', () => {
       }
     });
 
-    it('ikkinchi aylana: o\'sha jadval, ranglar teskari (N=4, tur 4-6)', async () => {
+    it("ikkinchi aylana: o'sha jadval, ranglar teskari (N=4, tur 4-6)", async () => {
       const players = makePlayers(4);
       const r4 = await double.pair(makeRequest(players, 4, 2));
       const r5 = await double.pair(makeRequest(players, 5, 2));
@@ -278,7 +278,7 @@ describe('RoundRobinEngine', () => {
   });
 
   describe("chiqib ketgan o'yinchi (header'dagi qaror #1)", () => {
-    it("raqibi PAIRING_ALLOCATED bye oladi, stollar qayta raqamlanadi", async () => {
+    it('raqibi PAIRING_ALLOCATED bye oladi, stollar qayta raqamlanadi', async () => {
       // N=4, tur 1 jadvali: 1-4, 2-3. 4-o'yinchi chiqib ketgan →
       // 1-o'yinchi bye, 2-3 yagona stol (board 1).
       const result = await single.pair(makeRequest(makePlayers(4, [4]), 1));
@@ -433,7 +433,7 @@ describe('RoundRobinEngine', () => {
       );
     });
 
-    it('to\'liq aylanada har bir juftlik aynan BIR marta uchrashadi (FIDE C1)', async () => {
+    it("to'liq aylanada har bir juftlik aynan BIR marta uchrashadi (FIDE C1)", async () => {
       await fc.assert(
         fc.asyncProperty(fc.integer({ min: 2, max: 12 }), async (n) => {
           const meetings = new Map<string, number>();

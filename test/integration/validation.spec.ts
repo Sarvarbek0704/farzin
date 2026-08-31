@@ -61,7 +61,7 @@ describe('Validatsiya va xato formati (integration)', () => {
     expect(serialized).not.toContain('src/');
   });
 
-  it('GET /players autentifikatsiyasiz → 200 {items, pageInfo} va hech narsa o\'zgarmaydi', async () => {
+  it("GET /players autentifikatsiyasiz → 200 {items, pageInfo} va hech narsa o'zgarmaydi", async () => {
     const res = await request(t.server).get('/api/v1/players');
 
     expect(res.status).toBe(200);
@@ -71,7 +71,7 @@ describe('Validatsiya va xato formati (integration)', () => {
     });
   });
 
-  it("global prefiksdan istisno: GET /health prefikssiz ishlaydi (docs/04-api-spec.md §2.1)", async () => {
+  it('global prefiksdan istisno: GET /health prefikssiz ishlaydi (docs/04-api-spec.md §2.1)', async () => {
     const res = await request(t.server).get('/health');
     // Terminus javobi: real DB/Redis tekshiruvi — konteynerlar tirik.
     expect(res.status).toBe(200);

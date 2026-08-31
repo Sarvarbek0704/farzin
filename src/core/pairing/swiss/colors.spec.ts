@@ -55,7 +55,7 @@ describe('colorDifference (Article 1.6)', () => {
 });
 
 describe('colorPreferenceOf (Article 1.7)', () => {
-  it('1.7.4: partiya o\'ynamagan — afzallik yo\'q', () => {
+  it("1.7.4: partiya o'ynamagan — afzallik yo'q", () => {
     expect(colorPreferenceOf([])).toEqual({
       color: null,
       strength: ColorPreferenceStrength.None,
@@ -99,7 +99,7 @@ describe('colorPreferenceOf (Article 1.7)', () => {
     });
   });
 
-  it('1.7.1 (sabab 2): oxirgi ikki partiya bir xil rang → absolute (CD ≤ 1 bo\'lsa ham)', () => {
+  it("1.7.1 (sabab 2): oxirgi ikki partiya bir xil rang → absolute (CD ≤ 1 bo'lsa ham)", () => {
     // B,W,W: CD = +1, lekin oxirgi ikkitasi oq → absolute qora.
     expect(colorPreferenceOf([B, W, W])).toEqual({
       color: B,
@@ -125,7 +125,7 @@ describe('allocateColors (Article 5.2)', () => {
     expect(allocateColors(a, b, W)).toEqual({ firstIsWhite: true, rule: '5.2.1' });
   });
 
-  it('5.2.1 (1.7.4 bilan): faqat bittasida afzallik — o\'shaniki qondiriladi', () => {
+  it("5.2.1 (1.7.4 bilan): faqat bittasida afzallik — o'shaniki qondiriladi", () => {
     const a = sideFromHistory([W], 0, 1); // strong qora
     const b = side({ rankIndex: 1, pairingNumber: 9 }); // o'ynamagan
     expect(allocateColors(a, b, W)).toEqual({ firstIsWhite: false, rule: '5.2.1' });
@@ -180,7 +180,7 @@ describe('allocateColors (Article 5.2)', () => {
     expect(allocateColors(b, a, W)).toEqual({ firstIsWhite: false, rule: '5.2.4' });
   });
 
-  it('5.2.5: afzalliklar yo\'q — yuqori rankdagi TPN toq bo\'lsa initial-colour oladi', () => {
+  it("5.2.5: afzalliklar yo'q — yuqori rankdagi TPN toq bo'lsa initial-colour oladi", () => {
     const a = side({ rankIndex: 0, pairingNumber: 1 });
     const b = side({ rankIndex: 1, pairingNumber: 5 });
     expect(allocateColors(a, b, W)).toEqual({ firstIsWhite: true, rule: '5.2.5' });

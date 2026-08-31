@@ -38,7 +38,7 @@ describe('core/chess rules', () => {
       expect(validateMove('not-a-fen', 'e2e4').legal).toBe(false);
     });
 
-    it("promotion maydonisiz oxirgi gorizontalga piyoda → illegal (docs/07 §5.3)", () => {
+    it('promotion maydonisiz oxirgi gorizontalga piyoda → illegal (docs/07 §5.3)', () => {
       const fen = '8/4P3/8/8/8/8/2k5/K7 w - - 0 1';
       expect(validateMove(fen, 'e7e8').legal).toBe(false);
     });
@@ -89,7 +89,7 @@ describe('core/chess rules', () => {
       expect(gameEndFromPosition(fen)).toBe('FIFTY_MOVE_RULE');
     });
 
-    it("threefold shuffle: bir xil pozitsiya 3-marta → THREEFOLD_REPETITION", () => {
+    it('threefold shuffle: bir xil pozitsiya 3-marta → THREEFOLD_REPETITION', () => {
       // Ot chiqib-qaytadi: pozitsiya (FIDE 9.2 kaliti bilan) uch marta yuzaga
       // keladi. Boshlang'ich pozitsiya HAM hisobga kiradi (FIDE 9.2) —
       // shuning uchun `seen` unga oldindan ega.
@@ -114,7 +114,7 @@ describe('core/chess rules', () => {
       expect(end).toBe('THREEFOLD_REPETITION');
     });
 
-    it("rokirovka huquqi farq qilsa — takrorlanish SANALMAYDI (FIDE 9.2, docs/07 §14.4)", () => {
+    it('rokirovka huquqi farq qilsa — takrorlanish SANALMAYDI (FIDE 9.2, docs/07 §14.4)', () => {
       const withCastle = 'r3k2r/8/8/8/8/8/8/R3K2R w KQkq - 0 1';
       const noCastle = 'r3k2r/8/8/8/8/8/8/R3K2R w - - 0 1';
       expect(positionKey(withCastle)).not.toBe(positionKey(noCastle));
@@ -141,7 +141,7 @@ describe('core/chess rules', () => {
 
   describe('hasMatingMaterial (FIDE 6.9 — flag × material, docs/07 §3.5)', () => {
     it.each([
-      ['yolg\'iz shoh', '8/8/8/4k3/8/4K2Q/8/8 w - - 0 1', 'b' as const, false],
+      ["yolg'iz shoh", '8/8/8/4k3/8/4K2Q/8/8 w - - 0 1', 'b' as const, false],
       ['farzin bor', '8/8/8/4k3/8/4K2Q/8/8 w - - 0 1', 'w' as const, true],
       ['K+N — mot qila olmaydi', '8/8/8/7k/8/4KN2/8/8 w - - 0 1', 'w' as const, false],
       ['K+B — mot qila olmaydi', '8/8/8/4k3/8/4KB2/8/8 w - - 0 1', 'w' as const, false],
@@ -178,7 +178,7 @@ describe('core/chess rules', () => {
     });
   });
 
-  describe('perft — move generation to\'g\'riligi (docs/07 §5.4, depth ≤ 3 har PR\'da)', () => {
+  describe("perft — move generation to'g'riligi (docs/07 §5.4, depth ≤ 3 har PR'da)", () => {
     const KIWIPETE = 'r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R w KQkq - 0 1';
     const POSITION_3 = '8/2p5/3p4/KP5r/1R3p1k/8/4P1P1/8 w - - 0 1';
 

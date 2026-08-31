@@ -69,10 +69,11 @@ describe('Audit atomikligi (integration)', () => {
 
   it("to'liq oqim: org → turnir → seksiya → ro'yxat → tur → natija (result.created audit bilan)", async () => {
     // --- Org ierarxiyasi (API orqali — audit yozuvlari bilan birga) ------
-    const fed = await request(t.server)
-      .post('/api/v1/federations')
-      .set(bearer(adminToken))
-      .send({ name: "O'zbekiston shaxmat federatsiyasi", shortName: 'UzChess', countryCode: 'UZB' });
+    const fed = await request(t.server).post('/api/v1/federations').set(bearer(adminToken)).send({
+      name: "O'zbekiston shaxmat federatsiyasi",
+      shortName: 'UzChess',
+      countryCode: 'UZB',
+    });
     expect(fed.status).toBe(201);
 
     const region = await request(t.server)
@@ -84,7 +85,11 @@ describe('Audit atomikligi (integration)', () => {
     const club = await request(t.server)
       .post('/api/v1/clubs')
       .set(bearer(adminToken))
-      .send({ regionId: region.body.id as string, name: 'Toshkent shaxmat klubi', slug: 'toshkent-klubi' });
+      .send({
+        regionId: region.body.id as string,
+        name: 'Toshkent shaxmat klubi',
+        slug: 'toshkent-klubi',
+      });
     expect(club.status).toBe(201);
 
     // --- Turnir (DRAFT) + seksiya ----------------------------------------
@@ -179,7 +184,7 @@ describe('Audit atomikligi (integration)', () => {
   });
 
   it("sabab BILAN o'zgartirish → 200 va result.updated yozuvida sabab bor", async () => {
-    const reason = "Hakam xatosi: taxta raqami adashib yozilgan edi";
+    const reason = 'Hakam xatosi: taxta raqami adashib yozilgan edi';
 
     const res = await request(t.server)
       .patch(`/api/v1/pairings/${pairingId}/result`)

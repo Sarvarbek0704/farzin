@@ -20,7 +20,7 @@ describe('SecretBox (AES-256-GCM)', () => {
     expect(() => box.decrypt(tampered)).toThrow();
   });
 
-  it("boshqa kalit bilan ochilmaydi", () => {
+  it('boshqa kalit bilan ochilmaydi', () => {
     const other = new SecretBox('b'.repeat(64));
     const boxed = box.encrypt('sir');
     expect(() => other.decrypt(boxed)).toThrow();

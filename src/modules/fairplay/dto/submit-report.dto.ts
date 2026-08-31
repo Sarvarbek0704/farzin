@@ -11,8 +11,8 @@ export class SubmitReportDto {
   gameId!: string;
 
   @ApiProperty({
-    example: "Raqib 30-yurishdan keyin har pozitsiyada 4 soniyada eng yaxshi yurishni topdi",
-    description: 'Shikoyat asosi — komissiya o\'qiydi',
+    example: 'Raqib 30-yurishdan keyin har pozitsiyada 4 soniyada eng yaxshi yurishni topdi',
+    description: "Shikoyat asosi — komissiya o'qiydi",
   })
   @IsString()
   @MinLength(10)

@@ -57,8 +57,8 @@ export class PaymeProvider implements PaymentProviderAdapter {
   private notConfigured(operation: string): BusinessRuleError {
     return new BusinessRuleError(
       'PROVIDER_NOT_CONFIGURED',
-      'Payme provayderi hali sozlanmagan: sandbox kassa hisob ma\'lumotlari ' +
-        'va merchant ro\'yxati kerak (developer.help.paycom.uz). docs/09 §1.4, §2.4',
+      "Payme provayderi hali sozlanmagan: sandbox kassa hisob ma'lumotlari " +
+        "va merchant ro'yxati kerak (developer.help.paycom.uz). docs/09 §1.4, §2.4",
       { provider: this.code, operation },
     );
   }

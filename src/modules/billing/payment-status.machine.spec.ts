@@ -40,7 +40,7 @@ describe('payment-status.machine', () => {
     expect(canTransitionPayment('CREATED', 'PAID')).toBe(true);
   });
 
-  it("terminal holatdan chiqish IMKONSIZ (docs/09 §5.2)", () => {
+  it('terminal holatdan chiqish IMKONSIZ (docs/09 §5.2)', () => {
     for (const from of TERMINAL) {
       for (const to of ALL) {
         expect(canTransitionPayment(from, to)).toBe(false);
@@ -49,7 +49,9 @@ describe('payment-status.machine', () => {
   });
 
   it("noqonuniy o'tish ILLEGAL_PAYMENT_TRANSITION (422) tashlaydi", () => {
-    expect(() => { assertPaymentTransition('REFUNDED', 'PAID'); }).toThrow(BusinessRuleError);
+    expect(() => {
+      assertPaymentTransition('REFUNDED', 'PAID');
+    }).toThrow(BusinessRuleError);
 
     let caught: unknown;
     try {
@@ -62,10 +64,14 @@ describe('payment-status.machine', () => {
     expect((caught as BusinessRuleError).httpStatus).toBe(422);
   });
 
-  it('refund yo\'li faqat PAID dan boshlanadi', () => {
-    expect(() => { assertRefundPath('PAID'); }).not.toThrow();
+  it("refund yo'li faqat PAID dan boshlanadi", () => {
+    expect(() => {
+      assertRefundPath('PAID');
+    }).not.toThrow();
     for (const from of ['CREATED', 'PENDING', 'FAILED', 'REFUNDED'] as PaymentStatusValue[]) {
-      expect(() => { assertRefundPath(from); }).toThrow(BusinessRuleError);
+      expect(() => {
+        assertRefundPath(from);
+      }).toThrow(BusinessRuleError);
     }
   });
 });

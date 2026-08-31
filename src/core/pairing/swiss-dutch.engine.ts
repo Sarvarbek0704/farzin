@@ -97,7 +97,7 @@ export class SwissDutchEngine implements PairingEngine {
       throw new PairingImpossibleError(
         request.roundId,
         `totalRounds=${String(totalRounds)} yaroqsiz (roundNumber=${String(roundNumber)} dan ` +
-          'kichik bo\'lmasligi kerak — topscorer aniqlash, Article 1.8, shunga bog\'liq)',
+          "kichik bo'lmasligi kerak — topscorer aniqlash, Article 1.8, shunga bog'liq)",
       );
     }
 

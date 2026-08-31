@@ -1,10 +1,7 @@
 import { Inject, Injectable, Logger } from '@nestjs/common';
 import { Interval } from '@nestjs/schedule';
 
-import {
-  buildEntryFeePaymentEntries,
-  reverseLedgerEntries,
-} from '../../core/billing/ledger';
+import { buildEntryFeePaymentEntries, reverseLedgerEntries } from '../../core/billing/ledger';
 import { BusinessRuleError, ConflictError, NotFoundError } from '../../core/errors/domain.error';
 import {
   paymentProviderLabel,
@@ -116,7 +113,9 @@ export class BillingService {
       const existing = await this.repo.findInvoiceById(view.invoiceId);
       if (
         existing !== null &&
-        (existing.status === 'CREATED' || existing.status === 'PENDING' || existing.status === 'PAID')
+        (existing.status === 'CREATED' ||
+          existing.status === 'PENDING' ||
+          existing.status === 'PAID')
       ) {
         // To'lanmagan invoys bor — ikkinchi invoys ikki marta yechish
         // riski. To'langan bo'lsa — umuman kerak emas.
@@ -287,16 +286,13 @@ export class BillingService {
     const entries = buildEntryFeePaymentEntries('MANUAL', BigInt(payment.amount));
     // Urinish bu yerda SANALMAYDI — u initiatePayment'da sanalgan
     // (MANUAL ham invoys → initiate → confirm yo'lidan o'tadi).
-    const result = await this.timedProviderCall(
-      paymentProviderLabel('MANUAL'),
-      'confirm',
-      () =>
-        this.repo.applyPaymentSuccess({
-          paymentId,
-          actorUserId: actor.userId,
-          entries,
-          reason: trimmedReason,
-        }),
+    const result = await this.timedProviderCall(paymentProviderLabel('MANUAL'), 'confirm', () =>
+      this.repo.applyPaymentSuccess({
+        paymentId,
+        actorUserId: actor.userId,
+        entries,
+        reason: trimmedReason,
+      }),
     );
     return result.payment;
   }
@@ -413,7 +409,7 @@ export class BillingService {
     );
     if (!providerResult.accepted) {
       this.failPayment(providerLabel, 'REFUND_REJECTED');
-      throw new BusinessRuleError('REFUND_REJECTED', 'Provayder refund so\'rovini rad etdi', {
+      throw new BusinessRuleError('REFUND_REJECTED', "Provayder refund so'rovini rad etdi", {
         paymentId,
       });
     }

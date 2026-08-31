@@ -405,9 +405,10 @@ export function loadConfig(): AppConfig {
     throttle: { ttl: env.THROTTLE_TTL, limit: env.THROTTLE_LIMIT },
     play: { disconnectGraceMsOverride: env.PLAY_DISCONNECT_GRACE_MS ?? null },
     fairplay: {
-      stockfishPath: env.STOCKFISH_PATH !== undefined && env.STOCKFISH_PATH.trim() !== ''
-        ? env.STOCKFISH_PATH
-        : null,
+      stockfishPath:
+        env.STOCKFISH_PATH !== undefined && env.STOCKFISH_PATH.trim() !== ''
+          ? env.STOCKFISH_PATH
+          : null,
       samplingRate: env.FAIRPLAY_SAMPLING_RATE,
       engineDepth: env.FAIRPLAY_ENGINE_DEPTH,
       suspicionThreshold: env.FAIRPLAY_SUSPICION_THRESHOLD,

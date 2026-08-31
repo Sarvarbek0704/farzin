@@ -33,7 +33,7 @@ describe('modules/fairplay/engine/engine-correlation', () => {
     };
   }
 
-  it('mukammal engine o\'yini → T1=1, CPL=0, kuch yuqori', () => {
+  it("mukammal engine o'yini → T1=1, CPL=0, kuch yuqori", () => {
     const obs = Array.from({ length: 30 }, (_, i) => perfectMove(i));
     const result = engineCorrelation(obs);
 
@@ -54,11 +54,21 @@ describe('modules/fairplay/engine/engine-correlation', () => {
     expect(human!.strength).toBeLessThan(engine!.strength - 0.3);
   });
 
-  it('hal bo\'lgan pozitsiyalar (|eval| > 500cp) chiqariladi — §2.1 DECIDED', () => {
+  it("hal bo'lgan pozitsiyalar (|eval| > 500cp) chiqariladi — §2.1 DECIDED", () => {
     const scored = Array.from({ length: ENGINE_MIN_SAMPLE }, (_, i) => perfectMove(i));
     const decided: EngineMoveObservation[] = [
-      { playedUci: 'e2e4', bestMoveUci: 'e2e4', evalBeforeCp: DECIDED_EVAL_CP + 1, evalAfterCp: 600 },
-      { playedUci: 'e2e4', bestMoveUci: 'e2e4', evalBeforeCp: -(DECIDED_EVAL_CP + 100), evalAfterCp: -700 },
+      {
+        playedUci: 'e2e4',
+        bestMoveUci: 'e2e4',
+        evalBeforeCp: DECIDED_EVAL_CP + 1,
+        evalAfterCp: 600,
+      },
+      {
+        playedUci: 'e2e4',
+        bestMoveUci: 'e2e4',
+        evalBeforeCp: -(DECIDED_EVAL_CP + 100),
+        evalAfterCp: -700,
+      },
     ];
     const result = engineCorrelation([...scored, ...decided]);
 
@@ -84,7 +94,7 @@ describe('modules/fairplay/engine/engine-correlation', () => {
     expect(engineCorrelation(mixed)).toBeNull();
   });
 
-  it('CPL hech qachon manfiy emas — yaxshilangan baho 0 yo\'qotish', () => {
+  it("CPL hech qachon manfiy emas — yaxshilangan baho 0 yo'qotish", () => {
     // O'ynalgan yurish bahoni OSHIRGAN (engine chuqurroq ko'rmagan) —
     // cpLoss 0 bo'lishi kerak, manfiy emas.
     const obs = Array.from({ length: 25 }, () => ({

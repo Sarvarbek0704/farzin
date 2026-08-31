@@ -13,7 +13,11 @@ import {
   OPENING_PLIES_EXCLUDED,
   type TimingAnalysis,
 } from '../../core/fairplay/timing-analysis';
-import { FAIRPLAY_ANALYZE_JOB, QUEUE_NAMES, type FairplayAnalyzeJobData } from '../../shared/queue/queue.module';
+import {
+  FAIRPLAY_ANALYZE_JOB,
+  QUEUE_NAMES,
+  type FairplayAnalyzeJobData,
+} from '../../shared/queue/queue.module';
 import { TERMINAL_STATUSES, type TimeCategoryValue } from '../play/play.types';
 import {
   engineCorrelation,
@@ -21,8 +25,16 @@ import {
   type EngineCorrelationResult,
   type EngineMoveObservation,
 } from './engine/engine-correlation';
-import { ANALYSIS_ENGINE, type AnalysisEngine, type PositionAnalysis } from './engine/uci-engine.port';
-import { FairplayRepository, type GameForAnalysis, type NewSignalInput } from './fairplay.repository';
+import {
+  ANALYSIS_ENGINE,
+  type AnalysisEngine,
+  type PositionAnalysis,
+} from './engine/uci-engine.port';
+import {
+  FairplayRepository,
+  type GameForAnalysis,
+  type NewSignalInput,
+} from './fairplay.repository';
 
 /**
  * fairplay.analyzeGame job protsessori (docs/08 §8.1).
@@ -89,7 +101,9 @@ export class AnalysisProcessor implements OnModuleDestroy {
     this.worker.on('failed', (job, err) => {
       this.logger.warn(`fairplay job yiqildi: ${job?.id ?? '?'} — ${err.message}`);
     });
-    this.logger.log(`fairplay worker ishga tushdi (engine: ${this.engine?.name ?? "YO'Q — faqat vaqt tahlili"})`);
+    this.logger.log(
+      `fairplay worker ishga tushdi (engine: ${this.engine?.name ?? "YO'Q — faqat vaqt tahlili"})`,
+    );
   }
 
   async onModuleDestroy(): Promise<void> {
@@ -184,7 +198,8 @@ export class AnalysisProcessor implements OnModuleDestroy {
       topMoveMatchRate: correlation === null ? null : round4(correlation.topOneMatchRate),
       avgCentipawnLoss: correlation === null ? null : round2(correlation.avgCentipawnLoss),
       // Sekund² — schema Decimal(10,4) sig'imi uchun (ms² sig'maydi).
-      timingVariance: timing === null ? null : round4(Math.min(timing.varianceMs2 / 1_000_000, 999_999)),
+      timingVariance:
+        timing === null ? null : round4(Math.min(timing.varianceMs2 / 1_000_000, 999_999)),
       suspicionScore: suspicion === null ? null : round4(suspicion),
       engineName: correlation === null ? null : (this.engine?.name ?? null),
       engineDepth: correlation === null ? null : depth,

@@ -1,11 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import type {
-  Appeal,
-  FairPlayCase,
-  FairPlayReport,
-  FairPlaySignal,
-  Prisma,
-} from '@prisma/client';
+import type { Appeal, FairPlayCase, FairPlayReport, FairPlaySignal, Prisma } from '@prisma/client';
 
 import { aggregateSuspicion } from '../../core/fairplay/suspicion-aggregation';
 import { AuditService } from '../../shared/audit/audit.service';
@@ -384,7 +378,10 @@ export class FairplayRepository {
         resourceType: 'FairPlayCase',
         resourceId: input.caseId,
         reason: input.rationale,
-        before: { status: before.status, sanctionUntil: before.sanctionUntil?.toISOString() ?? null },
+        before: {
+          status: before.status,
+          sanctionUntil: before.sanctionUntil?.toISOString() ?? null,
+        },
         after: {
           status: input.decision,
           sanctionUntil: input.sanctionUntil?.toISOString() ?? null,

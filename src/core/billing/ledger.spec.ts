@@ -137,12 +137,10 @@ describe('buildLedgerTransaction — invariant (property, 1000 run)', () => {
 });
 
 describe('buildLedgerTransaction — chegara holatlari', () => {
-  it("2 tadan kam yozuv — double-entry emas, rad etiladi", () => {
+  it('2 tadan kam yozuv — double-entry emas, rad etiladi', () => {
     expect(() => buildLedgerTransaction([])).toThrow(LedgerImbalanceError);
     expect(() =>
-      buildLedgerTransaction([
-        { account: 'cash.click', direction: 'DEBIT', amountTiyin: 100n },
-      ]),
+      buildLedgerTransaction([{ account: 'cash.click', direction: 'DEBIT', amountTiyin: 100n }]),
     ).toThrow(LedgerImbalanceError);
   });
 

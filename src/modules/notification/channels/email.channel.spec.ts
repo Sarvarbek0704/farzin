@@ -45,7 +45,7 @@ function recipient(overrides: Partial<RecipientUser> = {}): RecipientUser {
 }
 
 describe('EmailChannel', () => {
-  it("jsonTransport orqali yuboradi: from/to/subject/body foydalanuvchi tilida", async () => {
+  it('jsonTransport orqali yuboradi: from/to/subject/body foydalanuvchi tilida', async () => {
     const transport = createTransport({ jsonTransport: true }) as Transporter<unknown>;
     const sendMail = jest.spyOn(transport, 'sendMail');
     const channel = new EmailChannel(transport, 'no-reply@farzin.uz');

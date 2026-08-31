@@ -28,7 +28,11 @@ export class AuditLogRepository {
   constructor(private readonly prisma: PrismaService) {}
 
   /** Faqat O'QISH — jadval immutable, yozish faqat AuditService orqali. */
-  async list(filter: AuditLogFilter, first: number, afterId: string | null): Promise<AuditLogRow[]> {
+  async list(
+    filter: AuditLogFilter,
+    first: number,
+    afterId: string | null,
+  ): Promise<AuditLogRow[]> {
     const where: Prisma.AuditLogWhereInput = {
       ...(filter.action !== undefined && { action: filter.action }),
       ...(filter.resourceType !== undefined && { resourceType: filter.resourceType }),

@@ -40,7 +40,7 @@ export class PlayerController {
   @Public()
   @Get(':id')
   @ApiOperation({ summary: 'Ommaviy profil' })
-  @ApiResponse({ status: 404, description: "Topilmadi YOKI yopiq — farq bildirilmaydi" })
+  @ApiResponse({ status: 404, description: 'Topilmadi YOKI yopiq — farq bildirilmaydi' })
   getById(@Param('id', ParseUUIDPipe) id: string): Promise<PlayerRow> {
     return this.playerService.getPublicById(id);
   }

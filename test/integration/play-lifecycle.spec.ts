@@ -53,7 +53,9 @@ describe('play lifecycle (integration)', () => {
         reconnection: false,
       });
       openSockets.push(socket);
-      const timer = setTimeout(() => { reject(new Error('WS ulanish timeout')); }, 10_000);
+      const timer = setTimeout(() => {
+        reject(new Error('WS ulanish timeout'));
+      }, 10_000);
       socket.on('connect', () => {
         clearTimeout(timer);
         resolve(socket);
@@ -124,7 +126,12 @@ describe('play lifecycle (integration)', () => {
     expect(ackB.ok).toBe(true);
   }
 
-  async function moveOk(socket: ClientSocket, gameId: string, from: string, to: string): Promise<void> {
+  async function moveOk(
+    socket: ClientSocket,
+    gameId: string,
+    from: string,
+    to: string,
+  ): Promise<void> {
     const ack = await emitAck<{ ok: boolean }>(socket, 'game:move', { gameId, from, to });
     expect(ack.ok).toBe(true);
   }
@@ -223,7 +230,7 @@ describe('play lifecycle (integration)', () => {
 
   // --- 2. Diskonnekt → opponent_gone; reconnect → opponent_back + resync (§8) --------
 
-  it('diskonnekt: opponent_gone {graceMs}; grace ichida qaytish: opponent_back + TO\'LIQ snapshot', async () => {
+  it("diskonnekt: opponent_gone {graceMs}; grace ichida qaytish: opponent_back + TO'LIQ snapshot", async () => {
     const gameId = await createChallenge();
     await joinBoth(gameId);
     await moveOk(socketA, gameId, 'e2', 'e4');
@@ -337,7 +344,9 @@ describe('play lifecycle (integration)', () => {
       incrementSeconds: 0,
     };
     const matchedAP = new Promise<{ gameId: string }>((resolve) => {
-      socketA.once('matchmaking:matched', (p: { gameId: string }) => { resolve(p); });
+      socketA.once('matchmaking:matched', (p: { gameId: string }) => {
+        resolve(p);
+      });
     });
     const joinA = await request(t.server)
       .post('/api/v1/play/matchmaking/join')
@@ -382,7 +391,7 @@ describe('play lifecycle (integration)', () => {
     const compute = await request(t.server)
       .post(`/api/v1/rating-periods/${periodId}/compute`)
       .set(bearer(adminToken))
-      .send({ reason: 'Faza 5 DoD — onlayn o\'yinlar reyting manbai' });
+      .send({ reason: "Faza 5 DoD — onlayn o'yinlar reyting manbai" });
     expect(compute.status).toBe(200);
     // Faqat SHU o'yin: do'stona (isRated=false) va boshqa kategoriya
     // o'yinlari ONLINE_RAPID davriga KIRMAYDI.

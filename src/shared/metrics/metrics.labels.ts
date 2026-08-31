@@ -244,9 +244,7 @@ export type HttpMethodLabel = (typeof HTTP_METHODS)[number];
 
 export function httpMethodLabel(method: string | undefined): HttpMethodLabel {
   const upper = (method ?? '').trim().toUpperCase();
-  return (HTTP_METHODS as readonly string[]).includes(upper)
-    ? (upper as HttpMethodLabel)
-    : 'OTHER';
+  return (HTTP_METHODS as readonly string[]).includes(upper) ? (upper as HttpMethodLabel) : 'OTHER';
 }
 
 /** Yo'l shabloni topilmagan so'rov (404, mos kelmagan) uchun yagona qiymat. */
@@ -292,9 +290,7 @@ export function sanitizeRoute(routePath: string | null | undefined): string {
     })
     .join('/');
 
-  return normalized.length > MAX_ROUTE_LENGTH
-    ? normalized.slice(0, MAX_ROUTE_LENGTH)
-    : normalized;
+  return normalized.length > MAX_ROUTE_LENGTH ? normalized.slice(0, MAX_ROUTE_LENGTH) : normalized;
 }
 
 /**

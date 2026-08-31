@@ -145,7 +145,7 @@ describe('Billing (integration)', () => {
     expect(reg.invoiceId).toBe(invoiceId);
   });
 
-  it('ikkinchi invoys yaratish → 409 (mavjud to\'lanmagan invoys)', async () => {
+  it("ikkinchi invoys yaratish → 409 (mavjud to'lanmagan invoys)", async () => {
     const res = await request(t.server)
       .post(`/api/v1/registrations/${registrationId}/invoice`)
       .set(bearer(playerToken))
@@ -176,7 +176,7 @@ describe('Billing (integration)', () => {
     expect(res.body.providerTransactionId).toBe(`MANUAL-${paymentId}`);
   });
 
-  it('REPLAY: bir xil kalit + bir xil body 5x → o\'sha to\'lov, DB\'da BITTA qator (DoD)', async () => {
+  it("REPLAY: bir xil kalit + bir xil body 5x → o'sha to'lov, DB'da BITTA qator (DoD)", async () => {
     for (let i = 0; i < 5; i++) {
       const res = await request(t.server)
         .post(`/api/v1/invoices/${invoiceId}/payments`)
@@ -218,11 +218,11 @@ describe('Billing (integration)', () => {
     expect(res.status).toBe(404);
   });
 
-  it('admin confirm-manual → PAID + invoys PAID + ro\'yxat tasdiqlandi + ledger balans', async () => {
+  it("admin confirm-manual → PAID + invoys PAID + ro'yxat tasdiqlandi + ledger balans", async () => {
     const res = await request(t.server)
       .post(`/api/v1/payments/${paymentId}/confirm-manual`)
       .set(bearer(adminToken))
-      .send({ reason: 'Naqd to\'lov kassada qabul qilindi' });
+      .send({ reason: "Naqd to'lov kassada qabul qilindi" });
     expect(res.status).toBe(200);
     expect(res.body.status).toBe('PAID');
     expect(res.body.paidAt).not.toBeNull();
@@ -240,9 +240,7 @@ describe('Billing (integration)', () => {
     // Ledger: DR cash.manual / CR liability.organizer_payable, balans.
     const entries = await t.prisma.ledgerEntry.findMany({ where: { paymentId } });
     expect(entries).toHaveLength(2);
-    const debit = entries
-      .filter((e) => e.direction === 'DEBIT')
-      .reduce((s, e) => s + e.amount, 0n);
+    const debit = entries.filter((e) => e.direction === 'DEBIT').reduce((s, e) => s + e.amount, 0n);
     const credit = entries
       .filter((e) => e.direction === 'CREDIT')
       .reduce((s, e) => s + e.amount, 0n);
@@ -267,7 +265,7 @@ describe('Billing (integration)', () => {
     expect(outbox).toHaveLength(1);
   });
 
-  it('QAYTA confirm → idempotent no-op: ledger/audit/outbox ko\'paymaydi', async () => {
+  it("QAYTA confirm → idempotent no-op: ledger/audit/outbox ko'paymaydi", async () => {
     const res = await request(t.server)
       .post(`/api/v1/payments/${paymentId}/confirm-manual`)
       .set(bearer(adminToken))
@@ -303,9 +301,7 @@ describe('Billing (integration)', () => {
     // Asl 2 yozuv joyida + 2 teskari yozuv = 4; umumiy balans 0.
     const entries = await t.prisma.ledgerEntry.findMany({ where: { paymentId } });
     expect(entries).toHaveLength(4);
-    const debit = entries
-      .filter((e) => e.direction === 'DEBIT')
-      .reduce((s, e) => s + e.amount, 0n);
+    const debit = entries.filter((e) => e.direction === 'DEBIT').reduce((s, e) => s + e.amount, 0n);
     const credit = entries
       .filter((e) => e.direction === 'CREDIT')
       .reduce((s, e) => s + e.amount, 0n);
@@ -373,14 +369,14 @@ describe('Billing (integration)', () => {
     expect(adminList.body.items).toHaveLength(0);
   });
 
-  it('webhook: MANUAL provayderde webhook yo\'q → 422 (auth talab qilinmaydi)', async () => {
+  it("webhook: MANUAL provayderde webhook yo'q → 422 (auth talab qilinmaydi)", async () => {
     const res = await request(t.server)
       .post('/api/v1/billing/webhooks/manual')
       .send({ anything: true });
     expectProblem(res, 422, 'WEBHOOK_NOT_SUPPORTED');
   });
 
-  it('webhook: CLICK stub → 422 PROVIDER_NOT_CONFIGURED (yon ta\'sirsiz)', async () => {
+  it("webhook: CLICK stub → 422 PROVIDER_NOT_CONFIGURED (yon ta'sirsiz)", async () => {
     const before = await t.prisma.payment.count();
     const res = await request(t.server)
       .post('/api/v1/billing/webhooks/click')
@@ -390,9 +386,7 @@ describe('Billing (integration)', () => {
   });
 
   it("webhook: noma'lum provayder → 404", async () => {
-    const res = await request(t.server)
-      .post('/api/v1/billing/webhooks/bitcoin')
-      .send({});
+    const res = await request(t.server).post('/api/v1/billing/webhooks/bitcoin').send({});
     expect(res.status).toBe(404);
   });
 });

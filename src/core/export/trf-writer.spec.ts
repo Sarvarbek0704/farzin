@@ -1,8 +1,4 @@
-import type {
-  ExportPairing,
-  ExportPlayer,
-  SectionExportData,
-} from './export.types';
+import type { ExportPairing, ExportPlayer, SectionExportData } from './export.types';
 import { fixed, writeSectionTrf } from './trf-writer';
 
 /**
@@ -218,7 +214,7 @@ describe('writeSectionTrf', () => {
     expect(line.slice(10, 13)).toBe('   ');
   });
 
-  it('deterministik: kirish tartibi chiqishga ta\'sir qilmaydi', () => {
+  it("deterministik: kirish tartibi chiqishga ta'sir qilmaydi", () => {
     const data = goldenData();
     const shuffled: SectionExportData = {
       ...data,

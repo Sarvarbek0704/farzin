@@ -284,7 +284,14 @@ export class MatchmakingService {
         if (Math.abs(a.rating - b.rating) > window) {
           continue;
         }
-        const paired = await this.pairAtomically(pool, bucket, a.playerId, b.playerId, a.meta, b.meta);
+        const paired = await this.pairAtomically(
+          pool,
+          bucket,
+          a.playerId,
+          b.playerId,
+          a.meta,
+          b.meta,
+        );
         if (paired) {
           // Bu ikkisi band — ro'yxatdan chiqarib davom etamiz.
           waiting.splice(j, 1);
@@ -321,7 +328,14 @@ export class MatchmakingService {
         continue;
       }
       const candidateMeta = JSON.parse(metaRaw) as QueueMeta;
-      const gameId = await this.pairAndCreate(pool, bucket, candidateId, candidateMeta, selfPlayerId, selfMeta);
+      const gameId = await this.pairAndCreate(
+        pool,
+        bucket,
+        candidateId,
+        candidateMeta,
+        selfPlayerId,
+        selfMeta,
+      );
       if (gameId !== null) {
         return gameId;
       }
@@ -369,8 +383,14 @@ export class MatchmakingService {
 
     const [white, black] =
       aMeta.t <= bMeta.t
-        ? [{ playerId: aPlayerId, userId: aMeta.u }, { playerId: bPlayerId, userId: bMeta.u }]
-        : [{ playerId: bPlayerId, userId: bMeta.u }, { playerId: aPlayerId, userId: aMeta.u }];
+        ? [
+            { playerId: aPlayerId, userId: aMeta.u },
+            { playerId: bPlayerId, userId: bMeta.u },
+          ]
+        : [
+            { playerId: bPlayerId, userId: bMeta.u },
+            { playerId: aPlayerId, userId: aMeta.u },
+          ];
 
     const game = await this.playService.createGameWithClock({
       whitePlayerId: white.playerId,

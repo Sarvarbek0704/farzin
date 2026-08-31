@@ -232,7 +232,7 @@ function pairingAllocatedBye(player: PlayerPairingState): ByeAssignment {
 function bergerRound(tableSize: number, round: number): readonly SeatPair[] {
   const half = tableSize / 2;
   const modulus = tableSize - 1;
-  const leader = ((round - 1) * half) % modulus + 1;
+  const leader = (((round - 1) * half) % modulus) + 1;
 
   const pairs: SeatPair[] = [];
 

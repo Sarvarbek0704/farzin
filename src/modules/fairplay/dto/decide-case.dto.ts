@@ -24,7 +24,8 @@ export class DecideCaseDto {
   rationale?: string;
 
   @ApiPropertyOptional({
-    description: "Faqat CLOSED_SANCTION bilan: sanksiya tugash sanasi (doimiy ban YO'Q — docs/08 §4.3)",
+    description:
+      "Faqat CLOSED_SANCTION bilan: sanksiya tugash sanasi (doimiy ban YO'Q — docs/08 §4.3)",
     example: '2027-01-01T00:00:00.000Z',
   })
   @IsOptional()

@@ -113,7 +113,7 @@ function matchingWeight(mate: readonly number[], edges: readonly WeightedEdge[])
 }
 
 describe('maximumWeightMatching (BigInt blossom)', () => {
-  it('chekka holatlar: bo\'sh graf, yakka tugun, bitta qirra', () => {
+  it("chekka holatlar: bo'sh graf, yakka tugun, bitta qirra", () => {
     expect(maximumWeightMatching(0, [])).toEqual([]);
     expect(maximumWeightMatching(1, [])).toEqual([-1]);
     expect(maximumWeightMatching(3, [{ u: 0, v: 2, weight: 5n }])).toEqual([2, -1, 0]);
@@ -125,7 +125,7 @@ describe('maximumWeightMatching (BigInt blossom)', () => {
     expect(() => maximumWeightMatching(2, [{ u: 0, v: 1, weight: -1n }])).toThrow();
   });
 
-  it('uchburchak: eng og\'ir qirra tanlanadi', () => {
+  it("uchburchak: eng og'ir qirra tanlanadi", () => {
     const mate = maximumWeightMatching(3, [
       { u: 0, v: 1, weight: 10n },
       { u: 1, v: 2, weight: 11n },
@@ -148,7 +148,7 @@ describe('maximumWeightMatching (BigInt blossom)', () => {
     expect(matchingWeight(mate, edges)).toBe(bruteForceBestWeight(6, edges));
   });
 
-  it('ORACLE: n ≤ 8 tasodifiy graflarda brute-force bilan og\'irlik teng (2000 run)', () => {
+  it("ORACLE: n ≤ 8 tasodifiy graflarda brute-force bilan og'irlik teng (2000 run)", () => {
     fc.assert(
       fc.property(
         fc.integer({ min: 2, max: 8 }),
@@ -173,7 +173,7 @@ describe('maximumWeightMatching (BigInt blossom)', () => {
     );
   });
 
-  it('bir xil og\'irliklar (1n) → maksimal kardinallik: to\'liq grafda juft n/2 juftlik', () => {
+  it("bir xil og'irliklar (1n) → maksimal kardinallik: to'liq grafda juft n/2 juftlik", () => {
     fc.assert(
       fc.property(fc.integer({ min: 2, max: 10 }), (half) => {
         const n = 2 * half;

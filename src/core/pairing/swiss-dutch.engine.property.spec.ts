@@ -111,7 +111,7 @@ function applyResults(
     const white = players.get(pairing.whitePlayerId);
     const black = players.get(pairing.blackPlayerId);
     if (white === undefined || black === undefined) {
-      throw new Error('sim: noma\'lum o\'yinchi juftlikda');
+      throw new Error("sim: noma'lum o'yinchi juftlikda");
     }
     // Float — juftlashtirish paytidagi ochkolar bo'yicha (1.4.2).
     if (white.points > black.points) {
@@ -141,7 +141,7 @@ function applyResults(
   for (const bye of result.byes) {
     const p = players.get(bye.playerId);
     if (p === undefined) {
-      throw new Error('sim: noma\'lum o\'yinchi bye\'da');
+      throw new Error("sim: noma'lum o'yinchi bye'da");
     }
     p.points += bye.points;
     p.hasReceivedBye = true;
@@ -181,9 +181,7 @@ async function simulate(
       }
       throw error;
     }
-    const active = list.filter(
-      (p) => p.joinedAtRound <= round && p.withdrawnFromRound > round,
-    );
+    const active = list.filter((p) => p.joinedAtRound <= round && p.withdrawnFromRound > round);
     await check(round, result, active, request);
     applyResults(byId, result, rng);
   }
@@ -199,7 +197,7 @@ const tournamentArb = fc.record({
 
 describe('SwissDutchEngine — invariantlar (property)', () => {
   it(
-    'P1–P5: takror juftlik YO\'Q (C1), qamrov aniq, PAB yagona va haqli (C2), ' +
+    "P1–P5: takror juftlik YO'Q (C1), qamrov aniq, PAB yagona va haqli (C2), " +
       'rang chegaralari (|CD| ≤ 2, 3 ketma-ket emas — topscorer istisnosi) — 1000 run',
     async () => {
       await fc.assert(
@@ -238,7 +236,7 @@ describe('SwissDutchEngine — invariantlar (property)', () => {
               const white = activeById.get(pairing.whitePlayerId);
               const black = activeById.get(pairing.blackPlayerId);
               if (white === undefined || black === undefined) {
-                throw new Error('sim: aktiv bo\'lmagan o\'yinchi juftlikda');
+                throw new Error("sim: aktiv bo'lmagan o'yinchi juftlikda");
               }
               expect(white.opponents.has(black.id)).toBe(false);
               expect(black.opponents.has(white.id)).toBe(false);
@@ -249,10 +247,7 @@ describe('SwissDutchEngine — invariantlar (property)', () => {
                 [white, Color.White],
                 [black, Color.Black],
               ] as const) {
-                const cd = p.colorHistory.reduce(
-                  (acc, c) => acc + (c === Color.White ? 1 : -1),
-                  0,
-                );
+                const cd = p.colorHistory.reduce((acc, c) => acc + (c === Color.White ? 1 : -1), 0);
                 const newCd = cd + (got === Color.White ? 1 : -1);
                 const h = p.colorHistory;
                 const threeRow =
@@ -271,76 +266,64 @@ describe('SwissDutchEngine — invariantlar (property)', () => {
     600_000,
   );
 
-  it(
-    'P6: DETERMINIZM — bir xil kirish → bir xil chiqish (200 run, har turda ikki chaqiruv)',
-    async () => {
-      await fc.assert(
-        fc.asyncProperty(
-          fc.record({
-            n: fc.integer({ min: 4, max: 30 }),
-            rounds: fc.integer({ min: 1, max: 5 }),
-            seed: fc.integer({ min: 0, max: 0x7fffffff }),
-            withLatecomer: fc.boolean(),
-            withWithdrawal: fc.boolean(),
-          }),
-          async (cfg) => {
-            await simulate(cfg, async (_round, result, _active, request) => {
-              const again = await engine.pair(request);
-              expect(again.pairings).toEqual(result.pairings);
-              expect(again.byes).toEqual(result.byes);
-              expect(again.engineVersion).toBe(result.engineVersion);
-              // durationMs dan tashqari diagnostika ham deterministik.
-              expect(again.diagnostics?.scoreGroupCount).toBe(
-                result.diagnostics?.scoreGroupCount,
-              );
-              expect(again.diagnostics?.floatCount).toBe(result.diagnostics?.floatCount);
-              expect(again.diagnostics?.relaxedCriteria).toEqual(
-                result.diagnostics?.relaxedCriteria,
-              );
-            });
-          },
-        ),
-        { numRuns: 200 },
-      );
-    },
-    600_000,
-  );
+  it('P6: DETERMINIZM — bir xil kirish → bir xil chiqish (200 run, har turda ikki chaqiruv)', async () => {
+    await fc.assert(
+      fc.asyncProperty(
+        fc.record({
+          n: fc.integer({ min: 4, max: 30 }),
+          rounds: fc.integer({ min: 1, max: 5 }),
+          seed: fc.integer({ min: 0, max: 0x7fffffff }),
+          withLatecomer: fc.boolean(),
+          withWithdrawal: fc.boolean(),
+        }),
+        async (cfg) => {
+          await simulate(cfg, async (_round, result, _active, request) => {
+            const again = await engine.pair(request);
+            expect(again.pairings).toEqual(result.pairings);
+            expect(again.byes).toEqual(result.byes);
+            expect(again.engineVersion).toBe(result.engineVersion);
+            // durationMs dan tashqari diagnostika ham deterministik.
+            expect(again.diagnostics?.scoreGroupCount).toBe(result.diagnostics?.scoreGroupCount);
+            expect(again.diagnostics?.floatCount).toBe(result.diagnostics?.floatCount);
+            expect(again.diagnostics?.relaxedCriteria).toEqual(result.diagnostics?.relaxedCriteria);
+          });
+        },
+      ),
+      { numRuns: 200 },
+    );
+  }, 600_000);
 
-  it(
-    "P7: kirish tartibiga befarqlik — o'yinchilar aralashtirilsa ham natija bir xil (200 run)",
-    async () => {
-      await fc.assert(
-        fc.asyncProperty(
-          fc.record({
-            n: fc.integer({ min: 4, max: 30 }),
-            rounds: fc.integer({ min: 1, max: 5 }),
-            seed: fc.integer({ min: 0, max: 0x7fffffff }),
-            withLatecomer: fc.boolean(),
-            withWithdrawal: fc.boolean(),
-          }),
-          async (cfg) => {
-            await simulate(cfg, async (_round, result, _active, request) => {
-              // Fisher–Yates, deterministik urug' bilan (test tarafида).
-              const rng = mulberry32(cfg.seed ^ 0x5f3759df);
-              const shuffled = [...request.players];
-              for (let i = shuffled.length - 1; i > 0; i -= 1) {
-                const j = Math.floor(rng() * (i + 1));
-                const tmp = shuffled[i];
-                const other = shuffled[j];
-                if (tmp !== undefined && other !== undefined) {
-                  shuffled[i] = other;
-                  shuffled[j] = tmp;
-                }
+  it("P7: kirish tartibiga befarqlik — o'yinchilar aralashtirilsa ham natija bir xil (200 run)", async () => {
+    await fc.assert(
+      fc.asyncProperty(
+        fc.record({
+          n: fc.integer({ min: 4, max: 30 }),
+          rounds: fc.integer({ min: 1, max: 5 }),
+          seed: fc.integer({ min: 0, max: 0x7fffffff }),
+          withLatecomer: fc.boolean(),
+          withWithdrawal: fc.boolean(),
+        }),
+        async (cfg) => {
+          await simulate(cfg, async (_round, result, _active, request) => {
+            // Fisher–Yates, deterministik urug' bilan (test tarafида).
+            const rng = mulberry32(cfg.seed ^ 0x5f3759df);
+            const shuffled = [...request.players];
+            for (let i = shuffled.length - 1; i > 0; i -= 1) {
+              const j = Math.floor(rng() * (i + 1));
+              const tmp = shuffled[i];
+              const other = shuffled[j];
+              if (tmp !== undefined && other !== undefined) {
+                shuffled[i] = other;
+                shuffled[j] = tmp;
               }
-              const again = await engine.pair({ ...request, players: shuffled });
-              expect(again.pairings).toEqual(result.pairings);
-              expect(again.byes).toEqual(result.byes);
-            });
-          },
-        ),
-        { numRuns: 200 },
-      );
-    },
-    600_000,
-  );
+            }
+            const again = await engine.pair({ ...request, players: shuffled });
+            expect(again.pairings).toEqual(result.pairings);
+            expect(again.byes).toEqual(result.byes);
+          });
+        },
+      ),
+      { numRuns: 200 },
+    );
+  }, 600_000);
 });

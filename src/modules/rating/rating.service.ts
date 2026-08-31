@@ -1,11 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { Interval } from '@nestjs/schedule';
 
-import {
-  BusinessRuleError,
-  ConflictError,
-  NotFoundError,
-} from '../../core/errors/domain.error';
+import { BusinessRuleError, ConflictError, NotFoundError } from '../../core/errors/domain.error';
 import { Glicko2Service } from '../../core/rating/glicko2.service';
 import { DEFAULT_GLICKO2_CONFIG, Glicko2ConvergenceError } from '../../core/rating/glicko2.types';
 import { playEnvironmentLabel, timeCategoryLabel } from '../../shared/metrics/metrics.labels';
@@ -111,13 +107,10 @@ export class RatingService implements RatingPort {
           if (!isValidRatingCombo(environment, timeCategory)) {
             continue; // OTB_BULLET mavjud emas (docs/06 §5.1)
           }
-          this.metrics.setRatingPeriodLag(
-            lagByCombo.get(`${environment}:${timeCategory}`) ?? 0,
-            {
-              environment: playEnvironmentLabel(environment),
-              timeCategory: timeCategoryLabel(timeCategory),
-            },
-          );
+          this.metrics.setRatingPeriodLag(lagByCombo.get(`${environment}:${timeCategory}`) ?? 0, {
+            environment: playEnvironmentLabel(environment),
+            timeCategory: timeCategoryLabel(timeCategory),
+          });
         }
       }
     } catch (err) {
@@ -138,18 +131,26 @@ export class RatingService implements RatingPort {
     this.assertValidCombo(input.environment, input.timeCategory);
 
     if (input.endsAt <= input.startsAt) {
-      throw new BusinessRuleError('INVALID_PERIOD_RANGE', 'endsAt startsAt dan keyin bo\'lishi shart', {
-        startsAt: input.startsAt.toISOString(),
-        endsAt: input.endsAt.toISOString(),
-      });
+      throw new BusinessRuleError(
+        'INVALID_PERIOD_RANGE',
+        "endsAt startsAt dan keyin bo'lishi shart",
+        {
+          startsAt: input.startsAt.toISOString(),
+          endsAt: input.endsAt.toISOString(),
+        },
+      );
     }
 
     const tau = input.tau ?? TAU_DEFAULT;
     if (tau < TAU_MIN || tau > TAU_MAX) {
       // Glickman tavsiya oralig'i (docs/06 §2.13).
-      throw new BusinessRuleError('INVALID_TAU', `tau ${String(TAU_MIN)}..${String(TAU_MAX)} oralig'ida bo'lishi shart`, {
-        tau,
-      });
+      throw new BusinessRuleError(
+        'INVALID_TAU',
+        `tau ${String(TAU_MIN)}..${String(TAU_MAX)} oralig'ida bo'lishi shart`,
+        {
+          tau,
+        },
+      );
     }
 
     const overlapping = await this.repo.findOverlappingPeriod(
@@ -276,9 +277,7 @@ export class RatingService implements RatingPort {
     period: RatingPeriodRow,
     games: readonly RatedGame[],
   ): Promise<Map<string, PrePeriodState>> {
-    const gamePlayerIds = [
-      ...new Set(games.flatMap((g) => [g.whitePlayerId, g.blackPlayerId])),
-    ];
+    const gamePlayerIds = [...new Set(games.flatMap((g) => [g.whitePlayerId, g.blackPlayerId]))];
 
     const [rated, withGames, priorHistory] = await Promise.all([
       this.repo.allRatedPlayers(period.environment, period.timeCategory),

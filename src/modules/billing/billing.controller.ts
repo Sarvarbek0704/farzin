@@ -90,11 +90,11 @@ export class BillingController {
   @ApiHeader({
     name: 'Idempotency-Key',
     required: true,
-    description: 'MAJBURIY. Klient generatsiya qiladi (UUID v7), retry\'da O\'ZGARMAYDI',
+    description: "MAJBURIY. Klient generatsiya qiladi (UUID v7), retry'da O'ZGARMAYDI",
   })
   @ApiOperation({ summary: "To'lov boshlash — Idempotency-Key MAJBURIY (docs/04 §5)" })
-  @ApiResponse({ status: 400, description: 'Idempotency-Key header yo\'q' })
-  @ApiResponse({ status: 422, description: 'IDEMPOTENCY_KEY_REUSE — kalit boshqa so\'rovniki' })
+  @ApiResponse({ status: 400, description: "Idempotency-Key header yo'q" })
+  @ApiResponse({ status: 422, description: "IDEMPOTENCY_KEY_REUSE — kalit boshqa so'rovniki" })
   initiatePayment(
     @CurrentActor() actor: Actor,
     @Param('id', ParseUUIDPipe) id: string,
@@ -110,7 +110,7 @@ export class BillingController {
           {
             field: 'Idempotency-Key',
             code: 'HEADER_REQUIRED',
-            message: "Idempotency-Key header majburiy (docs/04-api-spec.md §5)",
+            message: 'Idempotency-Key header majburiy (docs/04-api-spec.md §5)',
           },
         ],
       });
@@ -152,7 +152,7 @@ export class BillingController {
   @SkipThrottle()
   @Post('billing/webhooks/:provider')
   @HttpCode(HttpStatus.OK)
-  @ApiOperation({ summary: 'Provayder webhook (imzo adapter\'da tekshiriladi)' })
+  @ApiOperation({ summary: "Provayder webhook (imzo adapter'da tekshiriladi)" })
   webhook(
     @Param('provider') provider: string,
     @Body() body: unknown,
@@ -170,7 +170,7 @@ export class BillingController {
   @HttpCode(HttpStatus.OK)
   @ApiBearerAuth('access-token')
   @RequirePermission('Payment', 'update')
-  @ApiOperation({ summary: 'Refund — sabab majburiy, ledger\'da teskari yozuv' })
+  @ApiOperation({ summary: "Refund — sabab majburiy, ledger'da teskari yozuv" })
   refund(
     @CurrentActor() actor: Actor,
     @Param('id', ParseUUIDPipe) id: string,

@@ -45,9 +45,7 @@ const RESULT_TOKENS = ['1-0', '0-1', '1/2-1/2', '*'] as const;
 type ResultToken = (typeof RESULT_TOKENS)[number];
 
 export function writeSectionPgn(data: SectionExportData): string {
-  const playerById = new Map<string, ExportPlayer>(
-    data.players.map((p) => [p.registrationId, p]),
-  );
+  const playerById = new Map<string, ExportPlayer>(data.players.map((p) => [p.registrationId, p]));
   const rounds = [...data.rounds].sort((a, b) => a.number - b.number);
 
   const games: string[] = [];
@@ -145,7 +143,10 @@ function pgnDate(isoDate: string | null): string {
 
 /** Teg qiymatida `\` va `"` ekranlash (PGN spec §7); yangi qator — bo'sh joy. */
 function escapeTag(value: string): string {
-  return value.replaceAll('\\', '\\\\').replaceAll('"', '\\"').replaceAll(/[\r\n\t]+/g, ' ');
+  return value
+    .replaceAll('\\', '\\\\')
+    .replaceAll('"', '\\"')
+    .replaceAll(/[\r\n\t]+/g, ' ');
 }
 
 /** Header jadvalidagi natija → PGN tokeni (bye/UNPLAYED bu yerga kelmaydi). */
@@ -167,9 +168,7 @@ function resultTokenOf(result: ExportPairingResult): ResultToken {
 
 function isForfeit(result: ExportPairingResult): boolean {
   return (
-    result === 'WHITE_WIN_FORFEIT' ||
-    result === 'BLACK_WIN_FORFEIT' ||
-    result === 'DOUBLE_FORFEIT'
+    result === 'WHITE_WIN_FORFEIT' || result === 'BLACK_WIN_FORFEIT' || result === 'DOUBLE_FORFEIT'
   );
 }
 
