@@ -87,6 +87,101 @@ services:
     environment:
       MP_MAX_MESSAGES: 500
 
+  # ===========================================================================
+  #  ILOVA — Faza 0 DoD: "git clone → docker compose up → ishlaydigan API,
+  #  hech qanday qo'lda qadam yo'q" (docs/14-roadmap.md).
+  #
+  #  Ilgari bu fayl FAQAT infratuzilmani ko'tarardi va DoD bajarilmasdi
+  #  (docs/AUDIT.md JIDDIY-11). Endi uch xizmat qo'shildi:
+  #    migrate — bir martalik migratsiya, app'dan OLDIN tugaydi
+  #    app     — API (Dockerfile `runner` target)
+  #    worker  — BullMQ + Stockfish (Dockerfile `worker` target)
+  # ===========================================================================
+
+  # --- Migratsiya: bir marta ishlaydi va TUGAYDI -----------------------------
+  #  Nega alohida xizmat: `prisma migrate deploy` ni app entrypoint'iga
+  #  qo'shish ko'p replikada poyga holatiga olib keladi (ikki pod bir vaqtda
+  #  migratsiya qiladi). Alohida bir martalik qadam — docs/11 §8 expand-
+  #  contract oqimining birinchi bosqichi.
+  #
+  #  ⚠️  BOSQICH TANLOVI: `runner` ham, `builder` ham YARAMAYDI — ikkalasida
+  #      `pnpm prune --prod` bajarilgan va `node_modules/.bin/prisma`
+  #      symlink'i o'chgan (tekshirildi: "prisma: not found").
+  #      `deps` bosqichida esa to'liq node_modules va `prisma/schema.prisma`
+  #      bor. `migrate deploy` uchun generatsiya qilingan klient kerak emas —
+  #      faqat CLI, schema va DATABASE_URL.
+  migrate:
+    build:
+      context: .
+      target: deps
+    container_name: farzin-migrate
+    restart: 'no'
+    command: ['pnpm', 'prisma', 'migrate', 'deploy']
+    environment:
+      DATABASE_URL: postgresql://farzin:farzin_dev_only@postgres:5432/farzin?schema=public
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  app:
+    build:
+      context: .
+      target: runner
+    image: farzin:api
+    container_name: farzin-app
+    restart: unless-stopped
+    ports:
+      - '3000:3000'
+    environment: &app_env
+      # Bu fayl LOKAL ISHLAB CHIQISH muhiti (sarlavhaga qarang), shuning
+      # uchun `development`. Bu Swagger UI'ni /api/docs da ochadi —
+      # main.ts prod'da uni ATAYLAB o'chiradi (API sirtini oshkor qilmaslik
+      # uchun). Image'ning o'zida `ENV NODE_ENV=production` turadi, ya'ni
+      # prod deploy'da bu qator berilmasa xavfsiz default kuchda qoladi.
+      NODE_ENV: development
+      PORT: '3000'
+      API_PREFIX: api
+      DATABASE_URL: postgresql://farzin:farzin_dev_only@postgres:5432/farzin?schema=public
+      REDIS_HOST: redis
+      REDIS_PORT: '6379'
+      # ⚠️  FAQAT LOKAL DEV. Prod'da bu qiymatlar sirlar boshqaruvidan
+      #     keladi. configuration.ts prod'da shablon/zaif kalitni
+      #     (CHANGE_ME, secret, password) RAD ETADI — quyidagilar shu
+      #     ro'yxatga tushmaydigan, lekin ochiq-oydin dev qiymatlar.
+      JWT_ACCESS_SECRET: farzin-dev-only-access-key-do-not-use-in-prod-0001
+      JWT_REFRESH_SECRET: farzin-dev-only-refresh-key-do-not-use-in-prod-0002
+      # Dev'da email mailpit'ga tushadi (web UI: http://localhost:8025)
+      SMTP_HOST: mailpit
+      SMTP_PORT: '1025'
+      SMTP_FROM: no-reply@farzin.uz
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      # Migratsiya TUGAGANDAN keyin — aks holda app yo'q jadvalga uriladi.
+      migrate:
+        condition: service_completed_successfully
+
+  # --- Worker: fairplay navbati (Stockfish shu image'da) ---------------------
+  #  HTTP server ochmaydi (worker.ts: createApplicationContext), shuning
+  #  uchun port ham, healthcheck ham yo'q.
+  worker:
+    build:
+      context: .
+      target: worker
+    image: farzin:worker
+    container_name: farzin-worker
+    restart: unless-stopped
+    environment: *app_env
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+
   # --- Kuzatuv (ixtiyoriy: docker compose --profile observability up) ------
   jaeger:
     image: jaegertracing/all-in-one:latest

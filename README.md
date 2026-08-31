@@ -160,19 +160,52 @@ Next.js 15 · React 19 · TanStack Query · Tailwind 4 · chessground.
 
 ## Getting started
 
+### Everything in Docker (no manual steps)
+
 ```bash
-# Requirements: Node 22+, pnpm 9+, Docker
+# Requirements: Docker
 
 git clone https://github.com/Sarvarbek0704/farzin.git
 cd farzin
+docker compose up -d        # postgres, redis, minio, mailpit, migrate, app, worker
+```
+
+That is the whole thing. `migrate` applies the schema and exits, then `app`
+and `worker` start:
+
+| URL | What |
+|---|---|
+| <http://localhost:3000/api/docs> | OpenAPI / Swagger UI |
+| <http://localhost:3000/health/ready> | readiness (database + redis) |
+| <http://localhost:3000/metrics> | Prometheus scrape endpoint |
+| <http://localhost:8025> | Mailpit — every dev email lands here |
+
+The compose file ships dev-only JWT secrets; production takes them from a
+secret store (the config layer rejects template/weak keys when
+`NODE_ENV=production`).
+
+Optional monitoring stack — Prometheus (with the alert rules from
+[`infra/prometheus/`](./infra/prometheus/)), Grafana and Jaeger:
+
+```bash
+docker compose --profile observability up -d   # http://localhost:9090
+```
+
+### Running the app from source
+
+Useful when you want hot reload:
+
+```bash
+# Requirements: Node 22+, pnpm 9+, Docker
+
 pnpm install
-
 cp .env.example .env        # then fill it in — see the comments
-docker compose up -d        # postgres, redis, minio, mailpit
 
+docker compose up -d postgres redis mailpit
 pnpm db:migrate
 pnpm db:seed
 pnpm start:dev              # http://localhost:3000/api/docs
+pnpm worker:dev             # separate terminal — BullMQ worker
 ```
 
 ```bash
