@@ -186,4 +186,82 @@ describe('Auth oqimi (integration)', () => {
     expect(serialized).not.toContain(DEFAULT_PASSWORD);
     expect(serialized).not.toContain(rawRefreshToken);
   });
+
+  // --- Rate limit: umumiy IP (NAT) stsenariysi ---------------------------------
+  //
+  //  docs/AUDIT.md JIDDIY-4. Muammo: `login:ip` hisoblagichi MUVAFFAQIYATLI
+  //  kirishda ham sarflanardi va hech qachon qaytarilmasdi (`limiter.reset`
+  //  faqat `emailKey` uchun chaqirilardi). Natijada bitta tashqi IP ortidagi
+  //  6-chi foydalanuvchi TO'G'RI parol bilan ham 15 daqiqa qulflanardi.
+  //
+  //  O'zbekiston konteksti bu stsenariyni chekka holat emas, ODATIY qiladi:
+  //  maktab kompyuter sinfi (Faza 7 B2G maqsadli segmenti), internet-kafe,
+  //  turnir zali Wi-Fi va mobil operatorlarning CGNAT'i — hammasi bitta IP.
+  describe('umumiy IP (NAT) ortidagi foydalanuvchilar', () => {
+    /**
+     * Ro'yxatdan o'tish limiti (3/soat/IP) bu testning MAVZUSI EMAS —
+     * u alohida chegara. Shuning uchun faqat `rl:register:*` kalitlari
+     * tozalanadi; `rl:login:*` DAXLSIZ qoladi, aks holda test o'zi
+     * tekshirayotgan narsani yuvib yuborardi.
+     */
+    async function clearRegisterLimitOnly(): Promise<void> {
+      const keys = await t.redis.keys('rl:register:*');
+      if (keys.length > 0) {
+        await t.redis.del(...keys);
+      }
+    }
+
+    it("6 ta HAR XIL foydalanuvchi bitta IP'dan muvaffaqiyatli kira oladi", async () => {
+      const emails = Array.from({ length: 6 }, (_, i) => `nat${String(i)}@test.uz`);
+
+      for (const email of emails) {
+        await clearRegisterLimitOnly();
+        const reg = await registerUser(t.server, { email });
+        expect(reg.status).toBe(201);
+      }
+
+      // Endi HECH QANDAY limit tozalanmaydi: supertest hamma so'rovni
+      // 127.0.0.1 dan yuboradi, ya'ni oltalasi ham bitta `login:ip` kalitini
+      // bo'lishadi — aynan NAT holati.
+      const statuses: number[] = [];
+      for (const email of emails) {
+        const res = await loginUser(t.server, email);
+        statuses.push(res.status);
+      }
+
+      // Tuzatishdan OLDIN bu yerda [200,200,200,200,200,429] chiqardi.
+      expect(statuses).toEqual([200, 200, 200, 200, 200, 200]);
+    });
+
+    it('bitta HISOBGA 5 ta xato urinish → 6-chisi bloklanadi (email kaliti)', async () => {
+      // Himoya xususiyati saqlanishi shart: limitni butunlay olib tashlash
+      // yoki muvaffaqiyatda kalitni tozalash — bu testni yiqitadi.
+      await registerUser(t.server, { email: 'brute@test.uz' });
+
+      for (let i = 0; i < 5; i += 1) {
+        const bad = await loginUser(t.server, 'brute@test.uz', 'butunlay-boshqa-parol');
+        expectProblem(bad, 401, 'INVALID_CREDENTIALS');
+      }
+
+      // 6-chi urinish — parol TO'G'RI bo'lsa ham rad etiladi: shu HISOBGA
+      // allaqachon 5 marta xato qilingan (LOGIN_LIMIT, kalit `login:email`).
+      const blocked = await loginUser(t.server, 'brute@test.uz');
+      expectProblem(blocked, 429, 'TOO_MANY_ATTEMPTS');
+    });
+
+    it("bitta IP'dan TURLI hisoblarga 20 ta xato urinish → 21-chisi bloklanadi (IP kaliti)", async () => {
+      // Credential stuffing naqshi: har safar boshqa email, ya'ni
+      // `login:email` kaliti hech qachon to'lmaydi — faqat `login:ip`
+      // ushlaydi. Mavjud bo'lmagan emaillar ataylab: user enumeration
+      // himoyasi tufayli javob bir xil (401) va ro'yxatdan o'tish
+      // limiti bu testga aralashmaydi.
+      for (let i = 0; i < 20; i += 1) {
+        const bad = await loginUser(t.server, `stuff${String(i)}@test.uz`, 'har-xil-parol');
+        expectProblem(bad, 401, 'INVALID_CREDENTIALS');
+      }
+
+      const blocked = await loginUser(t.server, 'stuff-oxirgi@test.uz', 'har-xil-parol');
+      expectProblem(blocked, 429, 'TOO_MANY_ATTEMPTS');
+    });
+  });
 });

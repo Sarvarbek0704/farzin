@@ -10,6 +10,15 @@ export interface RateLimitDecision {
   /** Rad etilganda: necha sekunddan keyin qayta urinish mumkin */
   retryAfterSeconds: number;
   remaining: number;
+  /**
+   * Shu urinish oynaga qo'ygan yozuv identifikatori.
+   *
+   * `refund(key, token)` uchun kerak: urinish MUVAFFAQIYATLI bo'lsa
+   * chaqiruvchi aynan O'Z yozuvini qaytarib olishi mumkin, boshqalarnikiga
+   * tegmasdan. Rad etilgan urinishda `null` — yozuv allaqachon olib
+   * tashlangan.
+   */
+  token: string | null;
 }
 
 /**
@@ -58,13 +67,47 @@ export class SlidingWindowLimiter {
         allowed: false,
         retryAfterSeconds: Math.max(1, Math.ceil(retryAfterMs / 1000)),
         remaining: 0,
+        token: null,
       };
     }
 
-    return { allowed: true, retryAfterSeconds: 0, remaining: Math.max(0, limit - count) };
+    return {
+      allowed: true,
+      retryAfterSeconds: 0,
+      remaining: Math.max(0, limit - count),
+      token: member,
+    };
   }
 
-  /** Muvaffaqiyatdan keyin hisoblagichni tozalash (masalan login:email:*). */
+  /**
+   * BITTA urinishni oynadan qaytarib olish — natija ma'lum bo'lgach.
+   *
+   * NEGA `reset` EMAS: `reset` butun kalitni o'chiradi. Umumiy kalitda
+   * (masalan `login:ip:*`, NAT ortida o'nlab foydalanuvchi) bu boshqa
+   * birovning MUVAFFAQIYATSIZ urinishlarini ham yuvib yuborardi — ya'ni
+   * bitta haqiqiy hisobga ega hujumchi o'z brute-force hisoblagichini
+   * cheksiz nolga qaytara olardi.
+   *
+   * `refund` esa faqat `consume` qaytargan aynan shu yozuvni o'chiradi:
+   * muvaffaqiyatli kirish budjetni sarflamaydi, xatolar esa joyida qoladi.
+   *
+   * Idempotent: yozuv allaqachon oynadan chiqib ketgan bo'lsa `zrem`
+   * shunchaki 0 qaytaradi.
+   */
+  async refund(key: string, token: string | null): Promise<void> {
+    if (token === null) {
+      return;
+    }
+    await this.redis.zrem(`rl:${key}`, token);
+  }
+
+  /**
+   * Kalitni butunlay tozalash.
+   *
+   * FAQAT shaxsiy kalitlar uchun (`login:email:*`): egasi parolni to'g'ri
+   * kiritib, o'z hisobiga tegishli xato urinishlarni oqlagan. Umumiy
+   * kalitlarda `refund` ishlatiladi (yuqoridagi izoh).
+   */
   async reset(key: string): Promise<void> {
     await this.redis.del(`rl:${key}`);
   }

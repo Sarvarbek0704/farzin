@@ -51,7 +51,33 @@ const EMAIL_VERIFY_TTL_SECONDS = 24 * 60 * 60;
 const ACCESS_TTL_SECONDS = 15 * 60;
 
 /** docs/10-security.md §7.1 */
+
+/**
+ * Bitta HISOB uchun muvaffaqiyatsiz urinishlar (kalit: email).
+ * Hujjatdagi qiymat — 5/15min. Shaxsiy kalit, shuning uchun qat'iy.
+ */
 const LOGIN_LIMIT = 5;
+
+/**
+ * Bitta IP uchun muvaffaqiyatsiz urinishlar. Emaildan YUQORI, ataylab.
+ *
+ * `login:ip` — UMUMIY kalit: NAT ortida o'nlab begona foydalanuvchi uni
+ * bo'lishadi (maktab sinfi, internet-kafe, mobil CGNAT). Uni email bilan
+ * bir xil 5 ga qo'yish halol foydalanuvchilarni jazolaydi, hujumchini esa
+ * to'xtatmaydi — u IP almashtiradi.
+ *
+ * 20 — muvozanat: bitta IP'dan 20 ta XATO parol 15 daqiqada aniq
+ * anomaliya (credential stuffing shu chegaraga soniyalarda uriladi),
+ * lekin bir sinf o'quvchisining tipografik xatolari bu yerga yetmaydi.
+ * Muvaffaqiyatli kirish budjetni umuman sarflamaydi (login() oxiridagi
+ * `refund`), shuning uchun 20 ta XATO degani — 20 ta urinish emas.
+ *
+ * ⚠️  Bu raqam ham baseline bilan tekshirilishi kerak (docs/15 §6.2
+ *     falsafasi): real trafikda 15 daqiqada IP boshiga qancha xato
+ *     bo'lishini o'lchab, kerak bo'lsa tuzatiladi.
+ */
+const LOGIN_IP_LIMIT = 20;
+
 const LOGIN_WINDOW_SECONDS = 15 * 60;
 const REGISTER_LIMIT = 3;
 const REGISTER_WINDOW_SECONDS = 60 * 60;
@@ -122,8 +148,13 @@ export class AuthService {
 
     // Ikki mustaqil limit: IP (bitta hujumchi ko'p hisobga) va
     // email (botnet bitta hisobga). Birortasi oshsa — 429.
+    //
+    // Ikkalasi ham parolni TEKSHIRISHDAN OLDIN sanaladi — bu ataylab:
+    // limit qimmat Argon2 hisobidan oldin turishi kerak, aks holda
+    // brute-force CPU'ni yeb qo'yadi. Muvaffaqiyatli kirishda esa
+    // hisoblagich QAYTARIB olinadi (metod oxiriga qarang).
     const [byIp, byEmail] = await Promise.all([
-      this.limiter.consume(ipKey, LOGIN_LIMIT, LOGIN_WINDOW_SECONDS),
+      this.limiter.consume(ipKey, LOGIN_IP_LIMIT, LOGIN_WINDOW_SECONDS),
       this.limiter.consume(emailKey, LOGIN_LIMIT, LOGIN_WINDOW_SECONDS),
     ]);
     if (!byIp.allowed || !byEmail.allowed) {
@@ -180,10 +211,26 @@ export class AuthService {
 
     await this.users.recordLogin(user.id, meta);
 
-    // Muvaffaqiyat: email hisoblagichi tozalanadi. IP hisoblagichi ATAYLAB
-    // tozalanmaydi — NAT ortidagi haqiqiy hujumchi bitta muvaffaqiyat bilan
-    // oqlanmaydi. docs/10-security.md §7.1
-    await this.limiter.reset(emailKey);
+    // ─────────────────────────────────────────────────────────────────────
+    //  MUVAFFAQIYAT: ikkala hisoblagich ham bo'shatiladi, LEKIN turlicha.
+    //
+    //  email (shaxsiy kalit) → reset: egasi parolni to'g'ri kiritdi, ya'ni
+    //  bu hisobga qilingan xato urinishlar oqlandi.
+    //
+    //  IP (UMUMIY kalit) → refund: faqat SHU urinish qaytariladi, boshqa
+    //  birovning xato urinishlari joyida qoladi. `reset` bu yerda XAVFLI
+    //  bo'lardi — bitta haqiqiy hisobga ega hujumchi har muvaffaqiyatli
+    //  kirishda umumiy brute-force hisoblagichini nolga qaytarardi.
+    //
+    //  NEGA UMUMAN QAYTARILADI (docs/AUDIT.md JIDDIY-4): ilgari IP
+    //  hisoblagichi muvaffaqiyatda ham sarflanardi va hech qachon
+    //  qaytarilmasdi. Natijada bitta tashqi IP ortidagi 6-chi foydalanuvchi
+    //  TO'G'RI parol bilan ham 15 daqiqa qulflanardi — maktab sinfi,
+    //  internet-kafe, turnir zali Wi-Fi va mobil CGNAT uchun bu chekka
+    //  holat emas, ODATIY holat. Endi IP oynasida faqat MUVAFFAQIYATSIZ
+    //  urinishlar to'planadi.
+    // ─────────────────────────────────────────────────────────────────────
+    await Promise.all([this.limiter.reset(emailKey), this.limiter.refund(ipKey, byIp.token)]);
 
     return await this.issueTokens(user.id, meta);
   }
