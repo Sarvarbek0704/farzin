@@ -230,6 +230,53 @@ const TEMPLATES: Record<TemplateKey, LocaleTable> = {
       body: `Your online game has finished. See the result in your profile.`,
     }),
   },
+
+  // --- Tranzaksion (auth) ----------------------------------------------------
+  //  docs/14-roadmap.md Faza 0: "Email tasdiqlash (mailhog orqali dev'da)".
+  //  Havola `verifyUrl` payload'da to'liq keladi (APP_URL + token) — shablon
+  //  URL yasamaydi, chunki u konfiguratsiyani bilmasligi kerak (sof modul).
+  //
+  //  ⚠️  Matnda muddat OCHIQ aytiladi: tasdiqlanmagan havola 24 soatdan
+  //      keyin ishlamaydi va foydalanuvchi nega ishlamayotganini bilishi
+  //      kerak (EMAIL_VERIFY_TTL_SECONDS bilan mos bo'lsin).
+  'auth.verify_email': {
+    'uz-Latn': (p) => ({
+      subject: `Farzin — elektron pochtangizni tasdiqlang`,
+      body:
+        `Assalomu alaykum!\n\n` +
+        `Farzin'da ro'yxatdan o'tganingiz uchun rahmat. Manzilingizni ` +
+        `tasdiqlash uchun quyidagi havolaga o'ting:\n\n${s(p, 'verifyUrl')}\n\n` +
+        `Havola 24 soat amal qiladi.\n\n` +
+        `Agar siz ro'yxatdan o'tmagan bo'lsangiz — bu xatni e'tiborsiz qoldiring.`,
+    }),
+    'uz-Cyrl': (p) => ({
+      subject: `Farzin — электрон почтангизни тасдиқланг`,
+      body:
+        `Ассалому алайкум!\n\n` +
+        `Farzin'да рўйхатдан ўтганингиз учун раҳмат. Манзилингизни ` +
+        `тасдиқлаш учун қуйидаги ҳаволага ўтинг:\n\n${s(p, 'verifyUrl')}\n\n` +
+        `Ҳавола 24 соат амал қилади.\n\n` +
+        `Агар сиз рўйхатдан ўтмаган бўлсангиз — бу хатни эътиборсиз қолдиринг.`,
+    }),
+    ru: (p) => ({
+      subject: `Farzin — подтвердите электронную почту`,
+      body:
+        `Здравствуйте!\n\n` +
+        `Спасибо за регистрацию в Farzin. Чтобы подтвердить адрес, ` +
+        `перейдите по ссылке:\n\n${s(p, 'verifyUrl')}\n\n` +
+        `Ссылка действительна 24 часа.\n\n` +
+        `Если вы не регистрировались — просто проигнорируйте это письмо.`,
+    }),
+    en: (p) => ({
+      subject: `Farzin — confirm your email address`,
+      body:
+        `Hello,\n\n` +
+        `Thanks for signing up to Farzin. Confirm your address by opening ` +
+        `this link:\n\n${s(p, 'verifyUrl')}\n\n` +
+        `The link is valid for 24 hours.\n\n` +
+        `If you did not sign up, simply ignore this email.`,
+    }),
+  },
 };
 
 /** User.locale (erkin string) → qo'llab-quvvatlanadigan til; boshqa → uz-Latn. */

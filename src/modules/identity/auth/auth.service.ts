@@ -8,6 +8,10 @@ import type { Redis } from 'ioredis';
 import { type AppConfig, NodeEnv } from '../../../config/configuration';
 import { SlidingWindowLimiter } from '../../../shared/rate-limit/sliding-window.limiter';
 import { REDIS } from '../../../shared/redis/redis.module';
+import {
+  TRANSACTIONAL_MAILER,
+  type TransactionalMailer,
+} from '../../notification/transactional-mail.port';
 import { TotpRequiredError } from '../mfa/totp.errors';
 import { TotpService } from '../mfa/totp.service';
 import { PasswordService } from '../password/password.service';
@@ -97,6 +101,7 @@ export class AuthService {
     private readonly limiter: SlidingWindowLimiter,
     private readonly config: ConfigService<AppConfig, true>,
     @Inject(REDIS) private readonly redis: Redis,
+    @Inject(TRANSACTIONAL_MAILER) private readonly mailer: TransactionalMailer,
   ) {}
 
   /**
@@ -132,7 +137,7 @@ export class AuthService {
       meta,
     );
 
-    await this.sendEmailVerification(user.id, email);
+    await this.sendEmailVerification(user.id, email, dto.locale ?? 'uz-Latn');
 
     return await this.issueTokens(user.id, meta);
   }
@@ -270,15 +275,62 @@ export class AuthService {
     await this.users.markEmailVerified(userId);
   }
 
-  private async sendEmailVerification(userId: string, email: string): Promise<void> {
+  /**
+   * Email tasdiqlash xatini yuborish.
+   *
+   * ═════════════════════════════════════════════════════════════════════
+   *  Ilgari bu metod tokenni yaratib Redis'ga yozardi va TO'XTARDI —
+   *  xat hech qayerga ketmasdi (docs/AUDIT.md KRITIK-3). Prod'da hatto
+   *  dev-log ham chiqmasdi, ya'ni foydalanuvchi manzilini HECH QACHON
+   *  tasdiqlay olmasdi va abadiy `PENDING_VERIFICATION` da qolardi.
+   *
+   *  Yo'l: TRANSACTIONAL_MAILER porti (notification moduli), `notifyUsers`
+   *  EMAS — u tasdiqlanmagan manzilni filtrlab tashlaydi, bu esa aynan
+   *  manzilni tasdiqlaydigan xat (transactional-mail.port.ts izohi).
+   *
+   *  XATO SIYOSATI: yuborish xatosi RO'YXATDAN O'TISHNI YIQITMAYDI.
+   *  SMTP uzilishi tufayli hisob yaratilmay qolishi — yomonroq natija;
+   *  token Redis'da 24 soat turadi va qayta yuborish keyin qo'shiladi.
+   *  Xato WARN bilan loglanadi, foydalanuvchiga esa 201 qaytadi.
+   * ═════════════════════════════════════════════════════════════════════
+   */
+  private async sendEmailVerification(
+    userId: string,
+    email: string,
+    locale: string,
+  ): Promise<void> {
     const token = randomBytes(32).toString('base64url');
     await this.redis.set(`emailverify:${token}`, userId, 'EX', EMAIL_VERIFY_TTL_SECONDS);
 
-    // TODO(Faza 0): haqiqiy yuborish — dev'da mailhog, prod'da provayder.
-    // Token PROD log'iga yozilmaydi (sir!) — faqat dev muhitida ko'rsatiladi.
-    if (this.config.get('nodeEnv', { infer: true }) === NodeEnv.Development) {
-      this.logger.debug(
-        `[DEV] Email tasdiqlash: /api/v1/auth/verify-email?token=${token} → ${email}`,
+    const appUrl = this.config.get('appUrl', { infer: true });
+    const apiPrefix = this.config.get('apiPrefix', { infer: true });
+    const verifyUrl = `${appUrl}/${apiPrefix}/v1/auth/verify-email?token=${token}`;
+
+    if (!this.mailer.enabled) {
+      // SMTP sozlanmagan. Dev'da havolani ko'rsatamiz, aks holda lokal
+      // ishlab chiqishda tasdiqlash umuman imkonsiz bo'lardi.
+      // Prod'da esa JIM QOLMAYMIZ — bu konfiguratsiya xatosi.
+      if (this.config.get('nodeEnv', { infer: true }) === NodeEnv.Development) {
+        this.logger.debug(`[DEV] Email tasdiqlash havolasi: ${verifyUrl}`);
+      } else {
+        this.logger.warn('SMTP sozlanmagan — email tasdiqlash xati YUBORILMADI. SMTP_HOST bering.');
+      }
+      return;
+    }
+
+    try {
+      await this.mailer.send({
+        to: email,
+        templateKey: 'auth.verify_email',
+        locale,
+        payload: { verifyUrl },
+      });
+    } catch (error) {
+      // Manzil ham, token ham log'ga CHIQMAYDI (docs/10-security.md §8).
+      this.logger.warn(
+        `Email tasdiqlash xati yuborilmadi (user=${userId}): ${
+          error instanceof Error ? error.message : "noma'lum xato"
+        }`,
       );
     }
   }

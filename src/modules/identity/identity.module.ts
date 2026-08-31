@@ -5,6 +5,7 @@ import { PassportModule } from '@nestjs/passport';
 
 import type { AppConfig } from '../../config/configuration';
 import { SlidingWindowLimiter } from '../../shared/rate-limit/sliding-window.limiter';
+import { NotificationModule } from '../notification/notification.module';
 import { AuthController } from './auth/auth.controller';
 import { AuthService } from './auth/auth.service';
 import { JwtStrategy } from './auth/jwt.strategy';
@@ -44,6 +45,10 @@ import { UserRepository } from './user.repository';
         };
       },
     }),
+    // Tranzaksion pochta (email tasdiqlash) — TRANSACTIONAL_MAILER porti.
+    // Aylanma bog'liqlik YO'Q: NotificationModule identity'ni import
+    // qilmaydi (uning endpointlari own-only, notification.module.ts izohi).
+    NotificationModule,
   ],
   controllers: [AuthController, TotpController],
   providers: [

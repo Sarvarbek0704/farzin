@@ -40,6 +40,18 @@ class EnvironmentVariables {
   @IsString()
   API_PREFIX = 'api';
 
+  /**
+   * Ilovaning TASHQI manzili — foydalanuvchiga yuboriladigan havolalar
+   * uchun (email tasdiqlash, parol tiklash).
+   *
+   * Nega so'rov `Host` sarlavhasidan OLINMAYDI: u foydalanuvchi
+   * boshqaradigan kirish. Soxta `Host` bilan tasdiqlash havolasi
+   * hujumchi domeniga yo'naltirilishi mumkin edi (host header injection).
+   * Shuning uchun manba — konfiguratsiya.
+   */
+  @IsString()
+  APP_URL = 'http://localhost:3000';
+
   @IsString()
   @IsOptional()
   CORS_ORIGINS?: string;
@@ -242,6 +254,8 @@ export interface AppConfig {
   nodeEnv: NodeEnv;
   port: number;
   apiPrefix: string;
+  /** Tashqi manzil — email havolalari uchun (EnvironmentVariables.APP_URL izohi). */
+  appUrl: string;
   corsOrigins: string[];
   database: { url: string };
   redis: { host: string; port: number; password?: string; db: number };
@@ -375,6 +389,8 @@ export function loadConfig(): AppConfig {
     nodeEnv: env.NODE_ENV,
     port: env.PORT,
     apiPrefix: env.API_PREFIX,
+    // Oxiridagi slash olib tashlanadi — havola yasashda ikkilanmasin.
+    appUrl: env.APP_URL.replace(/\/+$/, ''),
     corsOrigins: env.CORS_ORIGINS?.split(',').map((o) => o.trim()) ?? [],
     database: { url: env.DATABASE_URL },
     redis: {

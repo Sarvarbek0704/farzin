@@ -41,6 +41,10 @@ export const TEMPLATE_KEYS = [
   'refund.issued',
   'fairplay.case_opened',
   'game.finished',
+  // --- Tranzaksion (auth) — transactional-mail.port.ts orqali ---------------
+  //  Bu kalitlar `notifyUsers` yo'lidan O'TMAYDI: ular tasdiqlanmagan
+  //  manzilga ketishi shart va Notification qatori yaratmaydi.
+  'auth.verify_email',
 ] as const;
 
 export type TemplateKey = (typeof TEMPLATE_KEYS)[number];

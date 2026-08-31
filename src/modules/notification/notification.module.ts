@@ -16,6 +16,8 @@ import { NotificationOutboxListeners } from './listeners/outbox.listeners';
 import { NotificationController } from './notification.controller';
 import { NotificationRepository } from './notification.repository';
 import { NotificationService } from './notification.service';
+import { TRANSACTIONAL_MAILER } from './transactional-mail.port';
+import { TransactionalMailService } from './transactional-mail.service';
 
 /**
  * Notification — [CANON 5] #14: SMS, push, Telegram, email, in-app.
@@ -88,6 +90,16 @@ import { NotificationService } from './notification.service';
       ): NotificationChannelAdapter[] => [inApp, email, sms, push, telegram],
       inject: [InAppChannel, EmailChannel, SmsChannel, PushChannel, TelegramChannel],
     },
+    // Tranzaksion pochta (auth xatlari) — bildirishnoma yo'lidan ALOHIDA.
+    // Sabab va cheklovlar: transactional-mail.port.ts sarlavhasi.
+    {
+      provide: TRANSACTIONAL_MAILER,
+      useClass: TransactionalMailService,
+    },
   ],
+  // Yagona public sirt — port. `NotificationService` tashqariga
+  // CHIQARILMAYDI: uni identity modulidan chaqirish `emailVerified`
+  // filtriga urilardi (transactional-mail.port.ts izohi).
+  exports: [TRANSACTIONAL_MAILER],
 })
 export class NotificationModule {}

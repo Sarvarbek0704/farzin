@@ -24,6 +24,7 @@ describe('notification templates', () => {
     caseId: '019-case',
     gameId: '019-game',
     status: 'CHECKMATE',
+    verifyUrl: 'https://farzin.uz/api/v1/auth/verify-email?token=abc123',
   };
 
   it.each(
