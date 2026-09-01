@@ -60,6 +60,9 @@ function ConsoleShell({ children }: { children: ReactNode }) {
             <Link href="/konsol" style={{ fontWeight: 500 }}>
               Konsol
             </Link>
+            <Link href="/konsol/fairplay" style={{ color: 'var(--ink-secondary)' }}>
+              Fair-play
+            </Link>
           </nav>
           <button
             type="button"
