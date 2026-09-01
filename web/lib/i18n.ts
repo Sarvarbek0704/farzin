@@ -54,6 +54,12 @@ const DICTIONARY = {
     ru: 'Турниры',
     en: 'Tournaments',
   },
+  'nav.play': {
+    'uz-Latn': "O'ynash",
+    'uz-Cyrl': 'Ўйнаш',
+    ru: 'Играть',
+    en: 'Play',
+  },
   'nav.ratings': {
     'uz-Latn': 'Reyting',
     'uz-Cyrl': 'Рейтинг',

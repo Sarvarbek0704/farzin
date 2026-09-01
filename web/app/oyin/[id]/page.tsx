@@ -2,7 +2,7 @@ import { notFound } from 'next/navigation';
 
 import { ApiError, getGame } from '@/lib/api';
 import { TIME_CATEGORY_LABEL, formatTimeControl } from '@/lib/format';
-import { LiveGame } from './live-game';
+import { GameClient } from './game-client';
 import { BackLink, PageHeader } from '@/components/ui';
 
 /**
@@ -44,7 +44,7 @@ export default async function GamePage({ params }: { params: Promise<{ id: strin
 
   return (
     <>
-      <BackLink href="/turnirlar">Turnirlar</BackLink>
+      <BackLink href="/oyin">O&apos;yinlar</BackLink>
 
       <PageHeader title="O'yin">
         <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', marginTop: 12 }}>
@@ -62,14 +62,14 @@ export default async function GamePage({ params }: { params: Promise<{ id: strin
       {/*
         Server komponenti boshlang'ich holatni beradi (SEO va tez
         birinchi chizish), keyin klient Socket.IO bilan JONLI holatga
-        o'tadi. Token yo'q — tomoshabin: taxta faqat ko'rish uchun.
-      */}
-      <LiveGame initial={game} token={null} />
+        o'tadi.
 
-      <p className="muted small" style={{ marginTop: 24 }}>
-        Tomoshabin ko`rinishi: taxta jonli yangilanadi, lekin yurish qilish uchun
-        o`yinchi sifatida kirish kerak.
-      </p>
+        Token `GameClient` ichida aniqlanadi: o'yinchi shu URL bilan
+        kelsa yurish qila oladi, anonim ko'ruvchi esa statik ko'rinishda
+        qoladi. Ilgari bu yerda `token={null}` qotirilgan edi — ya'ni
+        kirgan o'yinchi ham o'z o'yinida yura olmasdi.
+      */}
+      <GameClient initial={game} />
     </>
   );
 }

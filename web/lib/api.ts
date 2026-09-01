@@ -238,6 +238,16 @@ export interface GameState {
   white: GamePlayer;
   black: GamePlayer;
   isRated: boolean;
+  /**
+   * So'rovchi kim: o'yinchi yoki tomoshabin (play.types.ts:129).
+   *
+   * ⚠️  SSR paytida bu HAR DOIM `spectator` bo'ladi — server komponenti
+   *     tokensiz so'rov qiladi va `GET /play/games/:id` @Public. Haqiqiy
+   *     rol `game:join` ack'idan keladi. Ya'ni taxta faqat WS ulangandan
+   *     KEYIN yurish uchun ochiladi — bu to'g'ri: ulanmagan holda
+   *     yurishning imkoni yo'q.
+   */
+  viewerRole: 'white' | 'black' | 'spectator';
 }
 
 export const getGame = (id: string): Promise<GameState> =>

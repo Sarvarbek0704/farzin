@@ -35,20 +35,29 @@ type Ack<T> = { ok: true; data: T } | { ok: false; error: { code: string; messag
 
 interface Props {
   initial: GameState;
-  /** Access token — o'yinchi sifatida ulanish uchun. `null` = tomoshabin. */
-  token: string | null;
+  /**
+   * Access token — o'yinchi sifatida ulanish uchun.
+   *  - `string`    — o'yinchi (yoki kirgan tomoshabin);
+   *  - `null`      — kirilmagan, anonim tomoshabin;
+   *  - `undefined` — sessiya HALI ANIQLANMADI (`/auth/refresh` javobi
+   *    kutilmoqda). Buni `null` bilan aralashtirmaslik kerak: aks holda
+   *    kirgan o'yinchiga bir lahza "kirmagansiz" deyilardi.
+   */
+  token: string | null | undefined;
 }
 
 type Connection = 'connecting' | 'open' | 'closed' | 'error' | 'anonymous';
 
+/** Token holatidan boshlang'ich ko'rinish — SSR HTML ham to'g'ri bo'lsin. */
+function connectionFor(token: string | null | undefined): Connection {
+  return token === null ? 'anonymous' : 'connecting';
+}
+
 export function LiveGame({ initial, token }: Props) {
   const [game, setGame] = useState<GameState>(initial);
-  // Dastlabki holat TOKENGA qarab — SSR chiqargan HTML ham to'g'ri
-  // bo'lsin: anonim ko'ruvchiga 'Ulanmoqda…' ko'rsatib, keyin uni
-  // almashtirish yolg'on va'da bo'lardi.
-  const [connection, setConnection] = useState<Connection>(
-    token === null ? 'anonymous' : 'connecting',
-  );
+  // Dastlabki holat TOKENGA qarab: anonim ko'ruvchiga 'Ulanmoqda…'
+  // ko'rsatib, keyin uni almashtirish yolg'on va'da bo'lardi.
+  const [connection, setConnection] = useState<Connection>(connectionFor(token));
   const [notice, setNotice] = useState<string | null>(null);
   const socketRef = useRef<Socket | null>(null);
 
@@ -64,8 +73,12 @@ export function LiveGame({ initial, token }: Props) {
     //     Shu sababli anonim ko'ruvchiga socket OCHILMAYDI: server
     //     bergan holat statik ko'rsatiladi va buni ekranda ochiq aytamiz.
     //     Har safar "Ulanib bo'lmadi" chiqarish yolg'on signal bo'lardi.
-    if (token === null) {
-      setConnection('anonymous');
+    //
+    //     `undefined` — sessiya hali aniqlanmagan: socket ochilmaydi,
+    //     lekin "anonim" ham deyilmaydi. Effekt token kelganda qayta
+    //     ishlaydi (u bog'liqliklar ro'yxatida).
+    setConnection(connectionFor(token));
+    if (token === null || token === undefined) {
       return;
     }
 
@@ -150,7 +163,7 @@ export function LiveGame({ initial, token }: Props) {
   const onMove = useCallback(
     (from: string, to: string): boolean => {
       const socket = socketRef.current;
-      if (socket === null || token === null) {
+      if (socket === null) {
         return false;
       }
       // Kontrakt: {gameId, from, to, promotion?} — docs/07 §7.2.
@@ -166,16 +179,24 @@ export function LiveGame({ initial, token }: Props) {
       );
       return false;
     },
-    [game.gameId, token],
+    [game.gameId],
   );
 
-  const isPlayer = token !== null;
   const active = game.status === 'ACTIVE';
+  // Yurish huquqi token BORLIGIDAN emas, server bergan ROLDAN kelib
+  // chiqadi: kirgan foydalanuvchi ham begona o'yinning tomoshabini
+  // bo'lishi mumkin. `viewerRole` SSR'da doim 'spectator', haqiqiy
+  // qiymat `game:join` ack'i bilan keladi.
+  const isPlayer = game.viewerRole !== 'spectator';
+  // Ulanish yopiq bo'lsa taxta ham QULFLANADI: yurish socket orqali
+  // ketadi, ya'ni uzilgan holda sudrash faqat aldardi.
+  const canMove = isPlayer && active && connection === 'open';
+  const orientation = game.viewerRole === 'black' ? 'black' : 'white';
 
   return (
     <div style={{ display: 'flex', gap: 24, flexWrap: 'wrap', alignItems: 'flex-start' }}>
       <div>
-        <ChessBoard fen={game.fen} {...(isPlayer && active ? { onMove } : {})} />
+        <ChessBoard fen={game.fen} orientation={orientation} {...(canMove ? { onMove } : {})} />
         <ConnectionBadge state={connection} />
       </div>
 

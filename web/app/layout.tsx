@@ -49,6 +49,7 @@ export const metadata: Metadata = {
 /** Navigatsiya — yorliqlar lug'atdan (dizayn tizimidagi LOCALES jadvali). */
 const NAV = [
   { href: '/turnirlar', key: 'nav.tournaments' },
+  { href: '/oyin', key: 'nav.play' },
   { href: '/reyting', key: 'nav.ratings' },
   { href: '/konsol', key: 'nav.console' },
 ] as const;
