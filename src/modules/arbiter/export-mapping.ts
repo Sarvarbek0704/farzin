@@ -71,7 +71,10 @@ export function buildSectionExportData(
 }
 
 /** Yuklab olish fayl nomi: "<turnir-slug>-<seksiya-slug>.<ext>". */
-export function exportFilename(section: SectionContextRow, extension: 'pgn' | 'trf'): string {
+export function exportFilename(
+  section: SectionContextRow,
+  extension: 'pgn' | 'trf' | 'pdf',
+): string {
   return `${section.tournament.slug}-${slugify(section.name)}.${extension}`;
 }
 

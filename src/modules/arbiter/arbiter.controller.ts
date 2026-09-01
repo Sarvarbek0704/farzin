@@ -5,6 +5,7 @@ import {
   HttpCode,
   HttpStatus,
   Param,
+  ParseIntPipe,
   ParseUUIDPipe,
   Patch,
   Post,
@@ -152,4 +153,50 @@ export class ArbiterController {
     res.setHeader('Content-Disposition', `attachment; filename="${file.filename}"`);
     return file.content;
   }
+
+  // --- PDF (offline degradatsiya, docs/11-infrastructure.md §12.4) ---------------
+  //
+  //  Bu ikki endpoint BOSIB CHIQARISH uchun: turnir zalida internet
+  //  uzilsa hakam qog'oz bilan davom etadi. PDF binar, shuning uchun
+  //  `@Res({ passthrough: true })` emas — javob to'g'ridan-to'g'ri
+  //  yoziladi (passthrough Buffer'ni JSON qilib yuborardi).
+
+  @Public()
+  @Get('sections/:sectionId/export/pairings/:roundNumber/pdf')
+  @ApiProduces('application/pdf')
+  @ApiOperation({
+    summary: "Juftlik varaqasi PDF (ommaviy) — bosib chiqarishga mo'ljallangan",
+    description:
+      "Natija ustuni O'YNALMAGAN juftliklarda BO'SH qoladi — hakam qo'lda " +
+      "to'ldiradi. Bu offline oqimning mohiyati.",
+  })
+  @ApiResponse({ status: 404, description: 'Seksiya yoki tur topilmadi' })
+  async exportPairingsPdf(
+    @Param('sectionId', ParseUUIDPipe) sectionId: string,
+    @Param('roundNumber', ParseIntPipe) roundNumber: number,
+    @Res() res: Response,
+  ): Promise<void> {
+    const file = await this.arbiterService.exportPairingSheetPdf(sectionId, roundNumber);
+    sendPdf(res, file.filename, file.content);
+  }
+
+  @Public()
+  @Get('sections/:sectionId/export/standings/pdf')
+  @ApiProduces('application/pdf')
+  @ApiOperation({ summary: "Jadval PDF (ommaviy) — bosib chiqarishga mo'ljallangan" })
+  async exportStandingsPdf(
+    @Param('sectionId', ParseUUIDPipe) sectionId: string,
+    @Res() res: Response,
+  ): Promise<void> {
+    const file = await this.arbiterService.exportStandingsPdf(sectionId);
+    sendPdf(res, file.filename, file.content);
+  }
+}
+
+/** PDF javobi — nomi va uzunligi bilan (brauzer progressni ko'rsatsin). */
+function sendPdf(res: Response, filename: string, content: Buffer): void {
+  res.setHeader('Content-Type', 'application/pdf');
+  res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+  res.setHeader('Content-Length', String(content.length));
+  res.end(content);
 }

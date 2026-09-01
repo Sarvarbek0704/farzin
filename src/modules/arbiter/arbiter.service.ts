@@ -2,6 +2,7 @@ import { Injectable, Logger } from '@nestjs/common';
 
 import { BusinessRuleError, ConflictError, NotFoundError } from '../../core/errors/domain.error';
 import { writeSectionPgn } from '../../core/export/pgn-writer';
+import { writePairingSheetPdf, writeStandingsPdf } from '../../core/export/pdf-writer';
 import { writeSectionTrf } from '../../core/export/trf-writer';
 import { RoundRobinEngine } from '../../core/pairing/round-robin.engine';
 import { PairingIntegrityError, SwissDutchEngine } from '../../core/pairing/swiss-dutch.engine';
@@ -43,6 +44,12 @@ import { buildScoreViews } from './result-mapping';
 export interface ExportFile {
   readonly filename: string;
   readonly content: string;
+}
+
+/** Binar eksport (PDF) — matnli ExportFile dan alohida. */
+export interface ExportBinaryFile {
+  readonly filename: string;
+  readonly content: Buffer;
 }
 
 /**
@@ -373,6 +380,40 @@ export class ArbiterService {
     return {
       filename: exportFilename(section, 'trf'),
       content: writeSectionTrf(buildSectionExportData(section, rows)),
+    };
+  }
+
+  /**
+   * Juftlik varaqasi PDF — bir tur uchun, BOSIB CHIQARISHGA mo'ljallangan.
+   *
+   * docs/14-roadmap.md Faza 1 "Eksport": "PDF juftlik varaqasi bosib
+   * chiqarishga yaroqli". Bu offline degradatsiya rejasining bir qismi
+   * (docs/11 §12.4): zalda internet uzilsa hakam qog'oz bilan davom etadi.
+   */
+  async exportPairingSheetPdf(sectionId: string, roundNumber: number): Promise<ExportBinaryFile> {
+    const section = await this.requirePublicSection(sectionId);
+    const rows = await this.repo.sectionExportData(sectionId);
+    const data = buildSectionExportData(section, rows);
+
+    if (!data.rounds.some((r) => r.number === roundNumber)) {
+      // Sof yozuvchi Error tashlaydi; bu yerda domen xatosiga o'giramiz,
+      // aks holda global filtr uni 500 qilardi.
+      throw new NotFoundError('Round', String(roundNumber));
+    }
+
+    return {
+      filename: exportFilename(section, 'pdf').replace(/.pdf$/, `-${String(roundNumber)}-tur.pdf`),
+      content: await writePairingSheetPdf(data, roundNumber),
+    };
+  }
+
+  /** Jadval PDF — joriy holat, bosib chiqarishga mo'ljallangan. */
+  async exportStandingsPdf(sectionId: string): Promise<ExportBinaryFile> {
+    const section = await this.requirePublicSection(sectionId);
+    const rows = await this.repo.sectionExportData(sectionId);
+    return {
+      filename: exportFilename(section, 'pdf').replace(/.pdf$/, '-jadval.pdf'),
+      content: await writeStandingsPdf(buildSectionExportData(section, rows)),
     };
   }
 
