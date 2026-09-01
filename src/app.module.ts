@@ -3,7 +3,9 @@ import { APP_FILTER, APP_GUARD } from '@nestjs/core';
 import { ConfigModule } from '@nestjs/config';
 import { EventEmitterModule } from '@nestjs/event-emitter';
 import { ScheduleModule } from '@nestjs/schedule';
+import { ThrottlerStorageRedisService } from '@nest-lab/throttler-storage-redis';
 import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
+import type { Redis } from 'ioredis';
 import { ClsModule } from 'nestjs-cls';
 import { LoggerModule } from 'nestjs-pino';
 import { randomUUID } from 'node:crypto';
@@ -30,7 +32,7 @@ import { MetricsModule } from './shared/metrics/metrics.module';
 import { OutboxModule } from './shared/outbox/outbox.module';
 import { PrismaModule } from './shared/prisma/prisma.module';
 import { QueueModule } from './shared/queue/queue.module';
-import { RedisModule } from './shared/redis/redis.module';
+import { REDIS, RedisModule } from './shared/redis/redis.module';
 
 /**
  * Ildiz modul.
@@ -113,9 +115,22 @@ import { RedisModule } from './shared/redis/redis.module';
     // "strict" throttler ATAYLAB YO'Q: nomlangan throttler'lar HAMMA
     // route'ga qo'llanadi va oddiy API'ni bo'g'ib qo'yadi (jonli testda
     // aniqlangan).
-    // TODO(Faza 0): Redis storage — hozircha in-memory, ko'p instance'da
-    //               limit har instance uchun alohida.
-    ThrottlerModule.forRoot([{ name: 'default', ttl: 60_000, limit: 300 }]),
+    //
+    // ⚠️  SAQLASH JOYI — REDIS, in-memory EMAS (docs/AUDIT.md JIDDIY-6).
+    //     In-memory bilan har instance O'Z hisoblagichiga ega bo'lardi va
+    //     N replikada amaldagi limit N × 300 ga aylanardi — ya'ni himoya
+    //     replikalar soniga qarab jimgina yumshardi.
+    //
+    //     Redis ulanishi QAYTA ISHLATILADI (RedisModule ning `REDIS`
+    //     provayderi): ikkinchi ulanish ochish ortiqcha soket va ikkinchi
+    //     nosozlik nuqtasi bo'lardi.
+    ThrottlerModule.forRootAsync({
+      inject: [REDIS],
+      useFactory: (redis: Redis) => ({
+        throttlers: [{ name: 'default', ttl: 60_000, limit: 300 }],
+        storage: new ThrottlerStorageRedisService(redis),
+      }),
+    }),
 
     EventEmitterModule.forRoot({ global: true, verboseMemoryLeak: true }),
     ScheduleModule.forRoot(),
