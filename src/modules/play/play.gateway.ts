@@ -166,10 +166,33 @@ export class PlayGateway implements OnGatewayConnection, OnGatewayDisconnect {
 
     const auth = socket.handshake.auth as Record<string, unknown>;
     const token = typeof auth.token === 'string' ? auth.token : null;
+
+    // ═══════════════════════════════════════════════════════════════════
+    //  TOKENSIZ ULANISHGA RUXSAT — ANONIM TOMOSHABIN (AUDIT K-18)
+    //
+    //  `GET /play/games/:id` @Public va `viewerRole: 'spectator'`
+    //  qaytaradi, ya'ni dizayn anonim tomoshabinni NAZARDA TUTADI.
+    //  Ilgari gateway tokenni shartsiz talab qilardi va tokensiz
+    //  socket'ni darhol uzardi — natijada ommaviy o'yinni ochgan odam
+    //  jonli yangilanish OLA OLMASDI, faqat statik snapshot ko'rardi.
+    //
+    //  Ochiqlik HUQUQ bermaydi: `userId` o'rnatilmaydi, shu sababli
+    //  yurish, taslim, durang, abort va claim_timeout handler'lari
+    //  `userIdOf(socket) === null` da `not_a_player` bilan rad etadi
+    //  (integratsiya testi buni tekshiradi). Anonim socket shaxsiy
+    //  `user:{id}` xonasiga ham QO'SHILMAYDI — matchmaking xabarlari
+    //  unga yetmaydi.
+    //
+    //  Yangi ma'lumot ochilmaydi: `game:join` ack'i aynan ommaviy REST
+    //  javobining o'zi.
+    // ═══════════════════════════════════════════════════════════════════
     if (token === null) {
-      this.rejectConnection(socket, 'token_expired', 'Token berilmadi');
       return;
     }
+
+    // Token BERILGAN, lekin yaroqsiz — bu anonimlik emas, XATO holat.
+    // Jimgina tomoshabinga tushirib qo'yish o'yinchini chalg'itardi:
+    // u o'zini o'yinchi deb o'ylab, yurolmay qolardi.
     try {
       const payload = await this.jwt.verifyAsync<AccessPayload>(token);
       (socket.data as Record<string, unknown>).userId = payload.sub;
@@ -237,10 +260,10 @@ export class PlayGateway implements OnGatewayConnection, OnGatewayDisconnect {
     @ConnectedSocket() socket: Socket,
     @MessageBody() payload: unknown,
   ): Promise<Ack<GameStatePayload>> {
+    // Anonim tomoshabin ham qo'shila oladi (K-18): `userId` null bo'lsa
+    // `getGameView` `viewerRole: 'spectator'` beradi va quyidagi
+    // `registerPlayerSocket` sharti bajarilmaydi.
     const userId = this.userIdOf(socket);
-    if (userId === null) {
-      return ackError('token_expired', "Autentifikatsiya yo'q");
-    }
     const gameId = gameRef(payload);
     if (gameId === null) {
       return ackError('internal', 'gameId kerak');
@@ -268,7 +291,10 @@ export class PlayGateway implements OnGatewayConnection, OnGatewayDisconnect {
   ): Promise<Ack<MoveAckData>> {
     const userId = this.userIdOf(socket);
     if (userId === null) {
-      return ackError('token_expired', "Autentifikatsiya yo'q");
+      // Anonim socket XATO holatda emas — u shunchaki o'yinchi EMAS
+      // (K-18). `token_expired` chalg'ituvchi bo'lardi: hech narsa
+      // eskirmagan, faqat huquq yo'q.
+      return ackError('not_a_player', "Bu amal uchun o'yinchi sifatida kirish kerak");
     }
     if (!this.allowMove(socket.id)) {
       return ackError('rate_limited', 'Juda tez — 10 yurish/s chegarasi');
@@ -359,7 +385,10 @@ export class PlayGateway implements OnGatewayConnection, OnGatewayDisconnect {
   ): Promise<Ack<ClaimTimeoutAckData>> {
     const userId = this.userIdOf(socket);
     if (userId === null) {
-      return ackError('token_expired', "Autentifikatsiya yo'q");
+      // Anonim socket XATO holatda emas — u shunchaki o'yinchi EMAS
+      // (K-18). `token_expired` chalg'ituvchi bo'lardi: hech narsa
+      // eskirmagan, faqat huquq yo'q.
+      return ackError('not_a_player', "Bu amal uchun o'yinchi sifatida kirish kerak");
     }
     const gameId = gameRef(payload);
     if (gameId === null) {
@@ -401,7 +430,10 @@ export class PlayGateway implements OnGatewayConnection, OnGatewayDisconnect {
   ): Promise<Ack<null>> {
     const userId = this.userIdOf(socket);
     if (userId === null) {
-      return ackError('token_expired', "Autentifikatsiya yo'q");
+      // Anonim socket XATO holatda emas — u shunchaki o'yinchi EMAS
+      // (K-18). `token_expired` chalg'ituvchi bo'lardi: hech narsa
+      // eskirmagan, faqat huquq yo'q.
+      return ackError('not_a_player', "Bu amal uchun o'yinchi sifatida kirish kerak");
     }
     const gameId = gameRef(payload);
     if (gameId === null) {

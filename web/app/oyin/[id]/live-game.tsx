@@ -46,49 +46,35 @@ interface Props {
   token: string | null | undefined;
 }
 
-type Connection = 'connecting' | 'open' | 'closed' | 'error' | 'anonymous';
-
-/** Token holatidan boshlang'ich ko'rinish — SSR HTML ham to'g'ri bo'lsin. */
-function connectionFor(token: string | null | undefined): Connection {
-  return token === null ? 'anonymous' : 'connecting';
-}
+type Connection = 'connecting' | 'open' | 'closed' | 'error';
 
 export function LiveGame({ initial, token }: Props) {
   const [game, setGame] = useState<GameState>(initial);
-  // Dastlabki holat TOKENGA qarab: anonim ko'ruvchiga 'Ulanmoqda…'
-  // ko'rsatib, keyin uni almashtirish yolg'on va'da bo'lardi.
-  const [connection, setConnection] = useState<Connection>(connectionFor(token));
+  const [connection, setConnection] = useState<Connection>('connecting');
   const [notice, setNotice] = useState<string | null>(null);
   const socketRef = useRef<Socket | null>(null);
 
   useEffect(() => {
-    // ⚠️  TOKENSIZ ULANMAYMIZ. Gateway `handleConnection` da tokenni
-    //     SHARTSIZ talab qiladi va tokensiz socket'ni darhol uzadi
-    //     (`game:error{token_expired}`). REST tomonda esa
-    //     `GET /play/games/:id` @Public va `viewerRole: 'spectator'`
-    //     qaytaradi — ya'ni REST anonim tomoshabinni qo'llaydi, WS esa
-    //     YO'Q. Bu nomuvofiqlik jonli tekshiruvda aniqlandi va
-    //     docs/AUDIT.md ga topilma sifatida yozildi.
-    //
-    //     Shu sababli anonim ko'ruvchiga socket OCHILMAYDI: server
-    //     bergan holat statik ko'rsatiladi va buni ekranda ochiq aytamiz.
-    //     Har safar "Ulanib bo'lmadi" chiqarish yolg'on signal bo'lardi.
-    //
-    //     `undefined` — sessiya hali aniqlanmagan: socket ochilmaydi,
-    //     lekin "anonim" ham deyilmaydi. Effekt token kelganda qayta
-    //     ishlaydi (u bog'liqliklar ro'yxatida).
-    setConnection(connectionFor(token));
-    if (token === null || token === undefined) {
+    // Sessiya hali aniqlanmagan bo'lsa kutamiz: tokensiz ulanib, keyin
+    // token kelganda qayta ulanish ikki marta ulanish demakdir. Effekt
+    // token kelganda o'zi qayta ishlaydi (u bog'liqliklar ro'yxatida).
+    if (token === undefined) {
+      setConnection('connecting');
       return;
     }
+    setConnection('connecting');
 
     // Socket to'g'ridan-to'g'ri backend'ga ulanadi: Next rewrite faqat
     // HTTP uchun, WebSocket upgrade'ni o'tkazmaydi.
+    //
+    // TOKENSIZ ham ulanamiz — anonim tomoshabin jonli yangilanish oladi
+    // (K-18 tuzatildi: gateway tokensiz ulanishni qabul qiladi va
+    // `viewerRole: 'spectator'` beradi). Ochiqlik huquq bermaydi:
+    // yurish, taslim va durang `not_a_player` bilan rad etiladi.
     const base = process.env.NEXT_PUBLIC_WS_URL ?? 'http://localhost:3000';
     const socket = io(`${base}/play`, {
       transports: ['websocket'],
-      // Bu nuqtada token NULL EMAS (yuqoridagi erta qaytish).
-      auth: { token },
+      ...(token === null ? {} : { auth: { token } }),
     });
     socketRef.current = socket;
 
@@ -294,10 +280,6 @@ function ClockLine({ label, ms, active }: { label: string; ms: number; active: b
 function ConnectionBadge({ state }: { state: Connection }) {
   const view: Record<Connection, { text: string; color: string }> = {
     connecting: { text: 'Ulanmoqda…', color: 'var(--ink-secondary)' },
-    anonymous: {
-      text: 'Statik ko`rinish — jonli yangilanish uchun kiring',
-      color: 'var(--ink-secondary)',
-    },
     open: { text: 'Jonli', color: 'var(--emerald-bright)' },
     closed: { text: 'Uzildi — ma`lumot eskirgan', color: 'var(--amber)' },
     error: { text: 'Ulanib bo`lmadi', color: 'var(--burgundy)' },

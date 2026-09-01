@@ -65,11 +65,20 @@ export default async function GamePage({ params }: { params: Promise<{ id: strin
         o'tadi.
 
         Token `GameClient` ichida aniqlanadi: o'yinchi shu URL bilan
-        kelsa yurish qila oladi, anonim ko'ruvchi esa statik ko'rinishda
-        qoladi. Ilgari bu yerda `token={null}` qotirilgan edi — ya'ni
-        kirgan o'yinchi ham o'z o'yinida yura olmasdi.
+        kelsa yurish qila oladi. Ilgari bu yerda `token={null}`
+        qotirilgan edi — ya'ni kirgan o'yinchi ham o'z o'yinida yura
+        olmasdi.
+
+        Anonim ko'ruvchi ham JONLI holatni oladi (K-18 tuzatilgach
+        gateway tokensiz ulanishni qabul qiladi) — lekin faqat
+        tomoshabin sifatida.
       */}
       <GameClient initial={game} />
+
+      <p className="muted small" style={{ marginTop: 24 }}>
+        Bu sahifa hammaga ochiq: taxta jonli yangilanadi, hisobsiz ham. Yurish
+        uchun o&apos;yinchi sifatida kirish kerak.
+      </p>
     </>
   );
 }

@@ -57,6 +57,29 @@ describe('play (integration)', () => {
     });
   }
 
+  /** Tokensiz ulanish — anonim tomoshabin (K-18). */
+  function connectAnonymous(): Promise<ClientSocket> {
+    return new Promise((resolve, reject) => {
+      const socket = io(`http://127.0.0.1:${String(port)}/play`, {
+        transports: ['websocket'],
+        forceNew: true,
+        reconnection: false,
+      });
+      openSockets.push(socket);
+      const timer = setTimeout(() => {
+        reject(new Error('WS ulanish timeout'));
+      }, 10_000);
+      socket.on('connect', () => {
+        clearTimeout(timer);
+        resolve(socket);
+      });
+      socket.on('connect_error', (e) => {
+        clearTimeout(timer);
+        reject(e);
+      });
+    });
+  }
+
   function emitAck<T>(socket: ClientSocket, event: string, payload: unknown): Promise<T> {
     return new Promise((resolve, reject) => {
       socket.timeout(5_000).emit(event, payload, (err: unknown, res: T) => {
@@ -334,6 +357,105 @@ describe('play (integration)', () => {
       expect(res.body.status).toBe('CHECKMATE');
       expect(res.body.moves).toEqual(['f3', 'e5', 'g4', 'Qh4#']);
       expect(res.body.viewerRole).toBe('spectator');
+    });
+  });
+
+  // --- Anonim tomoshabin: WS ham REST kabi ochiq (K-18) ---------------------------
+
+  describe('anonim tomoshabin (tokensiz WS)', () => {
+    let anon: ClientSocket;
+    let liveGameId = '';
+
+    beforeAll(async () => {
+      // Tokensiz ulanish — ilgari `token_expired` bilan darhol uzilardi,
+      // holbuki REST `GET /play/games/:id` @Public. Shu nomuvofiqlik
+      // K-18 topilmasi edi.
+      anon = await connectAnonymous();
+      liveGameId = await createChallenge(tokenA, playerIdB);
+      await emitAck(socketA, 'game:join', { gameId: liveGameId });
+      await emitAck(socketB, 'game:join', { gameId: liveGameId });
+    });
+
+    it("tokensiz ulanish QABUL qilinadi — REST bilan bir xil ochiqlik", () => {
+      expect(anon.connected).toBe(true);
+    });
+
+    it('join → spectator snapshot (REST bergan ko`rinishning AYNAN o`zi)', async () => {
+      const ack = await emitAck<{ ok: boolean; data: Record<string, unknown> }>(
+        anon,
+        'game:join',
+        { gameId: liveGameId },
+      );
+      expect(ack.ok).toBe(true);
+      expect(ack.data.viewerRole).toBe('spectator');
+
+      const rest = await request(t.server).get(`/api/v1/play/games/${liveGameId}`);
+      // Yangi ma'lumot OCHILMAYDI: WS snapshot ommaviy REST javobi bilan
+      // bir xil maydonlarni beradi.
+      expect(ack.data.fen).toBe(rest.body.fen);
+      expect(ack.data.moves).toEqual(rest.body.moves);
+      expect(ack.data.status).toBe(rest.body.status);
+    });
+
+    it('JONLI yangilanish oladi — yurish anonim socketga ham yetadi', async () => {
+      const broadcastP = waitFor<Record<string, unknown>>(anon, 'game:move_made');
+      const ack = await emitAck<{ ok: boolean }>(socketA, 'game:move', {
+        gameId: liveGameId,
+        from: 'e2',
+        to: 'e4',
+      });
+      expect(ack.ok).toBe(true);
+      const broadcast = await broadcastP;
+      expect(broadcast.san).toBe('e4');
+    });
+
+    it('lekin YUROLMAYDI — not_a_player (ochiqlik ≠ huquq)', async () => {
+      const ack = await emitAck<{ ok: boolean; error: Record<string, unknown> }>(
+        anon,
+        'game:move',
+        { gameId: liveGameId, from: 'e7', to: 'e5' },
+      );
+      expect(ack.ok).toBe(false);
+      expect(ack.error.code).toBe('not_a_player');
+    });
+
+    it('taslim ham qila olmaydi — o`yin holatiga TEGA OLMAYDI', async () => {
+      const ack = await emitAck<{ ok: boolean; error: Record<string, unknown> }>(
+        anon,
+        'game:resign',
+        { gameId: liveGameId },
+      );
+      expect(ack.ok).toBe(false);
+      expect(ack.error.code).toBe('not_a_player');
+      const game = await t.prisma.onlineGame.findUniqueOrThrow({ where: { id: liveGameId } });
+      expect(game.status).toBe('ACTIVE');
+    });
+
+    it('BUZUQ token esa baribir RAD etiladi — bu xato, anonimlik emas', async () => {
+      // Gateway middleware bosqichida emas, `handleConnection` da rad
+      // etadi (docs/07 §7.1 soddalashtirilgan varianti): socket avval
+      // ulanadi, keyin `game:error` oladi va UZILADI. Muhimi — yaroqsiz
+      // token jimgina "anonim tomoshabin"ga TUSHIRILMAYDI.
+      // Listener ULANISHDAN OLDIN qo'yiladi: server `game:error` ni
+      // darhol yuborib socket'ni uzadi, ya'ni `connect` kutib turib
+      // obuna bo'lish KECH qolardi.
+      const socket = io(`http://127.0.0.1:${String(port)}/play`, {
+        transports: ['websocket'],
+        auth: { token: 'buzuq.token.qiymati' },
+        forceNew: true,
+        reconnection: false,
+      });
+      openSockets.push(socket);
+
+      const err = await new Promise<Record<string, unknown>>((resolve, reject) => {
+        socket.on('game:error', (p: Record<string, unknown>) => {
+          resolve(p);
+        });
+        setTimeout(() => {
+          reject(new Error('game:error kelmadi'));
+        }, 8_000);
+      });
+      expect(err.code).toBe('token_expired');
     });
   });
 
