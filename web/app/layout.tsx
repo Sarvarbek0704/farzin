@@ -1,0 +1,124 @@
+import type { Metadata } from 'next';
+import { IBM_Plex_Mono, Inter, Playfair_Display } from 'next/font/google';
+import Link from 'next/link';
+import type { ReactNode } from 'react';
+
+import './globals.css';
+
+/**
+ * Uch shrift oilasi — dizayn tizimi §04.
+ *
+ * ⚠️  HAR BIRI KIRILL HARFLARINI QO'LLASHI SHART: til almashtirgichda
+ *     `uz-Cyrl` va `ru` bor (dizayn brifi §2 — "hard type constraint").
+ *     Playfair, Inter va IBM Plex Mono uchalasi ham kirillni qo'llaydi.
+ *     `subsets` da `cyrillic` shu sababli.
+ */
+const playfair = Playfair_Display({
+  subsets: ['latin', 'latin-ext', 'cyrillic'],
+  weight: ['600', '700'],
+  variable: '--font-playfair',
+  display: 'swap',
+});
+
+const inter = Inter({
+  subsets: ['latin', 'latin-ext', 'cyrillic'],
+  variable: '--font-inter',
+  display: 'swap',
+});
+
+const mono = IBM_Plex_Mono({
+  subsets: ['latin', 'latin-ext', 'cyrillic'],
+  weight: ['400', '500'],
+  variable: '--font-mono',
+  display: 'swap',
+});
+
+export const metadata: Metadata = {
+  title: {
+    default: "Farzin — O'zbekiston shaxmatining raqamli infratuzilmasi",
+    template: '%s · Farzin',
+  },
+  description:
+    "Turnir kalendari, jonli jadval va milliy Glicko-2 reyting. O'zbekiston shaxmati uchun ochiq ma'lumotlar.",
+};
+
+/** Navigatsiya — dizayn tizimidagi `uz-Latn` yorliqlari. */
+const NAV = [
+  { href: '/turnirlar', label: 'Turnirlar' },
+  { href: '/reyting', label: 'Reyting' },
+] as const;
+
+export default function RootLayout({ children }: { children: ReactNode }) {
+  return (
+    <html lang="uz-Latn" className={`${playfair.variable} ${inter.variable} ${mono.variable}`}>
+      <body>
+        <header
+          style={{
+            borderBottom: '1px solid var(--hairline)',
+            background: 'var(--surface)',
+            position: 'sticky',
+            top: 0,
+            zIndex: 10,
+          }}
+        >
+          <div
+            className="container"
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: 24,
+              height: 60,
+              flexWrap: 'wrap',
+            }}
+          >
+            <Link
+              href="/"
+              style={{
+                fontFamily: 'var(--font-playfair), serif',
+                fontSize: 22,
+                fontWeight: 700,
+                color: 'var(--ink)',
+              }}
+            >
+              Farzin
+            </Link>
+
+            <nav aria-label="Asosiy" style={{ display: 'flex', gap: 18 }}>
+              {NAV.map((item) => (
+                <Link
+                  key={item.href}
+                  href={item.href}
+                  style={{ color: 'var(--ink-secondary)', fontSize: 14, fontWeight: 500 }}
+                >
+                  {item.label}
+                </Link>
+              ))}
+            </nav>
+          </div>
+        </header>
+
+        <main className="container" style={{ paddingTop: 32, paddingBottom: 64 }}>
+          {children}
+        </main>
+
+        <footer
+          style={{
+            borderTop: '1px solid var(--hairline)',
+            padding: '20px 0',
+            marginTop: 'auto',
+          }}
+        >
+          <div className="container muted small">
+            {/*
+              HALOLLIK: bu ilova hozircha FAQAT ommaviy o'qish qismini
+              qamraydi. Hakam konsoli va onlayn o'yin — keyingi bo'laklar.
+              Foydalanuvchini "hammasi tayyor" degan taassurotga
+              solmaslik uchun buni ochiq yozamiz.
+            */}
+            Ommaviy ma`lumotlar · Hakam konsoli va onlayn o`yin ishlab chiqilmoqda
+          </div>
+        </footer>
+      </body>
+    </html>
+  );
+}

@@ -1,0 +1,278 @@
+/*
+ * Farzin — dizayn tokenlari.
+ *
+ * Manba: "Farzin design-system foundation.zip" → Farzin Design System.
+ * Qiymatlar AYNAN ko'chirilgan, taxmin qilinmagan.
+ *
+ * IKKI TEMA, IKKOVI HAM BIRINCHI DARAJALI (dizayn tizimi so'zi):
+ *   Study     — qorong'i, STANDART
+ *   Editorial — yorug', "parchment" (pergament) fon
+ *
+ * Tema `<html data-theme>` bilan almashadi; tanlov yo'q bo'lsa
+ * `prefers-color-scheme` hal qiladi.
+ */
+
+:root {
+  /* --- Study (qorong'i) — standart ------------------------------------ */
+  --bg: #14171a;
+  --surface: #1c2024;
+  --elevated: #242a2e;
+  --ink: #edeae1;
+  --ink-secondary: #9aa0a0;
+  --hairline: #2e353a;
+
+  /* --- Brend va semantik (ikki temada ham bir xil) --------------------- */
+  --emerald: #0f5132;
+  --emerald-bright: #37b579;
+  --gilt: #b08a3e;
+  --burgundy: #9b2c2c;
+  --amber: #c7891f;
+  --arrow-blue: #2b6cb0;
+  --slate: #6b7280;
+
+  /* Qorong'ida aksent yorqin variant; yorug'da to'q emerald. */
+  --accent: var(--emerald-bright);
+
+  /* --- Taxta: "Ivory & Emerald" (standart turnir vinili) --------------- */
+  --board-light: #ece3c9;
+  --board-dark: #4f7454;
+
+  --radius: 10px;
+  --hairline-width: 1px;
+
+  color-scheme: dark;
+}
+
+:root[data-theme='light'] {
+  --bg: #f4f1ea;
+  --surface: #fbf9f4;
+  --elevated: #e8e3d7;
+  --ink: #1a1d1b;
+  --ink-secondary: #5e635e;
+  --hairline: #d8d2c4;
+  --accent: var(--emerald);
+  color-scheme: light;
+}
+
+@media (prefers-color-scheme: light) {
+  :root:not([data-theme='dark']) {
+    --bg: #f4f1ea;
+    --surface: #fbf9f4;
+    --elevated: #e8e3d7;
+    --ink: #1a1d1b;
+    --ink-secondary: #5e635e;
+    --hairline: #d8d2c4;
+    --accent: var(--emerald);
+    color-scheme: light;
+  }
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  background: var(--bg);
+  color: var(--ink);
+  font-family: var(--font-inter), system-ui, -apple-system, sans-serif;
+  font-size: 15px;
+  line-height: 1.55;
+  -webkit-font-smoothing: antialiased;
+}
+
+a {
+  color: var(--accent);
+  text-decoration: none;
+}
+
+a:hover {
+  text-decoration: underline;
+}
+
+/* Klaviatura bilan yurish ko'rinadigan bo'lsin (WCAG 2.4.7). */
+:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+::selection {
+  background: rgba(55, 181, 121, 0.3);
+}
+
+h1,
+h2,
+h3 {
+  font-family: var(--font-playfair), Georgia, serif;
+  font-weight: 600;
+  line-height: 1.15;
+  margin: 0;
+}
+
+h1 {
+  font-size: clamp(28px, 4vw, 44px);
+  letter-spacing: -0.01em;
+}
+
+h2 {
+  font-size: clamp(20px, 2.4vw, 26px);
+}
+
+h3 {
+  font-size: 17px;
+}
+
+/*
+ * Raqamlar — tabular figures.
+ * Jadval, reyting va ochko ustunlarida raqamlar TIK turishi shart,
+ * aks holda ustun "raqsga tushadi" (dizayn tizimi §04).
+ */
+.tabular {
+  font-family: var(--font-mono), 'IBM Plex Mono', ui-monospace, monospace;
+  font-variant-numeric: tabular-nums;
+}
+
+/* --- Tartib (layout) -------------------------------------------------- */
+
+.container {
+  width: 100%;
+  max-width: 1120px;
+  margin: 0 auto;
+  padding: 0 20px;
+}
+
+.stack {
+  display: flex;
+  flex-direction: column;
+}
+
+.muted {
+  color: var(--ink-secondary);
+}
+
+.small {
+  font-size: 13px;
+}
+
+/* --- Kartalar --------------------------------------------------------- */
+
+.card {
+  background: var(--surface);
+  border: var(--hairline-width) solid var(--hairline);
+  border-radius: var(--radius);
+  padding: 18px;
+}
+
+/* --- Jadval ----------------------------------------------------------- */
+
+.table-wrap {
+  /*
+   * Keng jadval SAHIFANI emas, O'ZINI suradi — mobil ekranda gorizontal
+   * scroll body'ga chiqsa butun sahifa qimirlaydi.
+   */
+  overflow-x: auto;
+  border: var(--hairline-width) solid var(--hairline);
+  border-radius: var(--radius);
+  background: var(--surface);
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 14px;
+}
+
+thead th {
+  text-align: left;
+  font-weight: 600;
+  font-size: 12px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--ink-secondary);
+  padding: 12px 14px;
+  border-bottom: var(--hairline-width) solid var(--hairline);
+  white-space: nowrap;
+}
+
+tbody td {
+  padding: 11px 14px;
+  border-bottom: var(--hairline-width) solid var(--hairline);
+  vertical-align: middle;
+}
+
+tbody tr:last-child td {
+  border-bottom: none;
+}
+
+tbody tr:hover {
+  background: var(--elevated);
+}
+
+.num {
+  text-align: right;
+}
+
+/* --- Nishon (badge) --------------------------------------------------- */
+
+.badge {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 500;
+  border: var(--hairline-width) solid var(--hairline);
+  color: var(--ink-secondary);
+  white-space: nowrap;
+}
+
+.badge-live {
+  color: var(--emerald-bright);
+  border-color: rgba(55, 181, 121, 0.45);
+  background: rgba(55, 181, 121, 0.12);
+}
+
+.badge-open {
+  color: var(--arrow-blue);
+  border-color: rgba(43, 108, 176, 0.45);
+  background: rgba(43, 108, 176, 0.12);
+}
+
+.badge-done {
+  color: var(--slate);
+}
+
+.badge-cancelled {
+  color: var(--burgundy);
+  border-color: rgba(155, 44, 44, 0.45);
+}
+
+/* Unvon (GM/IM/...) — oltin, KAM ishlatiladi (dizayn tizimi). */
+.title-tag {
+  color: var(--gilt);
+  font-weight: 600;
+  font-size: 12px;
+  letter-spacing: 0.03em;
+}
+
+/* --- Taxta motivi ----------------------------------------------------- */
+/*
+ * "Taxta — bu o'zlikdir": yorug'/qorong'i katak duetini takrorlaymiz.
+ * Bu YOLG'IZ dekoratsiya emas — u brendning asosiy belgisi.
+ */
+.board-rule {
+  height: 6px;
+  border-radius: 3px;
+  background-image: linear-gradient(
+    90deg,
+    var(--board-light) 0 12.5%,
+    var(--board-dark) 12.5% 25%
+  );
+  background-size: 48px 100%;
+  opacity: 0.85;
+}
