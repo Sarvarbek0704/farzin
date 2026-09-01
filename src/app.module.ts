@@ -25,6 +25,7 @@ import { RbacGuard } from './modules/identity/rbac.port';
 import { JwtAuthGuard } from './shared/auth/jwt-auth.guard';
 import { AuditModule } from './shared/audit/audit.module';
 import { ProblemDetailsFilter } from './shared/errors/problem-details.filter';
+import { redactionConfig } from './shared/logging/redaction';
 import { MetricsModule } from './shared/metrics/metrics.module';
 import { OutboxModule } from './shared/outbox/outbox.module';
 import { PrismaModule } from './shared/prisma/prisma.module';
@@ -90,18 +91,9 @@ import { RedisModule } from './shared/redis/redis.module';
             }
           : {}),
         // ⚠️  Sir hech qachon loglanmaydi. docs/10-security.md §8
-        redact: {
-          paths: [
-            'req.headers.authorization',
-            'req.headers.cookie',
-            'req.body.password',
-            'req.body.passwordHash',
-            'req.body.totpSecret',
-            'req.body.refreshToken',
-            'res.headers["set-cookie"]',
-          ],
-          censor: '[REDACTED]',
-        },
+        //     Ro'yxat shared/logging/redaction.ts da — u yerda HAQIQIY
+        //     pino bilan test qilinadi (redaction.spec.ts).
+        redact: redactionConfig(),
         autoLogging: {
           // Sog'liq probe'lari va Prometheus scrape'i (har 15s) log'ni
           // ko'mib tashlamasin — docs/15-observability.md §2.2.
