@@ -19,11 +19,15 @@ import { ChangeStatusDto } from './dto/change-status.dto';
 import { CreateSectionDto } from './dto/create-section.dto';
 import { CreateTournamentDto } from './dto/create-tournament.dto';
 import { ListTournamentsQuery } from './dto/list-tournaments.query';
-import { RegisterDto } from './dto/register.dto';
+import { BulkRegisterDto, RegisterDto } from './dto/register.dto';
 import { UpdateTournamentDto } from './dto/update-tournament.dto';
 import { WithdrawRegistrationDto } from './dto/withdraw-registration.dto';
 import type { RegistrationRow, SectionRow, TournamentRow } from './tournament.repository';
-import { type PublicRegistrationView, TournamentService } from './tournament.service';
+import {
+  type BulkRegistrationResult,
+  type PublicRegistrationView,
+  TournamentService,
+} from './tournament.service';
 
 /**
  * Tournament endpointlari. O'qish — ochiq (kalendar — ommaviy ma'lumot),
@@ -176,15 +180,39 @@ export class TournamentController {
   @ApiBearerAuth('access-token')
   @RequirePermission('Registration', 'create')
   @ApiOperation({
-    summary: "O'zini ro'yxatga olish — turnir REGISTRATION_OPEN bo'lishi shart",
+    summary: "Ro'yxatga olish — o'zini yoki (playerId bilan) boshqa o'yinchini",
+    description:
+      "`playerId` berilmasa — o'zini. Berilsa — hakam/tashkilotchi oqimi: " +
+      'RBAC `own` scope QAMRAMAYDI, turnir/klub/federatsiya darajasidagi ' +
+      'grant kerak. Turnir REGISTRATION_OPEN holatida bo`lishi shart.',
   })
   register(
     @CurrentActor() actor: Actor,
     @Param('sectionId', ParseUUIDPipe) sectionId: string,
-    // Body hozircha bo'sh — forbidNonWhitelisted ortiqcha maydonni rad etadi.
-    @Body() _dto: RegisterDto,
+    @Body() dto: RegisterDto,
   ): Promise<RegistrationRow> {
-    return this.tournamentService.register(actor, sectionId);
+    return this.tournamentService.register(actor, sectionId, dto.playerId);
+  }
+
+  @Post('sections/:sectionId/registrations/bulk')
+  @HttpCode(HttpStatus.OK)
+  @ApiBearerAuth('access-token')
+  @RequirePermission('Registration', 'create')
+  @ApiOperation({
+    summary: "Ommaviy ro'yxatga olish — MAVJUD o'yinchilar ro'yxati bo'yicha",
+    description:
+      'QISMAN muvaffaqiyat: bitta takror yozuv butun importni yiqitmaydi. ' +
+      "Javobda har o'yinchi uchun natija bo'ladi. Yangi o'yinchi PROFILI " +
+      'YARATILMAYDI — sababi register.dto.ts izohida (voyaga yetmaganlar ' +
+      "ma'lumoti — docs/README.md bloklovchi ochiq savoli).",
+  })
+  @ApiResponse({ status: 200, description: 'Hisobot: registered / failed' })
+  registerMany(
+    @CurrentActor() actor: Actor,
+    @Param('sectionId', ParseUUIDPipe) sectionId: string,
+    @Body() dto: BulkRegisterDto,
+  ): Promise<BulkRegistrationResult> {
+    return this.tournamentService.registerMany(actor, sectionId, dto.playerIds);
   }
 
   @Public()

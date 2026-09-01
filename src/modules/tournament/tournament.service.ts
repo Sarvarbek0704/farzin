@@ -1,6 +1,11 @@
 import { Inject, Injectable } from '@nestjs/common';
 
-import { BusinessRuleError, ConflictError, NotFoundError } from '../../core/errors/domain.error';
+import {
+  BusinessRuleError,
+  ConflictError,
+  DomainError,
+  NotFoundError,
+} from '../../core/errors/domain.error';
 import {
   DEFAULT_PAGE_SIZE,
   decodeCursor,
@@ -31,6 +36,21 @@ export interface PublicRegistrationView {
   lastName: string | null;
   title: string | null;
   fideId: string | null;
+}
+
+/**
+ * Ommaviy ro'yxatga olish hisoboti.
+ *
+ * QISMAN muvaffaqiyat mumkin: bitta o'yinchidagi xato butun importni
+ * yiqitmaydi (tournament.service.ts registerMany izohi).
+ */
+export interface BulkRegistrationResult {
+  /** So'ralgan identifikatorlar soni (takrorlar bilan). */
+  requested: number;
+  /** Yaratilgan Registration identifikatorlari. */
+  registered: string[];
+  /** Kirmagan o'yinchilar — sabab kodi bilan. */
+  failed: { playerId: string; code: string; message: string }[];
 }
 
 /** Turnirning org-ierarxiya konteksti (yaratishda dto'dan keladi). */
@@ -280,7 +300,25 @@ export class TournamentService {
    * TODO(Faza 4): start puli bor turnirda to'lov oqimi — hozircha
    *               puli borlar isConfirmed=false (PENDING_PAYMENT semantikasi).
    */
-  async register(actor: Actor, sectionId: string): Promise<RegistrationRow> {
+  /**
+   * Ro'yxatga olish.
+   *
+   * @param targetPlayerId  berilsa — BOSHQA o'yinchini ro'yxatga olish
+   *   (hakam oqimi, docs/14-roadmap.md Faza 1 "o'zi yoki hakam tomonidan").
+   *   Ilgari bu imkoniyat YO'Q edi va real turnirda kelib qolgan
+   *   o'yinchini hakam qo'sha olmasdi (docs/AUDIT.md JIDDIY-8).
+   *
+   * RBAC farqi ATAYLAB avtomatik: o'zini ro'yxatga olishda `ownerUserId`
+   * uzatiladi va `own` scope qamraydi; boshqa odamni ro'yxatga olishda
+   * u UZATILMAYDI — `scopeCovers` uchun maydon `undefined` bo'ladi va
+   * `own` grant qamramaydi ("noaniqlik = rad", rbac.service.ts). Ya'ni
+   * faqat turnir/klub/federatsiya yoki global grant o'tadi.
+   */
+  async register(
+    actor: Actor,
+    sectionId: string,
+    targetPlayerId?: string,
+  ): Promise<RegistrationRow> {
     const section = await this.tournaments.findSectionById(sectionId);
     if (section === null) {
       throw new NotFoundError('TournamentSection', sectionId);
@@ -290,9 +328,10 @@ export class TournamentService {
       throw new NotFoundError('Tournament', section.tournamentId);
     }
 
+    const onBehalfOfOther = targetPlayerId !== undefined;
     const allowed = this.rbac.can(actor, 'create', {
       type: 'Registration',
-      ownerUserId: actor.userId,
+      ...(onBehalfOfOther ? {} : { ownerUserId: actor.userId }),
       ...this.toOrgRef(tournament),
       tournamentId: tournament.id,
     });
@@ -306,10 +345,13 @@ export class TournamentService {
       });
     }
 
-    const player = await this.players.findSummaryByUserId(actor.userId);
+    const player = onBehalfOfOther
+      ? await this.players.findById(targetPlayerId)
+      : await this.players.findSummaryByUserId(actor.userId);
     if (player === null) {
-      // Aktorning o'yinchi profili yo'q — avval profil kerak.
-      throw new NotFoundError('Player');
+      // O'zini ro'yxatga olishda — aktorning profili yo'q (avval profil
+      // kerak); hakam oqimida — ko'rsatilgan o'yinchi topilmadi.
+      throw new NotFoundError('Player', targetPlayerId);
     }
 
     const existing = await this.tournaments.findRegistration(sectionId, player.id);
@@ -353,6 +395,58 @@ export class TournamentService {
       },
       actor.userId,
     );
+  }
+
+  /**
+   * Ommaviy ro'yxatga olish — mavjud o'yinchilar ro'yxati bo'yicha.
+   *
+   * ═════════════════════════════════════════════════════════════════════
+   *  QISMAN MUVAFFAQIYAT — ATAYLAB.
+   *
+   *  Bitta o'yinchi allaqachon ro'yxatda bo'lgani (yoki profili yo'qligi)
+   *  BUTUN importni yiqitmasligi kerak: hakam 60 kishilik ro'yxatni
+   *  yuklaganda 3 tasi takror bo'lsa, qolgan 57 tasi kirishi shart.
+   *  Shuning uchun bu metod throw QILMAYDI, har o'yinchi uchun natija
+   *  qaytaradi va chaqiruvchi (hakam) nima bo'lganini ko'radi.
+   *
+   *  Ruxsat xatosi ISTISNO: u birinchi o'yinchidayoq chiqadi va butun
+   *  operatsiyani to'xtatadi — aks holda 200 ta 404 qaytarardik.
+   * ═════════════════════════════════════════════════════════════════════
+   *
+   * Ketma-ket bajariladi, parallel EMAS: `countActiveRegistrations`
+   * (maxPlayers tekshiruvi) parallel yozuvlarda limitdan oshib ketardi.
+   */
+  async registerMany(
+    actor: Actor,
+    sectionId: string,
+    playerIds: readonly string[],
+  ): Promise<BulkRegistrationResult> {
+    const registered: string[] = [];
+    const failed: { playerId: string; code: string; message: string }[] = [];
+
+    // Takror identifikatorlar — ro'yxatda ikki marta yozilgan bo'lishi
+    // mumkin; ikkinchisi baribir ConflictError bo'lardi, oldindan tozalash
+    // esa hisobotni tushunarli qiladi.
+    for (const playerId of [...new Set(playerIds)]) {
+      try {
+        const row = await this.register(actor, sectionId, playerId);
+        registered.push(row.id);
+      } catch (error) {
+        if (error instanceof NotFoundError && error.meta.resource === 'TournamentSection') {
+          // Ruxsat yo'q (yoki seksiya yo'q) — davom etishning ma'nosi yo'q.
+          // `register` ruxsatsizlikni ATAYLAB shu xato bilan qaytaradi
+          // (404, 403 emas — docs/04-api-spec.md §2.4).
+          throw error;
+        }
+        if (error instanceof DomainError) {
+          failed.push({ playerId, code: error.code, message: error.message });
+          continue;
+        }
+        throw error;
+      }
+    }
+
+    return { registered, failed, requested: playerIds.length };
   }
 
   /** Ommaviy ishtirokchilar ro'yxati — faqat tasdiqlangan va chiqmaganlar. */
