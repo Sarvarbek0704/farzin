@@ -1,9 +1,9 @@
 <!-- AUDIT-SUMMARY
 loyiha: farzin
 sana: 2026-09-01
-tayyorlik: 63
+tayyorlik: 68
 holat: ishlaydi
-tz_bandlari: 31/87
+tz_bandlari: 32/87
 build: ok
 typecheck: ok
 lint: ok
@@ -29,7 +29,8 @@ kichik: 12
 Farzin — O'zbekiston shaxmati uchun NestJS asosidagi backend platformasi: turnir
 o'tkazish (FIDE Dutch Swiss juftlashtirish), Glicko-2 milliy reyting, onlayn o'yin
 (server-authoritative taymer), to'lov (double-entry ledger) va fair-play tahlili.
-33 000 qator TypeScript, 212 fayl, 59 REST endpoint, 42 Prisma modeli.
+33 000 qator TypeScript, 212 fayl, 59 REST endpoint, 42 Prisma modeli,
+va `web/` da Next.js frontend (9 route).
 **Kod sifati bu portfeldagi eng yuqori darajalardan biri** — `strict` TypeScript
 toza o'tadi, lint toza, arxitektura chegaralari CI vositasi bilan majburlanadi,
 va kodning o'zi o'z cheklovlarini halol hujjatlaydi.
@@ -47,13 +48,28 @@ Uchala **KRITIK** topilma ham yopildi: image quriladi, parolni tiklash
 oqimi bor, email tasdiqlash xati haqiqatan yuboriladi (mailpit'da jonli
 tasdiqlandi). 11 ta **JIDDIY** dan 7 tasi to'liq, 3 tasi qisman yopildi.
 
-**Endi eng katta bo'shliq — frontend.** TZ (docs/12) va dizayn hujjati
-(14 ta ekran maketi `Farzin design-system foundation.zip` da) mavjud,
-lekin biror qator UI kodi yozilmagan. Backend ishlaydi va sinaladi, lekin
-hakam ham, o'yinchi ham unga qo'l bilan tegolmaydi. Qolgan ochiq
-JIDDIY'lar — o'yin taymerlarining bitta instance'ga bog'liqligi, to'lov
-provayderlarining ulanmagani (sandbox kredensiallari kerak) va fair-play
-kalibratsiyasi (ma'lum toza/chit o'yin to'plami kerak).
+**Frontend endi mavjud va ishlaydi** (`33620a9`, `4959077`). Auditda u
+"eng katta bo'shliq" edi — TZ va 14 ta ekran maketi bor, kod nol. Endi
+`web/` da Next.js 15 ilovasi bor:
+
+- **ommaviy o'qish** — turnir kalendari, seksiyalar va jonli jadval
+  (tie-break ustunlari bilan), milliy reyting, o'yinchi profili;
+- **hakam konsoli** — kirish, holat o'tishlari, tur generatsiyasi,
+  natija kiritish, turni yopish, juftlik varaqasi va jadval PDF'lari.
+
+Butun hakam oqimi brauzerdagi yo'l bilan (Next proxy orqali) jonli
+tekshirildi: login → tur generatsiyasi → natija → turni yopish →
+keyingi tur. Shu bilan Faza 1 DoD'ning "hakam turnirni boshidan
+oxirigacha o'tkaza oladi" bandi yopildi.
+
+**Qolgan eng katta bo'shliq — onlayn o'yin taxtasi**, va u
+**muhandislik emas, yuridik masala bilan bloklangan**:
+`docs/README.md` chessground'ning GPL-3.0 litsenziyasi tijorat
+mahsulotga mosligini *bloklovchi ochiq savol* deb belgilaydi va u hali
+yuristda. Qolgan ochiq JIDDIY'lar — o'yin taymerlarining bitta
+instance'ga bog'liqligi, to'lov provayderlarining ulanmagani (sandbox
+kredensiallari kerak) va fair-play kalibratsiyasi (ma'lum toza/chit
+o'yin to'plami kerak). Uchalasi ham tashqi resursga bog'liq.
 
 Fazalar bo'yicha: 0–6 fazalar boshlangan va katta qismi ishlaydi; 7–10
 fazalar (maktab/B2G, broadcast, mobil, masshtab) umuman boshlanmagan.
@@ -151,11 +167,11 @@ Belgilar: ✅ bajarilgan · 🟡 qisman · ❌ yo'q
 | Swagger `/docs` to'liq                                               | ✅    | `/api/docs` 200, 59 endpoint, DTO sxemalari to'liq                                                                                                                      |
 | Docker image < 250 MB (yoki farq izohlangan)                         | ✅    | Image quriladi (`526510f`). 861 MB — chegaradan katta, lekin farq Dockerfile sarlavhasida o'lchov bilan IZOHLANGAN, DoD shu variantga ruxsat beradi. Slimming — 23-band |
 
-### Faza 1 — Turnir yadrosi (4/8 → **5/8**)
+### Faza 1 — Turnir yadrosi (4/8 → **6/8**)
 
 | Band                                                   | Holat | Izoh                                                                                                      |
 | ------------------------------------------------------ | ----- | --------------------------------------------------------------------------------------------------------- |
-| Hakam 16 o'yinchili round-robin turnirni o'tkaza oladi | 🟡    | Round-robin dvigateli + testlar bor; hakam **o'zi o'yinchi qo'sha olmaydi** (JIDDIY-8)                    |
+| Hakam 16 o'yinchili round-robin turnirni o'tkaza oladi | ✅    | Dvigatel + hakam ro'yxatga olishi (`af06554`) + **brauzer konsoli** (`4959077`): tur generatsiyasi, natija, turni yopish jonli tekshirildi |
 | Jadval va tie-break golden test bilan mos              | ✅    | `tiebreak.calculator.spec.ts` — 10 FIDE kaliti, qo'lda hisoblangan ssenariylar                            |
 | Har natija o'zgarishi audit'da, sabab bilan            | ✅    | Jonli: sababsiz o'zgartirish 422; sabab `audit_logs.after.reason` da                                      |
 | PGN Swiss-Manager'da ochiladi (real tekshiruv)         | 🟡    | PGN sintaktik to'g'ri, **real dasturda ochib ko'rilmagan**                                                |
@@ -581,13 +597,13 @@ Kubernetes'ni talab qiladi — hozirgi kod bunga tayyor emas.
 
 ---
 
-#### JIDDIY-7 — Frontend umuman yo'q
+#### JIDDIY-7 — Frontend umuman yo'q 🟡 QISMAN TUZATILDI (2026-09-01, `33620a9` + `4959077`)
 
 **`src/` — faqat backend**
 
 TZ `docs/12-frontend-spec.md` (57 KB) va dizayn brifi (`design_prompts/farzin.md`,
 20 KB) mavjud; `Farzin design-system foundation.zip` da 14 ta yuqori sifatli
-ekran maketi bor. Kod tomonda **nol**.
+ekran maketi bor. Kod tomonda **nol** edi.
 
 **Qanday sharoitda buziladi:** loyihaning maqsadi bo'yicha — hakam, o'yinchi,
 klub adminining hech biri tizimdan foydalana olmaydi. Faza 1 DoD "Hakam turnir
@@ -595,8 +611,49 @@ o'tkaza oladi" va Faza 6 "Komissiya paneli real hakam bilan sinovdan o'tgan"
 bandlari **printsipial jihatdan** bajarilishi mumkin emas. Portfel nuqtai
 nazaridan: ish beruvchi reponi ochganda ko'radigan narsa yo'q.
 
-Bu — **eng katta bitta bo'shliq**, ammo u KRITIK emas: mavjud kod noto'g'ri
-ishlamaydi, u shunchaki yarim mahsulot.
+**Tuzatildi (qisman):** `web/` da Next.js 15 ilovasi — repo ichida, lekin
+**alohida paket** (o'z `package.json`, lockfile, `node_modules`). pnpm
+workspace ataylab ishlatilmadi: u root `Dockerfile` dagi
+`pnpm install --frozen-lockfile` ni buzib KRITIK-1 tuzatilishini yo'qqa
+chiqarardi. `.dockerignore` ga `web/` qo'shildi.
+
+Ikki bo'lak qurildi:
+
+| Bo'lak | Ekranlar | Holat |
+|---|---|---|
+| Ommaviy o'qish (`33620a9`) | `/`, `/turnirlar`, `/turnirlar/[id]`, `/reyting`, `/oyinchi/[id]` | ✅ ishlaydi |
+| Hakam konsoli (`4959077`) | `/konsol/kirish`, `/konsol`, `/konsol/turnir/[id]` | ✅ ishlaydi |
+
+Dizayn tokenlari dizayn tizimidan **aynan** ko'chirildi (taxmin yo'q):
+Study (qorong'i, standart) / Editorial (yorug') temalari, emerald aksent,
+Playfair + Inter + IBM Plex Mono (uchalasi kirillni qo'llaydi — brifning
+qattiq talabi), "taxta motivi" ajratgich, bo'sh/xato holatlari birinchi
+darajali ekran sifatida.
+
+Xavfsizlik: access token **faqat xotirada** (localStorage emas — u
+httpOnly refresh cookie himoyasini bekor qilardi); CORS umuman yo'q,
+chunki `/api/*` Next rewrite orqali bir xil origin'da qoladi.
+
+Jonli tekshirildi (real backend + seed, hammasi Next proxy orqali):
+login → refresh → tur generatsiyasi → natija kiritish → turni yopish →
+keyingi tur (201, 3 juftlik) → jadval PDF (1842 bayt, `%PDF-`) va
+juftlik varaqasi PDF (1731 bayt). Ommaviy sahifa yangilangan jadvalni
+darhol ko'rsatadi.
+
+**Nega hali ham QISMAN — nima yo'q:**
+
+- **Onlayn o'yin taxtasi** (Faza 5 UI). `docs/README.md` da
+  **chessground GPL-3.0 litsenziyasi tijorat mahsulotga mos keladimi**
+  degan savol *bloklovchi* deb belgilangan va u hali yuristda. Taxta
+  komponentini yozish shu javobgacha to'xtatilgan.
+- **Fair-play komissiya paneli** (Faza 6 DoD) — backend API tayyor, UI yo'q.
+- **To'lov oqimi UI** — provayderlar ulanmagani uchun (JIDDIY-9) mazmunsiz.
+- **Til almashtirgich** (`uz-Cyrl`/`ru`/`en`) — shriftlar kirillga tayyor,
+  lekin matnlar hozircha faqat `uz-Latn` da qattiq yozilgan.
+- **Mobil ko'rinish** — jadvallar `overflow-x` bilan surilади, lekin
+  maketlardagi mobil layout alohida ishlanmagan.
+- Frontend uchun **test yo'q** (E2E ham, komponent ham). Tekshiruv
+  hozircha qo'lda o'tkazilgan jonli smoke-test darajasida.
 
 ---
 
@@ -827,7 +884,7 @@ Tartib — ta'sir/xarajat nisbati bo'yicha. Hajm: **S** ≈ 1 kun, **M** ≈ 2�
 | 16  | Rate limit + o'yin taymerlarini Redis'ga          | **M**         | 🟡 `3db1070` — rate limit BAJARILDI; **taymerlar YO'Q** (quyida 22-band) |
 | 17  | k6 load testlari + K8s manifestlari               | **L**         | ❌ **BAJARILMADI**                                                       |
 | 18  | Swiss golden test to'plami (5 real turnir)        | **L**         | ❌ **BAJARILMADI**                                                       |
-| 19  | **Frontend** — Next.js ilovasi                    | **L** (oylar) | ❌ **BAJARILMADI**                                                       |
+| 19  | **Frontend** — Next.js ilovasi                    | **L** (oylar) | 🟡 `33620a9` + `4959077` — ommaviy qism va hakam konsoli ✅; taxta/fair-play UI YO'Q |
 | 20  | Click/Payme sandbox integratsiyasi                | **L**         | ❌ **BAJARILMADI**                                                       |
 | 21  | Stockfish worker image + fair-play kalibratsiyasi | **L**         | 🟡 worker image ✅ (`526510f`); **kalibratsiya YO'Q**                    |
 
@@ -840,7 +897,7 @@ bo'lmagan narsa kerak** bo'lgan bandlar:
 | --- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | 17  | DoD o'lchovni talab qiladi: "k6: 1000 concurrent o'yin, threshold'lar o'tadi", "Pod boshiga sig'im **o'lchangan**". Klaster va yuk generatsiya quvvatisiz yozilgan skript — ishlatilmagan kod, ya'ni auditning o'zi ogohlantirgan naqsh |
 | 18  | Chess-Results/Swiss-Manager real turnir dump'lari kerak (tashqi ma'lumot) **va** har farqni FIDE hakami bilan tekshirish. Ma'lumotni to'qib bo'lmaydi — golden test'ning butun mohiyati real natijada                                   |
-| 19  | Reja o'zi "bir necha oy" deb baholaydi. Dizayn maketlari tayyor, lekin bu bitta sessiyaga sig'adigan ish emas                                                                                                                           |
+| 19  | **Qisman bajarildi.** Ikki bo'lak (ommaviy o'qish + hakam konsoli) qurildi va jonli tekshirildi. Qolgani: onlayn o'yin taxtasi — `docs/README.md` dagi **chessground GPL-3.0** savoli hali yuristda va u bloklovchi deb belgilangan; fair-play paneli va to'lov UI esa mos backend bo'laklari tayyor bo'lmaguncha mazmunsiz |
 | 20  | Click/Payme **sandbox merchant kredensiallari** kerak (docs.click.uz ro'yxati). Imzo formulasi provayder hujjatidan olinadi — `click.provider.ts:17-38` buni aniq yozadi: "Imzo formulasi BU YERDA O'YLAB TOPILMAYDI"                   |
 | 21  | Kalibratsiya ma'lum TOZA va ma'lum CHIT o'yinlar to'plamini talab qiladi. Bunday ma'lumot yo'q; to'qilgan to'plamdagi "yolg'on-pozitiv darajasi" — soxta raqam, va docs/08 bo'yicha bu odam karyerasiga tegadigan soha                  |
 
