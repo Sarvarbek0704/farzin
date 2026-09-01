@@ -52,6 +52,14 @@ scrape_configs:
   #  ikkalasi ham target sifatida berilgan, biri DOWN bo'lsa
   #  FarzinTargetDown alert'i chiqadi, bu kutilgan.
   - job_name: farzin-api
+    # METRICS_TOKEN qo'yilgan bo'lsa scrape ham token bilan boradi
+    # (metrics.controller.ts assertAuthorized). Lokal dev'da odatda
+    # qo'yilmaydi — quyidagi ikki qatorni izohdan chiqaring va
+    # docker/prometheus/metrics-token faylini yarating.
+    #
+    # authorization:
+    #   type: Bearer
+    #   credentials_file: /etc/prometheus/metrics-token
     static_configs:
       - targets: ['farzin-api:3000']
         labels:

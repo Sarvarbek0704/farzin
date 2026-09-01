@@ -242,6 +242,22 @@ class EnvironmentVariables {
   @IsOptional()
   SENTRY_DSN?: string;
 
+  /**
+   * /metrics uchun scrape tokeni. IXTIYORIY.
+   *
+   * Berilmasa endpoint AUTENTIFIKATSIYASIZ ochiq qoladi (orqaga moslik) —
+   * ishga tushishda ogohlantirish log'ga chiqadi. Prod'da berilishi
+   * tavsiya etiladi: metrikalar route inventari, so'rov hajmi, xato
+   * darajasi va ledger holatini oshkor qiladi (docs/AUDIT.md JIDDIY-2).
+   *
+   * Prometheus tomonda: scrape_configs[].bearer_token_file.
+   * Generatsiya: openssl rand -base64 48
+   */
+  @IsString()
+  @MinLength(16, { message: "METRICS_TOKEN kamida 16 belgi bo'lishi kerak" })
+  @IsOptional()
+  METRICS_TOKEN?: string;
+
   // --- Rate limiting ------------------------------------------------------
   @IsInt()
   THROTTLE_TTL = 60;
@@ -268,6 +284,8 @@ export interface AppConfig {
   argon2: { memoryCost: number; timeCost: number; parallelism: number };
   totpEncryptionKey?: string;
   observability: { logLevel: string; otelEnabled: boolean; sentryDsn?: string };
+  /** /metrics scrape tokeni; berilmasa endpoint ochiq (metrics.controller.ts). */
+  metricsToken?: string;
   throttle: { ttl: number; limit: number };
   /** Play moduli sozlamalari (docs/07 §3.8). null = hujjat jadvali. */
   play: { disconnectGraceMsOverride: number | null };
@@ -413,6 +431,7 @@ export function loadConfig(): AppConfig {
     ...(env.TOTP_ENCRYPTION_KEY !== undefined && {
       totpEncryptionKey: env.TOTP_ENCRYPTION_KEY,
     }),
+    ...(env.METRICS_TOKEN !== undefined && { metricsToken: env.METRICS_TOKEN }),
     observability: {
       logLevel: env.LOG_LEVEL,
       otelEnabled: env.OTEL_ENABLED,
