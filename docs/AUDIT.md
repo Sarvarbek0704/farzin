@@ -642,10 +642,17 @@ darhol ko'rsatadi.
 
 **Nega hali ham QISMAN — nima yo'q:**
 
-- **Onlayn o'yin taxtasi** (Faza 5 UI). `docs/README.md` da
-  **chessground GPL-3.0 litsenziyasi tijorat mahsulotga mos keladimi**
-  degan savol *bloklovchi* deb belgilangan va u hali yuristda. Taxta
-  komponentini yozish shu javobgacha to'xtatilgan.
+- **Onlayn o'yinda YURISH qilish** (Faza 5 UI). Taxta va tomoshabin
+  ko'rinishi QO'SHILDI (`/oyin/[id]`), lekin jonli yangilanish va
+  yurish qilish Socket.IO qatlamini talab qiladi — u alohida bo'lak.
+
+  ⚠️  **chessground GPL-3.0 blokeri YOPILDI.** `docs/README.md` uni
+      "tijorat mahsulotga mos keladimi — Yurist" degan *bloklovchi*
+      savol deb belgilagan edi. Yechim yuridik emas, muhandislik
+      bo'ldi: chessground o'rniga `react-chessboard` (MIT). Frontend
+      bog'liqlik daraxti tekshirildi — 289 paket, GPL/AGPL/SSPL/CC-BY-NC
+      oilasidan HECH NARSA yo'q (MIT 247, ISC 12, Apache-2.0 10, BSD 12,
+      MPL-2.0 3). Ya'ni bu savolni yuristga yubormasa ham bo'ladi.
 - **Fair-play komissiya paneli** (Faza 6 DoD) — backend API tayyor, UI yo'q.
 - **To'lov oqimi UI** — provayderlar ulanmagani uchun (JIDDIY-9) mazmunsiz.
 - **Til almashtirgich** (`uz-Cyrl`/`ru`/`en`) — shriftlar kirillga tayyor,

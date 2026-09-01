@@ -212,3 +212,33 @@ export const getPlayer = (id: string): Promise<Player> => get<Player>(`/api/v1/p
 
 export const getRatingHistory = (id: string): Promise<Page<RatingHistoryRow>> =>
   get<Page<RatingHistoryRow>>(`/api/v1/players/${id}/rating-history?first=20`);
+
+// --- Onlayn o'yin (tomoshabin) ------------------------------------------------
+
+export interface GamePlayer {
+  playerId: string;
+  firstName: string;
+  lastName: string;
+  title: string | null;
+  rating: number;
+}
+
+export interface GameState {
+  gameId: string;
+  status: string;
+  /** Joriy pozitsiya — taxta shundan chiziladi. */
+  fen: string;
+  /** Boshidan barcha yurishlar, SAN. */
+  moves: string[];
+  ply: number;
+  clock: { whiteMs: number; blackMs: number; running: 'w' | 'b' | null };
+  timeCategory: string;
+  baseTimeSeconds: number;
+  incrementSeconds: number;
+  white: GamePlayer;
+  black: GamePlayer;
+  isRated: boolean;
+}
+
+export const getGame = (id: string): Promise<GameState> =>
+  get<GameState>(`/api/v1/play/games/${id}`);
