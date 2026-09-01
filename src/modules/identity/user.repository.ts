@@ -11,6 +11,8 @@ export interface UserView {
   passwordHash: string | null;
   status: 'PENDING_VERIFICATION' | 'ACTIVE' | 'SUSPENDED' | 'BANNED' | 'DELETED';
   emailVerified: boolean;
+  /** Xat tili — tranzaksion pochta shu bo'yicha render qilinadi. */
+  locale: string;
   deletedAt: Date | null;
   totpEnabled: boolean;
   /** SHIFRLANGAN TOTP siri (SecretBox formati). NULL = 2FA yo'q. */
@@ -96,8 +98,48 @@ export class UserRepository {
     return toView(created);
   }
 
+  /**
+   * Jimgina hash yangilash — FAQAT shaffof qayta-hash uchun
+   * (Argon2 parametrlari kuchaytirilganda, login paytida). Bu foydalanuvchi
+   * amali EMAS, shuning uchun audit yozuvi ham yo'q.
+   */
   async updatePasswordHash(userId: string, passwordHash: string): Promise<void> {
     await this.prisma.user.update({ where: { id: userId }, data: { passwordHash } });
+  }
+
+  /**
+   * Parol O'ZGARTIRILDI — hash + audit BIR TRANZAKSIYADA.
+   *
+   * Nega `updatePasswordHash` dan alohida: bu xavfsizlik hodisasi va u
+   * audit izisiz qolmasligi kerak (docs/10-security.md §10). Atomiklik
+   * shart — parol o'zgarib, audit yozuvi yo'qolsa, "kim va qachon
+   * o'zgartirdi?" savoliga javob yo'qoladi.
+   *
+   * `action` chaqiruvchidan keladi, chunki ikki oqim bor va ular
+   * auditda FARQLANISHI kerak:
+   *   auth.password_reset  — tokenli tiklash (parolni bilmagan odam)
+   *   auth.password_changed — o'zi almashtirdi (eski parolni bilgan)
+   */
+  async changePassword(input: {
+    userId: string;
+    passwordHash: string;
+    action: 'auth.password_reset' | 'auth.password_changed';
+    meta: RequestMetaInput;
+  }): Promise<void> {
+    await this.prisma.$transaction(async (tx) => {
+      await tx.user.update({
+        where: { id: input.userId },
+        data: { passwordHash: input.passwordHash },
+      });
+      await this.audit.write(tx, {
+        action: input.action,
+        actorUserId: input.userId,
+        resourceType: 'User',
+        resourceId: input.userId,
+        ipAddress: input.meta.ip ?? null,
+        userAgent: input.meta.userAgent ?? null,
+      });
+    });
   }
 
   /** Muvaffaqiyatli kirish: lastLogin + audit — bir tranzaksiyada. */
@@ -207,6 +249,7 @@ function toView(user: User): UserView {
     passwordHash: user.passwordHash,
     status: user.status,
     emailVerified: user.emailVerified,
+    locale: user.locale,
     deletedAt: user.deletedAt,
     totpEnabled: user.totpEnabled,
     totpSecret: user.totpSecret,

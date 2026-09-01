@@ -264,4 +264,198 @@ describe('Auth oqimi (integration)', () => {
       expectProblem(blocked, 429, 'TOO_MANY_ATTEMPTS');
     });
   });
+
+  // --- Parolni tiklash / almashtirish ------------------------------------------
+  //
+  //  docs/AUDIT.md KRITIK-2: bu oqim UMUMAN YO'Q edi, holbuki
+  //  docs/10-security.md:1423 `/auth/password/forgot` va `/reset` ni aniq
+  //  talab qiladi. Parolini unutgan foydalanuvchi hisobiga abadiy kira
+  //  olmasdi — yagona yo'l bazaga qo'lda SQL edi.
+  //
+  //  Integration harness'da SMTP ATAYLAB o'chiq (app.harness.ts
+  //  SMTP_HOST=''), shuning uchun xat YUBORILISHI transactional-mail.
+  //  service.spec.ts da (jsonTransport) tekshiriladi. Bu yerda oqimning
+  //  QOLGAN hammasi sinaladi: token, holat o'zgarishi, sessiyalar,
+  //  audit, enumeration himoyasi.
+  describe('parol oqimlari', () => {
+    /** Redis'dan tiklash tokenini olish — xat o'rniga (SMTP testda o'chiq). */
+    async function resetTokenFor(): Promise<string> {
+      const keys = await t.redis.keys('pwdreset:*');
+      expect(keys).toHaveLength(1);
+      return keys[0]!.replace('pwdreset:', '');
+    }
+
+    it("forgot: mavjud BO'LMAGAN email uchun ham 204 (user enumeration yo'q)", async () => {
+      // ENG MUHIM da'vo: javob hisob bor-yo'qligini OSHKOR QILMAYDI.
+      const res = await request(t.server)
+        .post('/api/v1/auth/password/forgot')
+        .send({ email: 'umuman-yoq@test.uz' });
+
+      expect(res.status).toBe(204);
+      // Token ham yaratilmaydi — yaratilsa Redis'ni to'ldirish vektori bo'lardi.
+      expect(await t.redis.keys('pwdreset:*')).toHaveLength(0);
+    });
+
+    it('forgot: mavjud email uchun 204 va bir martalik token yaratiladi', async () => {
+      await registerUser(t.server, { email: 'unutdim@test.uz' });
+
+      const res = await request(t.server)
+        .post('/api/v1/auth/password/forgot')
+        .send({ email: 'unutdim@test.uz' });
+
+      expect(res.status).toBe(204);
+      const keys = await t.redis.keys('pwdreset:*');
+      expect(keys).toHaveLength(1);
+
+      // TTL 1 soat — email tasdiqlashdan (24 soat) qisqaroq, chunki bu
+      // token hisobni to'liq egallash imkonini beradi.
+      const ttl = await t.redis.ttl(keys[0]!);
+      expect(ttl).toBeGreaterThan(0);
+      expect(ttl).toBeLessThanOrEqual(60 * 60);
+    });
+
+    it('reset: yangi parol ishlaydi, eskisi ishlamaydi, audit yoziladi', async () => {
+      await registerUser(t.server, { email: 'tiklash@test.uz' });
+      await request(t.server)
+        .post('/api/v1/auth/password/forgot')
+        .send({ email: 'tiklash@test.uz' });
+      const token = await resetTokenFor();
+
+      const res = await request(t.server)
+        .post('/api/v1/auth/password/reset')
+        .send({ token, newPassword: 'yangi-kuchli-parol-2026' });
+      expect(res.status).toBe(204);
+
+      // Yangi parol bilan kirish ishlaydi.
+      const ok = await loginUser(t.server, 'tiklash@test.uz', 'yangi-kuchli-parol-2026');
+      expect(ok.status).toBe(200);
+
+      // Eski parol endi ISHLAMAYDI.
+      const old = await loginUser(t.server, 'tiklash@test.uz', DEFAULT_PASSWORD);
+      expectProblem(old, 401, 'INVALID_CREDENTIALS');
+
+      const audit = await t.prisma.auditLog.findMany({
+        where: { action: 'auth.password_reset' },
+      });
+      expect(audit).toHaveLength(1);
+    });
+
+    it('reset: token BIR MARTALIK — ikkinchi urinish 422', async () => {
+      await registerUser(t.server, { email: 'birmarta@test.uz' });
+      await request(t.server)
+        .post('/api/v1/auth/password/forgot')
+        .send({ email: 'birmarta@test.uz' });
+      const token = await resetTokenFor();
+
+      const first = await request(t.server)
+        .post('/api/v1/auth/password/reset')
+        .send({ token, newPassword: 'birinchi-yangi-parol-1' });
+      expect(first.status).toBe(204);
+
+      const second = await request(t.server)
+        .post('/api/v1/auth/password/reset')
+        .send({ token, newPassword: 'ikkinchi-yangi-parol-2' });
+      expectProblem(second, 422, 'INVALID_PASSWORD_RESET_TOKEN');
+    });
+
+    it("reset: BARCHA sessiyalar bekor qilinadi (o'g'irlangan refresh ham o'ladi)", async () => {
+      // Tiklash stsenariysi "hisob egallangan bo'lishi mumkin" farazi
+      // ustiga qurilgan — o'g'rining refresh tokeni ham o'lishi SHART.
+      const reg = await registerUser(t.server, { email: 'sessiya@test.uz' });
+      const stolenCookie = extractRefreshCookie(reg);
+
+      // O'g'irlangan cookie tiklashdan OLDIN ishlaydi.
+      const before = await refreshWithCookie(t.server, stolenCookie);
+      expect(before.status).toBe(200);
+      const stolenAfterRotation = extractRefreshCookie(before);
+
+      await request(t.server)
+        .post('/api/v1/auth/password/forgot')
+        .send({ email: 'sessiya@test.uz' });
+      const token = await resetTokenFor();
+      const res = await request(t.server)
+        .post('/api/v1/auth/password/reset')
+        .send({ token, newPassword: 'butunlay-yangi-parol-9' });
+      expect(res.status).toBe(204);
+
+      // Endi o'g'irlangan token O'LIK.
+      const after = await refreshWithCookie(t.server, stolenAfterRotation);
+      expectProblem(after, 401, 'UNAUTHORIZED');
+
+      const alive = await t.prisma.refreshToken.count({
+        where: { user: { email: 'sessiya@test.uz' }, revokedAt: null },
+      });
+      expect(alive).toBe(0);
+    });
+
+    it('reset: yaroqsiz token → 422 (mavjud emas/eskirgan farqlanmaydi)', async () => {
+      const res = await request(t.server)
+        .post('/api/v1/auth/password/reset')
+        .send({ token: 'butunlay-soxta-token', newPassword: 'yangi-parol-12345' });
+      expectProblem(res, 422, 'INVALID_PASSWORD_RESET_TOKEN');
+    });
+
+    it("change: joriy parol noto'g'ri → 422, parol O'ZGARMAYDI", async () => {
+      const reg = await registerUser(t.server, { email: 'almash@test.uz' });
+      const accessToken = reg.body.accessToken as string;
+
+      const res = await request(t.server)
+        .post('/api/v1/auth/password/change')
+        .set(bearer(accessToken))
+        .send({ currentPassword: 'butunlay-boshqa', newPassword: 'yangi-parol-abc-1' });
+      expectProblem(res, 422, 'CURRENT_PASSWORD_MISMATCH');
+
+      // Eski parol hali ham ishlaydi — hech narsa o'zgarmagan.
+      const still = await loginUser(t.server, 'almash@test.uz');
+      expect(still.status).toBe(200);
+    });
+
+    it('change: joriy parol bilan → 204, sessiyalar bekor, audit yoziladi', async () => {
+      const reg = await registerUser(t.server, { email: 'almash-ok@test.uz' });
+      const accessToken = reg.body.accessToken as string;
+      const cookie = extractRefreshCookie(reg);
+
+      const res = await request(t.server)
+        .post('/api/v1/auth/password/change')
+        .set(bearer(accessToken))
+        .send({ currentPassword: DEFAULT_PASSWORD, newPassword: 'yangi-parol-xyz-2' });
+      expect(res.status).toBe(204);
+
+      const ok = await loginUser(t.server, 'almash-ok@test.uz', 'yangi-parol-xyz-2');
+      expect(ok.status).toBe(200);
+
+      // Eski refresh o'lik — o'g'irlangan token bilan hisob qaytarib
+      // olinmasligi uchun.
+      const after = await refreshWithCookie(t.server, cookie);
+      expectProblem(after, 401, 'UNAUTHORIZED');
+
+      const audit = await t.prisma.auditLog.findMany({
+        where: { action: 'auth.password_changed' },
+      });
+      expect(audit).toHaveLength(1);
+    });
+
+    it('change: autentifikatsiyasiz → 401', async () => {
+      const res = await request(t.server)
+        .post('/api/v1/auth/password/change')
+        .send({ currentPassword: DEFAULT_PASSWORD, newPassword: 'yangi-parol-000' });
+      expectProblem(res, 401, 'UNAUTHORIZED');
+    });
+
+    it('forgot: 3/soat limit (docs/10 §7.1) — 4-chisi 429', async () => {
+      await registerUser(t.server, { email: 'limit@test.uz' });
+
+      for (let i = 0; i < 3; i += 1) {
+        const ok = await request(t.server)
+          .post('/api/v1/auth/password/forgot')
+          .send({ email: 'limit@test.uz' });
+        expect(ok.status).toBe(204);
+      }
+
+      const blocked = await request(t.server)
+        .post('/api/v1/auth/password/forgot')
+        .send({ email: 'limit@test.uz' });
+      expectProblem(blocked, 429, 'TOO_MANY_ATTEMPTS');
+    });
+  });
 });

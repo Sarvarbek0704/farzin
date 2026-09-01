@@ -277,6 +277,59 @@ const TEMPLATES: Record<TemplateKey, LocaleTable> = {
         `If you did not sign up, simply ignore this email.`,
     }),
   },
+
+  //  docs/10-security.md §7.1: POST /auth/password/forgot.
+  //
+  //  ⚠️  MATNDA HISOB HAQIDA HECH NARSA AYTILMAYDI. Xat faqat so'rov
+  //      bo'lganini bildiradi — "sizda hisob bor" degan tasdiq emas.
+  //      Sabab: forgot endpointi mavjud bo'lmagan email uchun ham 204
+  //      qaytaradi (user enumeration himoyasi), demak xat matni ham
+  //      shu qoidani buzmasligi kerak.
+  //
+  //  Muddat 1 soat — tasdiqlashdan (24 soat) QISQAROQ, chunki bu token
+  //  hisobni to'liq egallash imkonini beradi.
+  'auth.password_reset': {
+    'uz-Latn': (p) => ({
+      subject: `Farzin — parolni tiklash`,
+      body:
+        `Assalomu alaykum!\n\n` +
+        `Farzin hisobingiz uchun parolni tiklash so'raldi. Yangi parol ` +
+        `o'rnatish uchun quyidagi havolaga o'ting:\n\n${s(p, 'resetUrl')}\n\n` +
+        `Havola 1 soat amal qiladi va faqat BIR MARTA ishlaydi.\n\n` +
+        `Agar bu so'rovni siz yubormagan bo'lsangiz — hech narsa qilmang, ` +
+        `parolingiz o'zgarmaydi.`,
+    }),
+    'uz-Cyrl': (p) => ({
+      subject: `Farzin — паролни тиклаш`,
+      body:
+        `Ассалому алайкум!\n\n` +
+        `Farzin ҳисобингиз учун паролни тиклаш сўралди. Янги парол ` +
+        `ўрнатиш учун қуйидаги ҳаволага ўтинг:\n\n${s(p, 'resetUrl')}\n\n` +
+        `Ҳавола 1 соат амал қилади ва фақат БИР МАРТА ишлайди.\n\n` +
+        `Агар бу сўровни сиз юбормаган бўлсангиз — ҳеч нарса қилманг, ` +
+        `паролингиз ўзгармайди.`,
+    }),
+    ru: (p) => ({
+      subject: `Farzin — восстановление пароля`,
+      body:
+        `Здравствуйте!\n\n` +
+        `Запрошено восстановление пароля для вашей учётной записи Farzin. ` +
+        `Чтобы задать новый пароль, перейдите по ссылке:\n\n${s(p, 'resetUrl')}\n\n` +
+        `Ссылка действительна 1 час и срабатывает ТОЛЬКО ОДИН РАЗ.\n\n` +
+        `Если запрос отправляли не вы — ничего не делайте, пароль ` +
+        `останется прежним.`,
+    }),
+    en: (p) => ({
+      subject: `Farzin — password reset`,
+      body:
+        `Hello,\n\n` +
+        `A password reset was requested for your Farzin account. Set a new ` +
+        `password using this link:\n\n${s(p, 'resetUrl')}\n\n` +
+        `The link is valid for 1 hour and works ONLY ONCE.\n\n` +
+        `If you did not request this, do nothing — your password stays ` +
+        `unchanged.`,
+    }),
+  },
 };
 
 /** User.locale (erkin string) → qo'llab-quvvatlanadigan til; boshqa → uz-Latn. */

@@ -52,3 +52,36 @@ export class InvalidVerificationTokenError extends DomainError {
     super("Tasdiqlash havolasi yaroqsiz yoki muddati o'tgan");
   }
 }
+
+/**
+ * Parol tiklash tokeni yaroqsiz/eskirgan/ishlatilgan.
+ *
+ * ATAYLAB uch holat uchun BITTA xato: "token yo'q", "muddati o'tgan" va
+ * "allaqachon ishlatilgan" farqlanmaydi — farq hujumchiga token maydonini
+ * zondlash imkonini berardi.
+ */
+export class InvalidPasswordResetTokenError extends DomainError {
+  readonly code = 'INVALID_PASSWORD_RESET_TOKEN';
+  readonly httpStatus = 422;
+
+  constructor() {
+    super("Parolni tiklash havolasi yaroqsiz yoki muddati o'tgan");
+  }
+}
+
+/**
+ * Parol almashtirishda joriy parol noto'g'ri.
+ *
+ * `InvalidCredentialsError` (401) DAN ALOHIDA: bu yerda foydalanuvchi
+ * ALLAQACHON autentifikatsiyadan o'tgan, ya'ni 401 "qayta kiring" degan
+ * noto'g'ri signal berardi. 422 — "so'rov tushunarli, lekin shart
+ * bajarilmadi".
+ */
+export class CurrentPasswordMismatchError extends DomainError {
+  readonly code = 'CURRENT_PASSWORD_MISMATCH';
+  readonly httpStatus = 422;
+
+  constructor() {
+    super("Joriy parol noto'g'ri");
+  }
+}

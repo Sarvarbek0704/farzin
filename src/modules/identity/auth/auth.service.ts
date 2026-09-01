@@ -19,8 +19,10 @@ import { RefreshTokenService } from '../token/refresh-token.repository';
 import { UserRepository } from '../user.repository';
 import {
   AccountDisabledError,
+  CurrentPasswordMismatchError,
   EmailAlreadyRegisteredError,
   InvalidCredentialsError,
+  InvalidPasswordResetTokenError,
   InvalidVerificationTokenError,
   TooManyAttemptsError,
 } from './auth.errors';
@@ -87,6 +89,23 @@ const REGISTER_LIMIT = 3;
 const REGISTER_WINDOW_SECONDS = 60 * 60;
 const TOTP_LIMIT = 5;
 const TOTP_WINDOW_SECONDS = 15 * 60;
+
+/**
+ * Parolni tiklash — docs/10-security.md §7.1 jadvalidan AYNAN:
+ *   POST /auth/password/forgot → 3/soat, kalit IP + email
+ *   POST /auth/password/reset  → 5/soat, kalit IP
+ */
+const PASSWORD_FORGOT_LIMIT = 3;
+const PASSWORD_FORGOT_WINDOW_SECONDS = 60 * 60;
+const PASSWORD_RESET_LIMIT = 5;
+const PASSWORD_RESET_WINDOW_SECONDS = 60 * 60;
+
+/**
+ * Tiklash tokeni TTL — 1 soat. Email tasdiqlashdan (24 soat) QISQAROQ:
+ * bu token hisobni to'liq egallash imkonini beradi, tasdiqlash tokeni esa
+ * faqat manzilni tasdiqlaydi. Shablon matnida ham 1 soat deyilgan.
+ */
+const PASSWORD_RESET_TTL_SECONDS = 60 * 60;
 
 @Injectable()
 export class AuthService {
@@ -273,6 +292,200 @@ export class AuthService {
     }
     await this.redis.del(key);
     await this.users.markEmailVerified(userId);
+  }
+
+  // --- Parol oqimlari (docs/10-security.md §7.1) --------------------------------
+
+  /**
+   * Parolni tiklashni SO'RASH.
+   *
+   * ═════════════════════════════════════════════════════════════════════
+   *  HAR DOIM MUVAFFAQIYAT QAYTARADI — email bor-yo'qligidan qat'i nazar.
+   *
+   *  Aks holda bu endpoint foydalanuvchi bazasini sanab chiqish vositasiga
+   *  aylanardi: "email topilmadi" javobi qaysi manzillar ro'yxatdan
+   *  o'tganini oshkor qiladi (login'dagi bilan bir xil tamoyil —
+   *  docs/10-security.md §2.1).
+   *
+   *  Shu sababli chaqiruvchi hech qachon xato ko'rmaydi; nima bo'lgani
+   *  faqat log'da qoladi.
+   * ═════════════════════════════════════════════════════════════════════
+   *
+   * Limitlar (§7.1 jadvali): 3/soat, kalit IP + email — ikkalasi ham,
+   * chunki bitta IP'dan ko'p manzilga xat bombardimon qilish ham,
+   * bitta manzilga ko'p IP'dan yozish ham suiiste'mol.
+   */
+  async requestPasswordReset(email: string, meta: RequestMeta): Promise<void> {
+    const normalized = email.toLowerCase().trim();
+
+    const [byIp, byEmail] = await Promise.all([
+      this.limiter.consume(
+        `pwdforgot:ip:${meta.ip ?? 'unknown'}`,
+        PASSWORD_FORGOT_LIMIT,
+        PASSWORD_FORGOT_WINDOW_SECONDS,
+      ),
+      this.limiter.consume(
+        `pwdforgot:email:${normalized}`,
+        PASSWORD_FORGOT_LIMIT,
+        PASSWORD_FORGOT_WINDOW_SECONDS,
+      ),
+    ]);
+    if (!byIp.allowed || !byEmail.allowed) {
+      // Limit — YAGONA holat, unda xato qaytadi. Bu enumeration bermaydi:
+      // chegara so'rov MAZMUNIGA emas, chastotasiga bog'liq.
+      throw new TooManyAttemptsError(Math.max(byIp.retryAfterSeconds, byEmail.retryAfterSeconds));
+    }
+
+    // Mos hisob yo'q (yoki o'chirilgan) — JIMGINA to'xtaymiz. Chaqiruvchi
+    // baribir 204 oladi (metod sarlavhasidagi enumeration izohi).
+    const user = await this.users.findByEmail(normalized);
+    // login() bilan bir xil naqsh: maydonni AVVAL ajratamiz, keyin
+    // tekshiramiz — aks holda `user === null || user.x` optional-chain
+    // qoidasiga uriladi.
+    const deletedAt = user?.deletedAt ?? null;
+    const userEmail = user?.email ?? null;
+    if (user === null || deletedAt !== null || userEmail === null) {
+      this.logger.debug("Parol tiklash: mos hisob yo'q (javob baribir 204)");
+      return;
+    }
+
+    const token = randomBytes(32).toString('base64url');
+    await this.redis.set(`pwdreset:${token}`, user.id, 'EX', PASSWORD_RESET_TTL_SECONDS);
+
+    const appUrl = this.config.get('appUrl', { infer: true });
+    // Frontend sahifasi (docs/12-frontend-spec.md). Frontend hali yo'q,
+    // shuning uchun havola API endpointiga EMAS, kelajakdagi sahifaga
+    // ishora qiladi: token GET bilan URL'da yuborilsa, u brauzer tarixida
+    // va Referer sarlavhasida qolib ketardi. Reset — POST.
+    const resetUrl = `${appUrl}/parolni-tiklash?token=${token}`;
+
+    if (!this.mailer.enabled) {
+      if (this.config.get('nodeEnv', { infer: true }) === NodeEnv.Development) {
+        this.logger.debug(`[DEV] Parolni tiklash havolasi: ${resetUrl}`);
+      } else {
+        this.logger.warn('SMTP sozlanmagan — parol tiklash xati YUBORILMADI.');
+      }
+      return;
+    }
+
+    try {
+      await this.mailer.send({
+        to: normalized,
+        templateKey: 'auth.password_reset',
+        locale: user.locale,
+        payload: { resetUrl },
+      });
+    } catch (error) {
+      this.logger.warn(
+        `Parol tiklash xati yuborilmadi (user=${user.id}): ${
+          error instanceof Error ? error.message : "noma'lum xato"
+        }`,
+      );
+    }
+  }
+
+  /**
+   * Token bilan yangi parol o'rnatish.
+   *
+   * Xavfsizlik qoidalari:
+   *  - token BIR MARTALIK: tekshirilgandan keyin darhol o'chiriladi,
+   *    parol yangilanishidan OLDIN. Poyga holatida ikki so'rov bir xil
+   *    tokendan foydalana olmaydi (`GETDEL` atomik).
+   *  - parol o'zgargach BARCHA sessiyalar bekor qilinadi: tiklash
+   *    stsenariysining o'zi "hisob egallangan bo'lishi mumkin" degan
+   *    faraz ustiga qurilgan, demak o'g'rining refresh tokeni ham
+   *    o'lishi SHART (docs/10-security.md §2.3).
+   *  - audit yozuvi parol yangilanishi bilan bir tranzaksiyada.
+   *
+   * Limit: 5/soat, kalit IP (§7.1) — token brute-force'ga qarshi.
+   */
+  async resetPassword(token: string, newPassword: string, meta: RequestMeta): Promise<void> {
+    const decision = await this.limiter.consume(
+      `pwdreset:ip:${meta.ip ?? 'unknown'}`,
+      PASSWORD_RESET_LIMIT,
+      PASSWORD_RESET_WINDOW_SECONDS,
+    );
+    if (!decision.allowed) {
+      throw new TooManyAttemptsError(decision.retryAfterSeconds);
+    }
+
+    if (token === '') {
+      throw new InvalidPasswordResetTokenError();
+    }
+
+    // GETDEL — atomik o'qish+o'chirish: ikki parallel so'rov bitta
+    // tokenni ikki marta ishlata olmaydi.
+    const userId = await this.redis.getdel(`pwdreset:${token}`);
+    if (userId === null) {
+      throw new InvalidPasswordResetTokenError();
+    }
+
+    // Token yaroqli edi, lekin hisob yo'q/o'chirilgan. Token GETDEL bilan
+    // allaqachon iste'mol qilindi — qayta ishlatib bo'lmaydi.
+    const user = await this.users.findById(userId);
+    const deletedAt = user?.deletedAt ?? null;
+    const userEmailForReset = user?.email ?? null;
+    if (user === null || deletedAt !== null) {
+      throw new InvalidPasswordResetTokenError();
+    }
+
+    const passwordHash = await this.password.hash(newPassword);
+    await this.users.changePassword({
+      userId,
+      passwordHash,
+      action: 'auth.password_reset',
+      meta,
+    });
+
+    // Barcha qurilmalardan chiqarish — yuqoridagi izoh.
+    await this.refreshTokens.revokeAllForUser(userId);
+
+    // Muvaffaqiyatli tiklashdan keyin login limitini bo'shatamiz: aks
+    // holda odam yangi parolini kiritolmay yana qulflanardi (parolni
+    // unutgan odam allaqachon bir necha marta xato kiritgan bo'ladi).
+    if (userEmailForReset !== null) {
+      await this.limiter.reset(`login:email:${userEmailForReset}`);
+    }
+  }
+
+  /**
+   * Foydalanuvchi o'z parolini almashtiradi (autentifikatsiya bilan).
+   *
+   * Joriy parol MAJBURIY: o'g'irlangan access token bilan (15 daqiqa
+   * amal qiladi) hisobni butunlay egallab olishning oldini oladi.
+   *
+   * Sessiyalar: BARCHASI bekor qilinadi. Bu ataylab qattiq — parol
+   * almashtirishning eng ko'p uchraydigan sababi "kimdir kirgan bo'lishi
+   * mumkin" degan shubha. Chaqiruvchi (controller) o'z cookie'sini ham
+   * tozalaydi va foydalanuvchi qayta kiradi.
+   */
+  async changePassword(
+    userId: string,
+    currentPassword: string,
+    newPassword: string,
+    meta: RequestMeta,
+  ): Promise<void> {
+    // Parolsiz hisob (masalan faqat OAuth) — joriy parolni tasdiqlab
+    // bo'lmaydi, shuning uchun bu yo'l ochiq emas.
+    const user = await this.users.findById(userId);
+    const currentHash = user?.passwordHash ?? null;
+    if (user === null || currentHash === null) {
+      throw new CurrentPasswordMismatchError();
+    }
+
+    const valid = await this.password.verify(currentHash, currentPassword);
+    if (!valid) {
+      throw new CurrentPasswordMismatchError();
+    }
+
+    await this.users.changePassword({
+      userId,
+      passwordHash: await this.password.hash(newPassword),
+      action: 'auth.password_changed',
+      meta,
+    });
+
+    await this.refreshTokens.revokeAllForUser(userId);
   }
 
   /**

@@ -25,6 +25,7 @@ describe('notification templates', () => {
     gameId: '019-game',
     status: 'CHECKMATE',
     verifyUrl: 'https://farzin.uz/api/v1/auth/verify-email?token=abc123',
+    resetUrl: 'https://farzin.uz/parolni-tiklash?token=xyz789',
   };
 
   it.each(

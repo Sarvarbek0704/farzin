@@ -45,6 +45,7 @@ export const TEMPLATE_KEYS = [
   //  Bu kalitlar `notifyUsers` yo'lidan O'TMAYDI: ular tasdiqlanmagan
   //  manzilga ketishi shart va Notification qatori yaratmaydi.
   'auth.verify_email',
+  'auth.password_reset',
 ] as const;
 
 export type TemplateKey = (typeof TEMPLATE_KEYS)[number];

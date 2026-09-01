@@ -8,6 +8,7 @@ import type { AuthenticatedUser } from '../../../shared/auth/authenticated-user'
 import { CurrentUser } from '../../../shared/auth/current-user.decorator';
 import { Public } from '../../../shared/auth/public.decorator';
 import { LoginDto } from './dto/login.dto';
+import { ChangePasswordDto, ForgotPasswordDto, ResetPasswordDto } from './dto/password.dto';
 import { RegisterDto } from './dto/register.dto';
 import { AuthService, type AuthTokens } from './auth.service';
 
@@ -121,6 +122,74 @@ export class AuthController {
   async verifyEmail(@Query('token') token: string | undefined): Promise<{ verified: boolean }> {
     await this.auth.verifyEmail(token ?? '');
     return { verified: true };
+  }
+
+  // --- Parol oqimlari (docs/10-security.md §7.1) -------------------------------
+
+  @Public()
+  @Post('password/forgot')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  @ApiOperation({
+    summary: "Parolni tiklashni so'rash — email bilan",
+    description:
+      "HAR DOIM 204 qaytaradi, hisob bor-yo'qligidan qat'i nazar. " +
+      'Aks holda bu endpoint foydalanuvchi bazasini sanab chiqish ' +
+      'vositasiga aylanardi (docs/10-security.md §2.1).',
+  })
+  @ApiResponse({ status: 204, description: "So'rov qabul qilindi" })
+  @ApiResponse({ status: 429, description: 'Limit: 3/soat (IP va email)' })
+  async forgotPassword(@Body() dto: ForgotPasswordDto, @Req() req: Request): Promise<void> {
+    await this.auth.requestPasswordReset(dto.email, this.meta(req));
+  }
+
+  @Public()
+  @Post('password/reset')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  @ApiOperation({
+    summary: "Token bilan yangi parol o'rnatish",
+    description:
+      'Token BIR MARTALIK. Muvaffaqiyatdan keyin BARCHA sessiyalar bekor ' +
+      'qilinadi — tiklash stsenariysi "hisob egallangan bo\'lishi mumkin" ' +
+      'farazi ustiga qurilgan.',
+  })
+  @ApiResponse({ status: 204, description: "Parol o'rnatildi, barcha sessiyalar bekor" })
+  @ApiResponse({ status: 422, description: "Token yaroqsiz yoki muddati o'tgan" })
+  @ApiResponse({ status: 429, description: 'Limit: 5/soat (IP)' })
+  async resetPassword(
+    @Body() dto: ResetPasswordDto,
+    @Req() req: Request,
+    @Res({ passthrough: true }) res: Response,
+  ): Promise<void> {
+    await this.auth.resetPassword(dto.token, dto.newPassword, this.meta(req));
+    // Bu brauzerdagi refresh cookie ham o'lik — tozalaymiz, aks holda
+    // klient bekor qilingan token bilan 401 olib chalkashadi.
+    this.clearRefreshCookie(res);
+  }
+
+  @Post('password/change')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  @ApiBearerAuth('access-token')
+  @ApiOperation({
+    summary: 'Parolni almashtirish (joriy parol majburiy)',
+    description:
+      "Joriy parol MAJBURIY: o'g'irlangan access token bilan hisobni " +
+      'butunlay egallab olishning oldini oladi. Barcha sessiyalar bekor.',
+  })
+  @ApiResponse({ status: 204, description: 'Parol almashtirildi, qayta kirish kerak' })
+  @ApiResponse({ status: 422, description: "Joriy parol noto'g'ri" })
+  async changePassword(
+    @CurrentUser() user: AuthenticatedUser,
+    @Body() dto: ChangePasswordDto,
+    @Req() req: Request,
+    @Res({ passthrough: true }) res: Response,
+  ): Promise<void> {
+    await this.auth.changePassword(
+      user.userId,
+      dto.currentPassword,
+      dto.newPassword,
+      this.meta(req),
+    );
+    this.clearRefreshCookie(res);
   }
 
   @Get('me')
