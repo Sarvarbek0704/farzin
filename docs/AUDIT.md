@@ -1,22 +1,26 @@
 <!-- AUDIT-SUMMARY
 loyiha: farzin
-sana: 2026-08-31
-tayyorlik: 52
+sana: 2026-09-01
+tayyorlik: 63
 holat: ishlaydi
-tz_bandlari: 26/87
+tz_bandlari: 31/87
 build: ok
 typecheck: ok
 lint: ok
-test: 43
-kritik: 3
-jiddiy: 11
+test: 49
+kritik: 0
+jiddiy: 4
 kichik: 12
 -->
 
 # Farzin — loyiha holati auditi
 
-> Sana: 2026-08-31 · Commit: `5355b3e` · Auditor: Claude Opus 5
-> Bu hujjat **holatni qayd etadi**, tuzatmaydi. Har bir topilma fayl va qator bilan isbotlangan.
+> **Audit:** 2026-08-31, commit `5355b3e` · **Tuzatish bosqichi:** 2026-09-01, `526510f`..`3db1070`
+> Auditor: Claude Opus 5
+>
+> Har bir topilma fayl va qator bilan isbotlangan. Tuzatilgan topilmalar
+> **o'chirilmagan** — sarlavhasiga `✅ TUZATILDI` va commit qo'shilgan,
+> tarix qoladi (FIX-BRIEF §4).
 
 ---
 
@@ -28,21 +32,32 @@ o'tkazish (FIDE Dutch Swiss juftlashtirish), Glicko-2 milliy reyting, onlayn o'y
 33 000 qator TypeScript, 212 fayl, 59 REST endpoint, 42 Prisma modeli.
 **Kod sifati bu portfeldagi eng yuqori darajalardan biri** — `strict` TypeScript
 toza o'tadi, lint toza, arxitektura chegaralari CI vositasi bilan majburlanadi,
-580 test yashil, va kodning o'zi o'z cheklovlarini halol hujjatlaydi.
+va kodning o'zi o'z cheklovlarini halol hujjatlaydi.
+Testlar: **49 to'plam — 538 unit + 105 integration, hammasi yashil**
+(auditdan keyin +6 to'plam, +63 test).
 
-**Eng katta muammo — deploy qilib bo'lmaydi.** `docker build` `Dockerfile:49` da
-yiqiladi (Alpine repolarida `stockfish` paketi yo'q), demak **ishlaydigan image
-umuman mavjud emas**. CI esa avtomatik triggerlari o'chirilgan holda turibdi
-(`.github/workflows/ci.yml:17-21`), shuning uchun bu buzilish hech qachon
-ushlanmagan. Ikkinchi darajali muammo — **frontend butunlay yo'q**: TZ (docs/12)
-va dizayn hujjati (14 ta ekran maketi `Farzin design-system foundation.zip` da)
-mavjud, lekin biror qator UI kodi yozilmagan. Uchinchisi — **parolni tiklash
-oqimi yo'q**: parolini unutgan foydalanuvchi hisobiga abadiy kira olmaydi, holbuki
-`docs/10-security.md:1423` bu endpointlarni aniq talab qiladi.
+**Auditda eng katta muammo deploy qilib bo'lmasligi edi** — `docker build`
+ikki joyda yiqilardi va ishlaydigan image umuman mavjud emasdi; CI esa
+triggerlari o'chirilgan holda turgani uchun buni 25 commit davomida hech
+kim ko'rmagan. **Bu yopildi** (tuzatish bosqichi, 2026-09-01): ikkala image
+quriladi, CI avtomatik ishlaydi, `docker compose up` toza holatdan
+migratsiya + API + worker'ni ko'taradi.
 
-Fazalar bo'yicha: 0–6 fazalar boshlangan va katta qismi ishlaydi; 7–10 fazalar
-(maktab/B2G, broadcast, mobil, masshtab) umuman boshlanmagan. TZ ning 87 ta
-"tayyorlik mezoni" bandidan 26 tasi bajarilgan, 21 tasi qisman.
+Uchala **KRITIK** topilma ham yopildi: image quriladi, parolni tiklash
+oqimi bor, email tasdiqlash xati haqiqatan yuboriladi (mailpit'da jonli
+tasdiqlandi). 11 ta **JIDDIY** dan 7 tasi to'liq, 3 tasi qisman yopildi.
+
+**Endi eng katta bo'shliq — frontend.** TZ (docs/12) va dizayn hujjati
+(14 ta ekran maketi `Farzin design-system foundation.zip` da) mavjud,
+lekin biror qator UI kodi yozilmagan. Backend ishlaydi va sinaladi, lekin
+hakam ham, o'yinchi ham unga qo'l bilan tegolmaydi. Qolgan ochiq
+JIDDIY'lar — o'yin taymerlarining bitta instance'ga bog'liqligi, to'lov
+provayderlarining ulanmagani (sandbox kredensiallari kerak) va fair-play
+kalibratsiyasi (ma'lum toza/chit o'yin to'plami kerak).
+
+Fazalar bo'yicha: 0–6 fazalar boshlangan va katta qismi ishlaydi; 7–10
+fazalar (maktab/B2G, broadcast, mobil, masshtab) umuman boshlanmagan.
+TZ ning 87 ta "tayyorlik mezoni" bandidan 31 tasi bajarilgan.
 
 ---
 
@@ -50,58 +65,63 @@ Fazalar bo'yicha: 0–6 fazalar boshlangan va katta qismi ishlaydi; 7–10 fazal
 
 Hammasi shu mashinada, shu commit'da haqiqatan ishga tushirildi.
 
-| Qadam | Buyruq | Natija | Izoh |
-|---|---|---|---|
-| O'rnatish | `pnpm install --frozen-lockfile` | ✅ **ok** (1m 52s) | Lockfile mos, `husky` prepare ishladi |
-| Prisma | `./node_modules/.bin/prisma generate` | ✅ **ok** | v6.19.3 |
-| Typecheck | `npx tsc --noEmit` | ✅ **ok** | 0 xato, `strict` + `noUncheckedIndexedAccess` |
-| Lint | `pnpm lint` | ✅ **ok** | `--max-warnings 0` bilan 0 ogohlantirish |
-| Arxitektura | `pnpm arch:check` | ✅ **ok** | 216 modul, 804 bog'liqlik, 0 buzilish |
-| Format | `prettier --check` | ⚠️ **123 faylda "xato"** | **Soxta xato:** `.gitattributes` yo'q + `core.autocrlf=true` → diskda CRLF, `.prettierrc` esa `endOfLine: lf`. CRLF olib tashlansa farq **nol**. Linux CI'da o'tadi, Windows'da har doim yiqiladi |
-| Unit testlar | `jest --selectProjects unit --maxWorkers=2` | ✅ **33/33 to'plam, 493 test o'tdi**, 2 skip (47s) | Skip — `STOCKFISH_PATH` yo'q (`stockfish-uci.adapter.spec.ts:101`) |
-| Integratsiya | `jest --selectProjects integration --runInBand` | ✅ **10/10 to'plam, 87 test o'tdi** (310s) | Real PostgreSQL 17 + Redis 7 (Testcontainers) |
-| Build | `pnpm build` | ✅ **ok** | `nest build` toza |
-| **Docker image** | `docker build -t farzin:audit .` | ❌ **XATO** | `Dockerfile:49` — `ERROR: unable to select packages: stockfish (no such package)` |
-| Migratsiya | `prisma migrate deploy` | ✅ **ok** | 2 ta migratsiya qo'llandi |
-| Seed | `tsx prisma/seed.ts` | ✅ **ok** | Faqat 1 federatsiya + 14 viloyat |
-| Ilova ishga tushishi | `node dist/main.js` | ✅ **2 soniyada UP** | `/health/ready` → `{database: up, redis: up}` |
-| Observability profili | `docker compose --profile observability up prometheus` | ❌ **XATO** | `docker/prometheus/prometheus.yml` mavjud emas |
+Ustunlar: **audit** (2026-08-31, `5355b3e`) va **tuzatishdan keyin**
+(2026-09-01). Hammasi shu mashinada haqiqatan ishga tushirilgan.
+
+| Qadam                                  | Audit                      | Tuzatishdan keyin                                              |
+| -------------------------------------- | -------------------------- | -------------------------------------------------------------- |
+| `pnpm install --frozen-lockfile`       | ✅ ok                      | ✅ ok                                                          |
+| `prisma generate`                      | ✅ ok                      | ✅ ok                                                          |
+| `tsc --noEmit`                         | ✅ ok                      | ✅ ok                                                          |
+| `pnpm lint`                            | ✅ ok                      | ✅ ok                                                          |
+| `pnpm arch:check`                      | ✅ 216 modul               | ✅ **223 modul, 830 bog'liqlik**, 0 buzilish                   |
+| `prettier --check`                     | ❌ 123 fayl                | ✅ **ok** — `.gitattributes` + prettier qotirildi (K-3, K-15)  |
+| Unit testlar                           | ✅ 33 to'plam / 493 test   | ✅ **38 to'plam / 538 test**                                   |
+| Integration testlar                    | ✅ 10 to'plam / 87 test    | ✅ **11 to'plam / 105 test**                                   |
+| `pnpm build`                           | ✅ ok                      | ✅ ok                                                          |
+| **`docker build` (API)**               | ❌ **XATO**                | ✅ **ok** — `farzin:api` 861 MB                                |
+| **`docker build --target worker`**     | — (mavjud emas)            | ✅ **ok** — `farzin:worker` 1.05 GB, Stockfish 18 bilan        |
+| `prisma migrate deploy`                | ✅ ok                      | ✅ ok                                                          |
+| `prisma/seed.ts`                       | ✅ ok (1 fed + 14 viloyat) | ✅ **ok — + SUPER_ADMIN, 5 o'yinchi, demo turnir**, idempotent |
+| Ilova ishga tushishi                   | ✅ 2s                      | ✅ ok                                                          |
+| **`docker compose up` (to'liq stack)** | ❌ `app` xizmati yo'q      | ✅ **ok** — migrate → app (healthy) + worker                   |
+| **Observability profili**              | ❌ **XATO** (konfig yo'q)  | ✅ **ok** — 3 recording + 11 alert yuklandi                    |
 
 ### 2.1 Jonli smoke-test (haqiqatan bajarildi)
 
 Ilova ko'tarilgandan keyin quyidagi oqimlar **HTTP orqali** uchidan-uchigacha
 o'tkazildi:
 
-| Oqim | Natija |
-|---|---|
-| `register → login → /players/me → refresh` | ✅ Ishladi, `refresh` cookie orqali yangi access token berdi |
-| RFC 9457 xato formati | ✅ `type/title/status/code/instance/traceId` to'liq |
-| RBAC rad etish | ✅ PLAYER turnir yaratolmadi — **404** (403 emas, ataylab) |
-| Turnir yaratish (SUPER_ADMIN) | ✅ `DRAFT` holatida yaratildi |
-| 11 o'yinchili SWISS_DUTCH, 5 tur | ✅ **To'liq o'tdi.** Har tur 5 juftlik + 1 bye, juftlashtirish 0–3 ms |
-| FIDE C1 (takroriy juftlik) | ✅ DB tekshiruvi: **0 ta** takroriy juftlik |
-| FIDE C2 (ikki marta bye) | ✅ DB tekshiruvi: **0 ta** |
-| FIDE C3 (rang farqi >2) | ✅ DB tekshiruvi: **0 ta** |
-| `farzin_pairing_criteria_violations_total` | ✅ Barcha kriteriyalar bo'yicha **0** |
-| Jadval + tie-break | ✅ Buchholz, Buchholz Cut-1, Sonneborn-Berger, Direct Encounter hisoblandi |
-| Natijani sababsiz o'zgartirish | ✅ **422 RESULT_CHANGE_REASON_REQUIRED** |
-| Turni natijasiz yopish | ✅ **422 ROUND_HAS_UNPLAYED_GAMES** |
-| PGN eksport | ✅ To'g'ri PGN teglari (yurishlar yo'q — OTB turnirda normal) |
-| TRF16 eksport | ✅ Swiss-Manager formatiga mos, `0000 - U` bye kodlari to'g'ri |
-| Reyting davri hisobi | ✅ 11 o'yinchi, 25 o'yin; 1500 → 1716.39, RD 350 → 193.53 |
-| Reyting idempotentligi | ✅ Ikkinchi hisob `recomputeGeneration: 1` bilan bir xil |
-| Leaderboard bo'shligi | ✅ **To'g'ri xulq** — provisional o'yinchilar ko'rsatilmaydi (hujjatlangan) |
-| To'lov: invoys → MANUAL → tasdiq | ✅ `FRZ-2026-000001`, 50 000 so'm |
-| Idempotency-Key majburiyligi | ✅ Kalitsiz **400 IDEMPOTENCY_KEY_REQUIRED** |
-| Bir xil kalit bilan takror | ✅ **Bitta** Payment qaytdi |
-| Takroriy `confirm-manual` | ✅ Idempotent, holat `PAID` da qoldi |
-| Ledger balansi | ✅ `cash.manual` DR 5 000 000 / `liability.organizer_payable` CR 5 000 000, `imbalanceTiyin: "0"` |
-| Refund | ✅ Teskari yozuv, ledger yana **0** ga qaytdi |
-| Sozlanmagan provayder webhook'i | ✅ **422 PROVIDER_NOT_CONFIGURED** (jimgina qabul qilmaydi) |
-| Audit log | ✅ 16 xil amal yozilgan, sabab `after.reason` da saqlanadi |
-| Audit log o'zgarmasligi | ✅ `UPDATE`/`DELETE` → PostgreSQL trigger rad etadi |
-| `/metrics` | ✅ 100 ta metrika qatori, RED yorliqlari **shablon** (`/api/v1/auth/login`), xom URL emas |
-| `/metrics` autentifikatsiyasi | ⚠️ **Tokensiz 200** — pastdagi JIDDIY-2 ga qarang |
+| Oqim                                       | Natija                                                                                            |
+| ------------------------------------------ | ------------------------------------------------------------------------------------------------- |
+| `register → login → /players/me → refresh` | ✅ Ishladi, `refresh` cookie orqali yangi access token berdi                                      |
+| RFC 9457 xato formati                      | ✅ `type/title/status/code/instance/traceId` to'liq                                               |
+| RBAC rad etish                             | ✅ PLAYER turnir yaratolmadi — **404** (403 emas, ataylab)                                        |
+| Turnir yaratish (SUPER_ADMIN)              | ✅ `DRAFT` holatida yaratildi                                                                     |
+| 11 o'yinchili SWISS_DUTCH, 5 tur           | ✅ **To'liq o'tdi.** Har tur 5 juftlik + 1 bye, juftlashtirish 0–3 ms                             |
+| FIDE C1 (takroriy juftlik)                 | ✅ DB tekshiruvi: **0 ta** takroriy juftlik                                                       |
+| FIDE C2 (ikki marta bye)                   | ✅ DB tekshiruvi: **0 ta**                                                                        |
+| FIDE C3 (rang farqi >2)                    | ✅ DB tekshiruvi: **0 ta**                                                                        |
+| `farzin_pairing_criteria_violations_total` | ✅ Barcha kriteriyalar bo'yicha **0**                                                             |
+| Jadval + tie-break                         | ✅ Buchholz, Buchholz Cut-1, Sonneborn-Berger, Direct Encounter hisoblandi                        |
+| Natijani sababsiz o'zgartirish             | ✅ **422 RESULT_CHANGE_REASON_REQUIRED**                                                          |
+| Turni natijasiz yopish                     | ✅ **422 ROUND_HAS_UNPLAYED_GAMES**                                                               |
+| PGN eksport                                | ✅ To'g'ri PGN teglari (yurishlar yo'q — OTB turnirda normal)                                     |
+| TRF16 eksport                              | ✅ Swiss-Manager formatiga mos, `0000 - U` bye kodlari to'g'ri                                    |
+| Reyting davri hisobi                       | ✅ 11 o'yinchi, 25 o'yin; 1500 → 1716.39, RD 350 → 193.53                                         |
+| Reyting idempotentligi                     | ✅ Ikkinchi hisob `recomputeGeneration: 1` bilan bir xil                                          |
+| Leaderboard bo'shligi                      | ✅ **To'g'ri xulq** — provisional o'yinchilar ko'rsatilmaydi (hujjatlangan)                       |
+| To'lov: invoys → MANUAL → tasdiq           | ✅ `FRZ-2026-000001`, 50 000 so'm                                                                 |
+| Idempotency-Key majburiyligi               | ✅ Kalitsiz **400 IDEMPOTENCY_KEY_REQUIRED**                                                      |
+| Bir xil kalit bilan takror                 | ✅ **Bitta** Payment qaytdi                                                                       |
+| Takroriy `confirm-manual`                  | ✅ Idempotent, holat `PAID` da qoldi                                                              |
+| Ledger balansi                             | ✅ `cash.manual` DR 5 000 000 / `liability.organizer_payable` CR 5 000 000, `imbalanceTiyin: "0"` |
+| Refund                                     | ✅ Teskari yozuv, ledger yana **0** ga qaytdi                                                     |
+| Sozlanmagan provayder webhook'i            | ✅ **422 PROVIDER_NOT_CONFIGURED** (jimgina qabul qilmaydi)                                       |
+| Audit log                                  | ✅ 16 xil amal yozilgan, sabab `after.reason` da saqlanadi                                        |
+| Audit log o'zgarmasligi                    | ✅ `UPDATE`/`DELETE` → PostgreSQL trigger rad etadi                                               |
+| `/metrics`                                 | ✅ 100 ta metrika qatori, RED yorliqlari **shablon** (`/api/v1/auth/login`), xom URL emas         |
+| `/metrics` autentifikatsiyasi              | ⚠️ **Tokensiz 200** — pastdagi JIDDIY-2 ga qarang                                                 |
 
 **"Yangi dasturchi klon qilib ishga tushira oladimi?"** — **Ha, lekin faqat
 qo'lda.** `pnpm install` → `.env` yaratish → `docker compose up -d` →
@@ -116,107 +136,107 @@ xizmati umuman yo'q) va `docker build` **yiqiladi**.
 `docs/14-roadmap.md` dagi "Tayyorlik mezoni" bandlari bo'yicha.
 Belgilar: ✅ bajarilgan · 🟡 qisman · ❌ yo'q
 
-### Faza 0 — Poydevor (4/10)
+### Faza 0 — Poydevor (4/10 → **8/10**)
 
-| Band | Holat | Izoh |
-|---|---|---|
-| `git clone` → `docker compose up` → ishlaydigan API, qo'lda qadamsiz | ❌ | `docker-compose.yml` da `app` xizmati **yo'q** (faqat postgres/redis/minio/mailpit). README 5 ta qo'lda qadamni ro'yxatlaydi |
-| CI yashil va < 5 daqiqa | ❌ | CI **o'chirilgan** (`ci.yml:17-21` — `push`/`pull_request` izohga olingan). Hech qachon ishlamagan |
-| Migration → deploy → rollback sinovi | ❌ | Isbot yo'q; `dev` muhiti mavjud emas |
-| register → login → refresh → logout e2e | ✅ | `test/integration/auth.spec.ts` (8 test) + jonli tekshirildi |
-| Refresh token reuse aniqlanadi | ✅ | Log'da jonli ko'rindi: "Refresh token reuse aniqlandi — oila bekor qilindi" |
-| Har rol uchun ruxsat testi | 🟡 | `rbac.contract.spec.ts` (matritsa) + `test/integration/rbac.spec.ts` (4 test) bor, lekin 8 roldan hammasi qamralmagan |
-| Audit log biznes o'zgarishi bilan atomik | ✅ | `test/integration/audit-atomicity.spec.ts` (3 test) |
-| Log'da parol/token yo'qligi test bilan | ❌ | **Bunday test yo'q.** Pino redaction konfiguratsiyasi bor (`app.module.ts:93-104`), lekin tasdiqlanmagan |
-| Swagger `/docs` to'liq | ✅ | `/api/docs` 200, 59 endpoint, DTO sxemalari to'liq |
-| Docker image < 250 MB | ❌ | **Image qurilmaydi** (KRITIK-1) |
+| Band                                                                 | Holat | Izoh                                                                                                                                                                    |
+| -------------------------------------------------------------------- | ----- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `git clone` → `docker compose up` → ishlaydigan API, qo'lda qadamsiz | ✅    | **TUZATILDI** (`9cd3937`): `migrate` + `app` + `worker` qo'shildi; toza holatdan sinaldi                                                                                |
+| CI yashil va < 5 daqiqa                                              | 🟡    | Triggerlar YOQILDI (`5ae5698`) va lokal ekvivalent to'liq yashil. GitHub'da haqiqiy yashil run KUZATILMAGAN — Actions bu hisobda mavjud emas                            |
+| Migration → deploy → rollback sinovi                                 | ❌    | Isbot yo'q; `dev` muhiti mavjud emas                                                                                                                                    |
+| register → login → refresh → logout e2e                              | ✅    | `test/integration/auth.spec.ts` (8 test) + jonli tekshirildi                                                                                                            |
+| Refresh token reuse aniqlanadi                                       | ✅    | Log'da jonli ko'rindi: "Refresh token reuse aniqlandi — oila bekor qilindi"                                                                                             |
+| Har rol uchun ruxsat testi                                           | 🟡    | `rbac.contract.spec.ts` (matritsa) + `test/integration/rbac.spec.ts` (4 test) bor, lekin 8 roldan hammasi qamralmagan                                                   |
+| Audit log biznes o'zgarishi bilan atomik                             | ✅    | `test/integration/audit-atomicity.spec.ts` (3 test)                                                                                                                     |
+| Log'da parol/token yo'qligi test bilan                               | ✅    | **TUZATILDI** (`6e3db73`): haqiqiy pino bilan 5 test; qorovul yo'l olib tashlanganda yiqilishi tekshirildi                                                              |
+| Swagger `/docs` to'liq                                               | ✅    | `/api/docs` 200, 59 endpoint, DTO sxemalari to'liq                                                                                                                      |
+| Docker image < 250 MB (yoki farq izohlangan)                         | ✅    | Image quriladi (`526510f`). 861 MB — chegaradan katta, lekin farq Dockerfile sarlavhasida o'lchov bilan IZOHLANGAN, DoD shu variantga ruxsat beradi. Slimming — 23-band |
 
-### Faza 1 — Turnir yadrosi (4/8)
+### Faza 1 — Turnir yadrosi (4/8 → **5/8**)
 
-| Band | Holat | Izoh |
-|---|---|---|
-| Hakam 16 o'yinchili round-robin turnirni o'tkaza oladi | 🟡 | Round-robin dvigateli + testlar bor; hakam **o'zi o'yinchi qo'sha olmaydi** (JIDDIY-8) |
-| Jadval va tie-break golden test bilan mos | ✅ | `tiebreak.calculator.spec.ts` — 10 FIDE kaliti, qo'lda hisoblangan ssenariylar |
-| Har natija o'zgarishi audit'da, sabab bilan | ✅ | Jonli: sababsiz o'zgartirish 422; sabab `audit_logs.after.reason` da |
-| PGN Swiss-Manager'da ochiladi (real tekshiruv) | 🟡 | PGN sintaktik to'g'ri, **real dasturda ochib ko'rilmagan** |
-| PDF juftlik varaqasi | ❌ | **PDF eksport umuman yo'q** (`src/core/export/` da faqat PGN va TRF) |
-| Real hakam bilan haqiqiy turnir | ❌ | Isbot yo'q |
-| E2E: turnir → ro'yxat → juftlik → natija → jadval | ✅ | **Shu auditda jonli o'tkazildi** (5 tur, 11 o'yinchi) |
-| Prometheus + RED + birinchi dashboard | 🟡 | RED metrikalari ishlaydi; **dashboard va Prometheus konfigi yo'q** (JIDDIY-3) |
+| Band                                                   | Holat | Izoh                                                                                                      |
+| ------------------------------------------------------ | ----- | --------------------------------------------------------------------------------------------------------- |
+| Hakam 16 o'yinchili round-robin turnirni o'tkaza oladi | 🟡    | Round-robin dvigateli + testlar bor; hakam **o'zi o'yinchi qo'sha olmaydi** (JIDDIY-8)                    |
+| Jadval va tie-break golden test bilan mos              | ✅    | `tiebreak.calculator.spec.ts` — 10 FIDE kaliti, qo'lda hisoblangan ssenariylar                            |
+| Har natija o'zgarishi audit'da, sabab bilan            | ✅    | Jonli: sababsiz o'zgartirish 422; sabab `audit_logs.after.reason` da                                      |
+| PGN Swiss-Manager'da ochiladi (real tekshiruv)         | 🟡    | PGN sintaktik to'g'ri, **real dasturda ochib ko'rilmagan**                                                |
+| PDF juftlik varaqasi                                   | 🟡    | **PDF QO'SHILDI** (`2ab0ae5`): 2 endpoint, jonli fayl tekshirildi. **Real hakam tasdig'i YO'Q**           |
+| Real hakam bilan haqiqiy turnir                        | ❌    | Isbot yo'q                                                                                                |
+| E2E: turnir → ro'yxat → juftlik → natija → jadval      | ✅    | **Shu auditda jonli o'tkazildi** (5 tur, 11 o'yinchi)                                                     |
+| Prometheus + RED + birinchi dashboard                  | 🟡    | Konfig va 11 alert QO'SHILDI (`0867f38`), jonli scrape ishladi. **Grafana dashboard hali yo'q** — 25-band |
 
 ### Faza 2 — Swiss engine (3/9)
 
-| Band | Holat | Izoh |
-|---|---|---|
-| FIDE C.04.3 rasmiy misollari 100% mos | 🟡 | Qo'lda hisoblangan golden ssenariylar bor; **hujjatdagi rasmiy misollar to'plami sifatida emas** |
-| 5 ta real turnir (20/50/100/200/500) golden test'da | ❌ | Yo'q. Kod o'zi buni tan oladi (`swiss-dutch.engine.ts:37-40`) |
-| Farqlar qo'lda tekshirilgan va izohlangan | ❌ | Solishtirish umuman o'tkazilmagan |
-| Property testlar 1000+ run | ✅ | `swiss-dutch.engine.property.spec.ts:268` — `numRuns: 1000` |
-| `pairing_criteria_violations_total` = 0 (shadow mode, 3 turnir) | 🟡 | Metrika 0; **shadow mode infratuzilmasi yo'q**, real turnir yo'q |
-| 100 o'yinchida p95 < 10 s | 🟡 | O'lchov yo'q. 11 o'yinchida 0–3 ms (juda tez), lekin 100/500 sinalmagan |
-| 500 o'yinchida tugaydi, vaqt hujjatlangan | ❌ | O'lchanmagan |
-| FIDE hakami tasdig'i | ❌ | Yo'q |
-| Mutation testing > 75% | ❌ | Stryker o'rnatilmagan |
-| **Qo'shimcha:** juftlikni qo'lda o'zgartirish (Ish doirasi) | ❌ | Endpoint yo'q — faqat `PATCH /pairings/{id}/result` (natija, juftlik emas) |
-| **Qo'shimcha:** accelerated pairing, knockout, jamoa Swiss | ❌ | `PAIRING_SYSTEM_NOT_IMPLEMENTED` qaytaradi |
+| Band                                                            | Holat | Izoh                                                                                             |
+| --------------------------------------------------------------- | ----- | ------------------------------------------------------------------------------------------------ |
+| FIDE C.04.3 rasmiy misollari 100% mos                           | 🟡    | Qo'lda hisoblangan golden ssenariylar bor; **hujjatdagi rasmiy misollar to'plami sifatida emas** |
+| 5 ta real turnir (20/50/100/200/500) golden test'da             | ❌    | Yo'q. Kod o'zi buni tan oladi (`swiss-dutch.engine.ts:37-40`)                                    |
+| Farqlar qo'lda tekshirilgan va izohlangan                       | ❌    | Solishtirish umuman o'tkazilmagan                                                                |
+| Property testlar 1000+ run                                      | ✅    | `swiss-dutch.engine.property.spec.ts:268` — `numRuns: 1000`                                      |
+| `pairing_criteria_violations_total` = 0 (shadow mode, 3 turnir) | 🟡    | Metrika 0; **shadow mode infratuzilmasi yo'q**, real turnir yo'q                                 |
+| 100 o'yinchida p95 < 10 s                                       | 🟡    | O'lchov yo'q. 11 o'yinchida 0–3 ms (juda tez), lekin 100/500 sinalmagan                          |
+| 500 o'yinchida tugaydi, vaqt hujjatlangan                       | ❌    | O'lchanmagan                                                                                     |
+| FIDE hakami tasdig'i                                            | ❌    | Yo'q                                                                                             |
+| Mutation testing > 75%                                          | ❌    | Stryker o'rnatilmagan                                                                            |
+| **Qo'shimcha:** juftlikni qo'lda o'zgartirish (Ish doirasi)     | ❌    | Endpoint yo'q — faqat `PATCH /pairings/{id}/result` (natija, juftlik emas)                       |
+| **Qo'shimcha:** accelerated pairing, knockout, jamoa Swiss      | ❌    | `PAIRING_SYSTEM_NOT_IMPLEMENTED` qaytaradi                                                       |
 
 ### Faza 3 — Reyting (5/9)
 
-| Band | Holat | Izoh |
-|---|---|---|
-| Glickman rasmiy test vektori aniq mos | ✅ | `glicko2.service.spec.ts:41-53` — r'=1464.05, RD'=151.52, σ'=0.05999 (±tolerantlik) |
-| Property: RD manfiy emas, NaN yo'q, monotonlik | ✅ | 200–500 run oralig'ida |
-| `glicko_convergence_failures_total` = 0 | ✅ | Jonli tekshirildi: 0 |
-| Recompute idempotent | ✅ | `test/integration/rating.spec.ts` + jonli 2 marta ishga tushirildi |
-| 10 000 o'yinchi, 3 davr recompute vaqti | ❌ | O'lchanmagan |
-| `rating_period_lag_seconds` metrikasi va **alert** | 🟡 | Metrika bor, **alert yo'q** (JIDDIY-3) |
-| Reyting qo'lda tuzatish → audit | 🟡 | `rating.recalculated` audit'da sabab bilan yoziladi; alohida "qo'lda tuzatish" endpointi yo'q |
-| Mutation testing > 80% | ❌ | Yo'q |
-| Federatsiya tasdig'i (τ, davr siyosati) | ❌ | Tashqi qaror, hal qilinmagan |
+| Band                                               | Holat | Izoh                                                                                          |
+| -------------------------------------------------- | ----- | --------------------------------------------------------------------------------------------- |
+| Glickman rasmiy test vektori aniq mos              | ✅    | `glicko2.service.spec.ts:41-53` — r'=1464.05, RD'=151.52, σ'=0.05999 (±tolerantlik)           |
+| Property: RD manfiy emas, NaN yo'q, monotonlik     | ✅    | 200–500 run oralig'ida                                                                        |
+| `glicko_convergence_failures_total` = 0            | ✅    | Jonli tekshirildi: 0                                                                          |
+| Recompute idempotent                               | ✅    | `test/integration/rating.spec.ts` + jonli 2 marta ishga tushirildi                            |
+| 10 000 o'yinchi, 3 davr recompute vaqti            | ❌    | O'lchanmagan                                                                                  |
+| `rating_period_lag_seconds` metrikasi va **alert** | 🟡    | Metrika bor, **alert yo'q** (JIDDIY-3)                                                        |
+| Reyting qo'lda tuzatish → audit                    | 🟡    | `rating.recalculated` audit'da sabab bilan yoziladi; alohida "qo'lda tuzatish" endpointi yo'q |
+| Mutation testing > 80%                             | ❌    | Yo'q                                                                                          |
+| Federatsiya tasdig'i (τ, davr siyosati)            | ❌    | Tashqi qaror, hal qilinmagan                                                                  |
 
-### Faza 4 — To'lov (4/10)
+### Faza 4 — To'lov (4/10 → **5/10**)
 
-| Band | Holat | Izoh |
-|---|---|---|
-| Click sandbox'da to'liq sikl | ❌ | `click.provider.ts` — `configured = false`, stub |
-| Payme sandbox'da to'liq sikl | ❌ | `payme.provider.ts` — stub |
-| Webhook idempotent (5x → 1 Payment) | 🟡 | Kod va `billing.spec.ts` da bor; **real provayder bilan sinalmagan**; imzo XOM body ustidan tekshirilmaydi (`billing.controller.ts:145`) |
-| Ledger invarianti property test (1000 run) | ✅ | `ledger.spec.ts:25` — `RUNS_1000` |
-| `ledger_imbalance_tiyin` = 0, **alert sinovdan o'tgan** | 🟡 | Jonli 0; alert qoidasi yo'q |
-| Refund oqimi ishlaydi va audit'da | ✅ | Jonli: refund → ledger 0 ga qaytdi, `refund.requested` audit'da sabab bilan |
-| Reconciliation: provayder bilan farq = 0 | 🟡 | Ichki ledger hisoboti ishlaydi; provayder hisoboti bilan solishtirish yo'q |
-| Log'da karta ma'lumoti yo'qligi test bilan | ❌ | Bunday test yo'q |
-| Real to'lov production'da | ❌ | Yo'q |
-| Yurist: oferta, refund siyosati | ❌ | Yo'q |
+| Band                                                    | Holat | Izoh                                                                                                              |
+| ------------------------------------------------------- | ----- | ----------------------------------------------------------------------------------------------------------------- |
+| Click sandbox'da to'liq sikl                            | ❌    | `click.provider.ts` — `configured = false`, stub                                                                  |
+| Payme sandbox'da to'liq sikl                            | ❌    | `payme.provider.ts` — stub                                                                                        |
+| Webhook idempotent (5x → 1 Payment)                     | 🟡    | Kod va `billing.spec.ts` da bor; imzo endi XOM body ustidan (`f2eed80`). **Real provayder bilan hali sinalmagan** |
+| Ledger invarianti property test (1000 run)              | ✅    | `ledger.spec.ts:25` — `RUNS_1000`                                                                                 |
+| `ledger_imbalance_tiyin` = 0, **alert sinovdan o'tgan** | 🟡    | Jonli 0; alert qoidasi yo'q                                                                                       |
+| Refund oqimi ishlaydi va audit'da                       | ✅    | Jonli: refund → ledger 0 ga qaytdi, `refund.requested` audit'da sabab bilan                                       |
+| Reconciliation: provayder bilan farq = 0                | 🟡    | Ichki ledger hisoboti ishlaydi; provayder hisoboti bilan solishtirish yo'q                                        |
+| Log'da karta ma'lumoti yo'qligi test bilan              | ✅    | **TUZATILDI** (`6e3db73`): karta maydonlari redaksiya ro'yxatiga qo'shildi va test bilan qoplandi                 |
+| Real to'lov production'da                               | ❌    | Yo'q                                                                                                              |
+| Yurist: oferta, refund siyosati                         | ❌    | Yo'q                                                                                                              |
 
 ### Faza 5 — Onlayn o'yin (5/10)
 
-| Band | Holat | Izoh |
-|---|---|---|
-| Bullet o'yin ravon, taymer to'g'ri | 🟡 | Taymer yadrosi sof va property-test bilan qamralgan; **real bullet o'yin sinovi yo'q** |
-| `move_processing_duration` p95 < 150 ms | 🟡 | Metrika yoziladi, **o'lchov/SLO baseline yo'q** |
-| `clock_drift` p99 < 100 ms | 🟡 | Metrika bor, o'lchov yo'q |
-| Diskonnekt → reconnect → o'yin davom etadi | ✅ | `play-lifecycle.spec.ts:226` — `opponent_gone` → `opponent_back` + to'liq snapshot |
-| Pod o'ldirilsa — boshqa pod'ga ulanadi | ❌ | **Bitta instance rejimi** (`game-timers.ts:18-26` ochiq tan oladi) |
-| k6: 1000 concurrent o'yin | ❌ | Load test fayllari yo'q |
-| Pod sig'imi o'lchangan → HPA | ❌ | K8s manifestlari yo'q |
-| Noto'g'ri yurish server tomonda rad etiladi | ✅ | `play.spec.ts:246` — `illegal_move` + `resyncFen`, Move qatori yozilmaydi |
-| Threefold, 50-yurish, insufficient material | ✅ | `rules.spec.ts:82-114` + FIDE 6.9 (`play.service.ts:678-681` — `TIMEOUT_VS_INSUFFICIENT_MATERIAL`) |
-| SLO baseline + alert'lar | ❌ | Yo'q |
+| Band                                        | Holat | Izoh                                                                                               |
+| ------------------------------------------- | ----- | -------------------------------------------------------------------------------------------------- |
+| Bullet o'yin ravon, taymer to'g'ri          | 🟡    | Taymer yadrosi sof va property-test bilan qamralgan; **real bullet o'yin sinovi yo'q**             |
+| `move_processing_duration` p95 < 150 ms     | 🟡    | Metrika yoziladi, **o'lchov/SLO baseline yo'q**                                                    |
+| `clock_drift` p99 < 100 ms                  | 🟡    | Metrika bor, o'lchov yo'q                                                                          |
+| Diskonnekt → reconnect → o'yin davom etadi  | ✅    | `play-lifecycle.spec.ts:226` — `opponent_gone` → `opponent_back` + to'liq snapshot                 |
+| Pod o'ldirilsa — boshqa pod'ga ulanadi      | ❌    | **Bitta instance rejimi** (`game-timers.ts:18-26` ochiq tan oladi)                                 |
+| k6: 1000 concurrent o'yin                   | ❌    | Load test fayllari yo'q                                                                            |
+| Pod sig'imi o'lchangan → HPA                | ❌    | K8s manifestlari yo'q                                                                              |
+| Noto'g'ri yurish server tomonda rad etiladi | ✅    | `play.spec.ts:246` — `illegal_move` + `resyncFen`, Move qatori yozilmaydi                          |
+| Threefold, 50-yurish, insufficient material | ✅    | `rules.spec.ts:82-114` + FIDE 6.9 (`play.service.ts:678-681` — `TIMEOUT_VS_INSUFFICIENT_MATERIAL`) |
+| SLO baseline + alert'lar                    | ❌    | Yo'q                                                                                               |
 
 ### Faza 6 — Fair play (1/9)
 
-| Band | Holat | Izoh |
-|---|---|---|
-| Toza o'yinlarda yolg'on pozitiv darajasi o'lchangan | ❌ | O'lchanmagan |
-| Chit o'yinlar aniqlanishi (sezuvchanlik) | ❌ | O'lchanmagan |
-| Tahlil vaqti va CPU xarajati o'lchangan | ❌ | O'lchanmagan; Stockfish binari yo'q, engine `null` bilan o'chirilgan |
-| Komissiya paneli real hakam bilan | ❌ | API bor, UI yo'q |
-| Har qaror audit'da, sabab bilan | ✅ | `fairplay.service.ts:226-231` — minimal uzunlikli asos majburiy |
-| Apellyatsiya oqimi ishlaydi | 🟡 | Endpointlar va 18 ta integratsiya testi bor; UI va real sinov yo'q |
-| Siyosat hujjati ommaviy e'lon qilingan | ❌ | Yo'q |
-| Avtomatik jazo yo'qligi kodda tasdiqlangan | ✅ | `analysis.processor.ts:30-39` + `decideCase` faqat odam aktori bilan |
-| Yurist: huquqiy asos | ❌ | Yo'q |
+| Band                                                | Holat | Izoh                                                                 |
+| --------------------------------------------------- | ----- | -------------------------------------------------------------------- |
+| Toza o'yinlarda yolg'on pozitiv darajasi o'lchangan | ❌    | O'lchanmagan                                                         |
+| Chit o'yinlar aniqlanishi (sezuvchanlik)            | ❌    | O'lchanmagan                                                         |
+| Tahlil vaqti va CPU xarajati o'lchangan             | ❌    | O'lchanmagan; Stockfish binari yo'q, engine `null` bilan o'chirilgan |
+| Komissiya paneli real hakam bilan                   | ❌    | API bor, UI yo'q                                                     |
+| Har qaror audit'da, sabab bilan                     | ✅    | `fairplay.service.ts:226-231` — minimal uzunlikli asos majburiy      |
+| Apellyatsiya oqimi ishlaydi                         | 🟡    | Endpointlar va 18 ta integratsiya testi bor; UI va real sinov yo'q   |
+| Siyosat hujjati ommaviy e'lon qilingan              | ❌    | Yo'q                                                                 |
+| Avtomatik jazo yo'qligi kodda tasdiqlangan          | ✅    | `analysis.processor.ts:30-39` + `decideCase` faqat odam aktori bilan |
+| Yurist: huquqiy asos                                | ❌    | Yo'q                                                                 |
 
 ### Faza 7–10 (0/22)
 
@@ -225,7 +245,11 @@ Prisma sxemasida `School`, `SchoolClass`, `Student`, `Puzzle`, `Coach`, `Lesson`
 modellari bor, lekin ularga tegishli birorta modul, servis yoki endpoint yo'q
 (`app.module.ts:158-161` da TODO sifatida qayd etilgan).
 
-**Jami: 26 ✅ / 21 🟡 / 40 ❌ (87 banddan)**
+**Audit paytida: 26 ✅ / 21 🟡 / 40 ❌ (87 banddan)**
+**Tuzatishdan keyin: 31 ✅ / 22 🟡 / 34 ❌**
+
+O'zgargan bandlar: Faza 0 da +4 (compose, log testi, image, — CI 🟡 ga),
+Faza 1 da +1 (PDF 🟡), Faza 4 da +1 (karta log testi).
 
 ---
 
@@ -259,7 +283,8 @@ formatlanadi (`money.ts:194`), `Accept-Language` CORS'da ruxsat etilgan
 
 ### 🔴 KRITIK
 
-#### KRITIK-1 — Docker image umuman qurilmaydi
+#### KRITIK-1 — Docker image umuman qurilmaydi ✅ TUZATILDI (2026-09-01, `526510f`)
+
 **`Dockerfile:49`**
 
 ```dockerfile
@@ -270,11 +295,13 @@ RUN apk add --no-cache stockfish dumb-init libc6-compat
 **mavjud emas** — u faqat Alpine edge `testing` repositoriyasida bor.
 
 **Qanday sharoitda buziladi:** har doim. Har qanday `docker build` urinishi:
+
 ```
 ERROR: unable to select packages:
   stockfish (no such package):
     required by: world[stockfish]
 ```
+
 Demak: deploy qilinadigan artefakt **mavjud emas**; `ci.yml` dagi `docker` job
 yiqilardi (CI yoqilganda); `docker compose up` bilan ilovani ko'tarish mumkin emas;
 Faza 0 DoD ning ikkita bandi (`docker compose up` va `image < 250 MB`) bajarilishi
@@ -290,11 +317,13 @@ kerak emas).
 
 ---
 
-#### KRITIK-2 — Parolni tiklash oqimi yo'q
+#### KRITIK-2 — Parolni tiklash oqimi yo'q ✅ TUZATILDI (2026-09-01, `5038671`)
+
 **`src/modules/identity/auth/auth.controller.ts` (endpoint mavjud emas)** ·
 TZ talabi: **`docs/10-security.md:1423-1424`**
 
 TZ aniq ko'rsatadi:
+
 ```
 | POST /auth/password/forgot | 3 / soat | IP + email | ... |
 | POST /auth/password/reset  | 5 / soat | IP         | ... |
@@ -316,7 +345,8 @@ tiklashda barcha refresh oilalarini bekor qilish.
 
 ---
 
-#### KRITIK-3 — Email tasdiqlash xati hech qachon yuborilmaydi
+#### KRITIK-3 — Email tasdiqlash xati hech qachon yuborilmaydi ✅ TUZATILDI (2026-09-01, `c2df66d`)
+
 **`src/modules/identity/auth/auth.service.ts:228-239`**
 
 ```typescript
@@ -355,7 +385,8 @@ o'tkazish (shablon `templates.ts` ga qo'shiladi) — infratuzilma tayyor.
 
 ### 🟠 JIDDIY
 
-#### JIDDIY-1 — CI avtomatik ishlamaydi
+#### JIDDIY-1 — CI avtomatik ishlamaydi ✅ TUZATILDI (2026-09-01, `5ae5698`)
+
 **`.github/workflows/ci.yml:17-21`**
 
 ```yaml
@@ -377,7 +408,8 @@ qilinadi (25 commit, branch yo'q). Faza 0 DoD "CI yashil" bandi tekshirilmagan.
 
 ---
 
-#### JIDDIY-2 — `/metrics` autentifikatsiyasiz ochiq, tarmoq himoyasi esa mavjud emas
+#### JIDDIY-2 — `/metrics` autentifikatsiyasiz ochiq ✅ TUZATILDI (2026-09-01, `493661e`)
+
 **`src/shared/metrics/metrics.controller.ts:41`**
 
 ```typescript
@@ -386,8 +418,8 @@ qilinadi (25 commit, branch yo'q). Faza 0 DoD "CI yashil" bandi tekshirilmagan.
 @Controller({ path: 'metrics', version: VERSION_NEUTRAL })
 ```
 
-Izohda: *"Himoya tarmoq darajasida: /metrics ingress'dan CHIQARILMAYDI, faqat
-cluster ichidan ochiq (docs/11-infrastructure.md)"*.
+Izohda: _"Himoya tarmoq darajasida: /metrics ingress'dan CHIQARILMAYDI, faqat
+cluster ichidan ochiq (docs/11-infrastructure.md)"_.
 
 Lekin repoda **hech qanday ingress, nginx, K8s manifest yoki NetworkPolicy yo'q**
 (`infra/` papkasi mavjud emas). Jonli tekshirildi: `curl http://localhost:3000/metrics`
@@ -405,7 +437,8 @@ NetworkPolicy manifestini qo'shish — izohdagi da'vo shunda faktga aylanadi.
 
 ---
 
-#### JIDDIY-3 — Metrikalar bor, ularni iste'mol qiladigan hech narsa yo'q
+#### JIDDIY-3 — Metrikalar bor, ularni iste'mol qiladigan hech narsa yo'q ✅ TUZATILDI (2026-09-01, `0867f38`)
+
 **`src/shared/metrics/metrics.service.ts:122`** · **`docker-compose.yml:108`**
 
 Kod izohida ikki marta ishora qilingan `infra/prometheus/farzin-rules.yml`
@@ -413,6 +446,7 @@ fayli **mavjud emas** (`infra/` papkasining o'zi yo'q). `docker-compose.yml:108`
 esa `./docker/prometheus/prometheus.yml` ni mount qilishga urinadi — u ham yo'q.
 
 Jonli tekshirildi:
+
 ```
 $ docker compose --profile observability up -d prometheus
 Error: ... error mounting ".../docker/prometheus/prometheus.yml" ...:
@@ -433,7 +467,8 @@ to'g'ri ishladi — lekin **hech kim ularga qaramaydi**.
 
 ---
 
-#### JIDDIY-4 — Login IP limiti muvaffaqiyatli kirishda ham sarflanadi
+#### JIDDIY-4 — Login IP limiti muvaffaqiyatli kirishda ham sarflanadi ✅ TUZATILDI (2026-09-01, `4628068`)
+
 **`src/modules/identity/auth/auth.service.ts:120-133` va `:188`**
 
 ```typescript
@@ -453,9 +488,11 @@ await this.limiter.reset(emailKey);   // ← faqat email kaliti tozalanadi
 **Qanday sharoitda buziladi:** bitta tashqi IP ortidagi 6-chi foydalanuvchi
 15 daqiqa davomida kira olmaydi — **to'g'ri parol bilan ham**. Shu auditda
 jonli reproduktsiya qilindi:
+
 ```json
-{"retryAfterSeconds":710,"code":"TOO_MANY_ATTEMPTS","status":429}
+{ "retryAfterSeconds": 710, "code": "TOO_MANY_ATTEMPTS", "status": 429 }
 ```
+
 Ta'sir doirasi O'zbekiston kontekstida katta: maktab kompyuter sinfi (aynan
 Faza 7 B2G maqsadli segmenti), internet-kafe, turnir zali Wi-Fi, va mobil
 operatorlarning CGNAT'i — hammasi bitta IP ko'rsatadi.
@@ -473,7 +510,8 @@ kalitni "IP + email" deb ko'rsatadi — birlashgan kalit ham bu muammoni yechadi
 
 ---
 
-#### JIDDIY-5 — Swiss seksiyalarida `Standing.floatHistory` doim bo'sh
+#### JIDDIY-5 — Swiss seksiyalarida `Standing.floatHistory` doim bo'sh ✅ TUZATILDI (2026-09-01, `3a7082e`)
+
 **`src/modules/arbiter/arbiter.service.ts:430`**
 
 ```typescript
@@ -485,6 +523,7 @@ floatHistory: [], // round-robin'da float yo'q (docs/05 §1.2)
 `[]` qilib yoziladi — izoh esa faqat round-robin haqida.
 
 Sxema bu maydonni boshqacha ta'riflaydi (`prisma/schema.prisma:784-787`):
+
 > `/// Rang tarixi va float tarixi — juftlashtirish uchun kerak.`
 
 Va u API'da tashqariga chiqadi (`arbiter.repository.ts:688`).
@@ -506,14 +545,26 @@ hisoblaydi — `recomputeStandings` da o'sha natijani ishlatish.
 
 ---
 
-#### JIDDIY-6 — Faqat bitta instance rejimi (gorizontal masshtab imkonsiz)
+#### JIDDIY-6 — Faqat bitta instance rejimi 🟡 QISMAN TUZATILDI (2026-09-01, `3db1070`)
+
 **`src/app.module.ts:124-126`** · **`src/modules/play/game-timers.ts:18-26`**
+
+> **Tuzatildi:** rate limiting endi Redis'da
+> (`@nest-lab/throttler-storage-redis`, mavjud `REDIS` ulanishi qayta
+> ishlatiladi). Jonli tekshirildi: 350 so'rov → 300×200 + 50×429, Redis'da
+> `hits = 350`.
+>
+> **OCHIQ QOLDI:** o'yin taymerlari. Ular `ownerNodeId` affinity va
+> instance'lararo forward mexanizmini talab qiladi (docs/07 §10.3) — bu
+> yangi dizayn, `setTimeout` ni ko'chirish emas, ya'ni reja bahosidan
+> (M) kattaroq. Yumshatuvchi omil: proaktiv flag yo'qolsa ham reaktiv
+> `game:claim_timeout` ishlaydi.
 
 Uchta holat bitta process xotirasida yashaydi:
 
 1. **Rate limiting** — `ThrottlerModule.forRoot([{ ttl: 60_000, limit: 300 }])`
-   in-memory storage bilan. Izohda: *"TODO(Faza 0): Redis storage — hozircha
-   in-memory, ko'p instance'da limit har instance uchun alohida"*.
+   in-memory storage bilan. Izohda: _"TODO(Faza 0): Redis storage — hozircha
+   in-memory, ko'p instance'da limit har instance uchun alohida"_.
 2. **Flag taymeri** — o'yinning proaktiv vaqt tugashi oxirgi yurishni qabul
    qilgan instance'da. Instance o'lsa proaktiv e'lon yo'qoladi.
 3. **Grace taymeri** — diskonnekt kutish socket ushlab turgan instance'da.
@@ -531,6 +582,7 @@ Kubernetes'ni talab qiladi — hozirgi kod bunga tayyor emas.
 ---
 
 #### JIDDIY-7 — Frontend umuman yo'q
+
 **`src/` — faqat backend**
 
 TZ `docs/12-frontend-spec.md` (57 KB) va dizayn brifi (`design_prompts/farzin.md`,
@@ -548,7 +600,8 @@ ishlamaydi, u shunchaki yarim mahsulot.
 
 ---
 
-#### JIDDIY-8 — Hakam tomonidan ro'yxatga olish yo'q
+#### JIDDIY-8 — Hakam tomonidan ro'yxatga olish yo'q ✅ TUZATILDI (2026-09-01, `af06554`)
+
 **`src/modules/tournament/tournament.service.ts:277-281`** ·
 **`src/modules/tournament/dto/register.dto.ts:6`**
 
@@ -567,19 +620,30 @@ limiti (3/soat/IP) bilan birga bu Faza 7 (B2G, asosiy daromad manbai) uchun
 bloker.
 
 Kutish ro'yxati (waitlist) ham yo'q — `tournament.service.ts:277`:
-*"maxPlayers limiti → SECTION_FULL (kutish ro'yxati — keyinroq)"*.
+_"maxPlayers limiti → SECTION_FULL (kutish ro'yxati — keyinroq)"_.
 
 ---
 
-#### JIDDIY-9 — To'lov provayderlari ulanmagan, webhook imzosi xom body ustidan tekshirilmaydi
+#### JIDDIY-9 — To'lov provayderlari ulanmagan; webhook imzosi 🟡 QISMAN TUZATILDI (2026-09-01, `f2eed80`)
+
 **`src/modules/billing/providers/click.provider.ts:44`** ·
 **`src/modules/billing/billing.controller.ts:145-150`**
+
+> **Tuzatildi — eng xavfli qism:** `main.ts` da `rawBody: true` yoqildi va
+> `WebhookVerifyInput.rawBody` endi `Buffer`. Imzo XOM baytlar ustidan
+> tekshiriladi; parse qilingan body alohida maydonda va imzo uchun
+> ishlatilmaydi.
+>
+> **OCHIQ QOLDI:** Click/Payme adapterlarining o'zi. Ular sandbox
+> merchant kredensiallarini talab qiladi (docs.click.uz ro'yxati) —
+> bu tashqi bog'liqlik, kod masalasi emas.
 
 Click va Payme adapterlari `configured = false` bilan stub. Bu **halol yechim** —
 soxta imzo formulasi o'ylab topilgandan ancha yaxshi, va stub `PROVIDER_NOT_CONFIGURED`
 bilan to'lov boshlanishidan **oldin** rad etadi (jonli tekshirildi).
 
 Ammo webhook controlleri hozir **parse qilingan JSON** ni uzatadi:
+
 ```
 * TODO(billing): real provayder ulanganda imzo XOM body ustidan
 * tekshirilishi kerak — main.ts'da NestFactory.create(..., { rawBody: true })
@@ -597,9 +661,19 @@ Amaldagi yagona ishlaydigan yo'l — `MANUAL` (naqd). U to'liq ishlaydi
 
 ---
 
-#### JIDDIY-10 — Fair play tahlili amalda o'chirilgan
+#### JIDDIY-10 — Fair play tahlili amalda o'chirilgan 🟡 QISMAN TUZATILDI (2026-09-01, `526510f`)
+
 **`src/modules/fairplay/fairplay.module.ts:31-32`** ·
 **`src/modules/fairplay/engine/stockfish-uci.adapter.spec.ts:101`**
+
+> **Tuzatildi:** worker image'ida Stockfish 18 bor
+> (`/usr/bin/stockfish`, `STOCKFISH_PATH` o'rnatilgan). Jonli
+> tekshirildi: worker logi "fairplay worker ishga tushdi
+> (engine: UCI engine)" — ya'ni korrelyatsiya yo'li endi FAOL.
+>
+> **OCHIQ QOLDI:** kalibrlash — yolg'on-pozitiv darajasi va sezuvchanlik
+> o'lchovi. Ular ma'lum TOZA va ma'lum CHIT o'yinlar to'plamini talab
+> qiladi; bunday ma'lumot loyihada yo'q va uni to'qib bo'lmaydi.
 
 ```
 * ENGINE GATING: STOCKFISH_PATH yo'q → ANALYSIS_ENGINE = null →
@@ -608,6 +682,7 @@ Amaldagi yagona ishlaydigan yo'l — `MANUAL` (naqd). U to'liq ishlaydi
 
 `STOCKFISH_PATH` sozlanmagan, binar repoda yo'q, va Docker image (KRITIK-1)
 uni o'rnatolmaydi. Natijada:
+
 - engine korrelyatsiyasi (Faza 6 ning **asosiy** signali) hech qachon ishlamaydi;
 - `stockfish-uci.adapter.spec.ts` dagi testlar `describe.skip` bilan o'tkazib
   yuboriladi (43 to'plamdan 2 ta skip aynan shular);
@@ -618,11 +693,13 @@ amalda faqat **vaqt tahlili** (`timing-analysis.ts`) darajasida ishlaydi.
 
 ---
 
-#### JIDDIY-11 — `docker compose up` ilovani ko'tarmaydi
+#### JIDDIY-11 — `docker compose up` ilovani ko'tarmaydi ✅ TUZATILDI (2026-09-01, `9cd3937` + `5d46f93`)
+
 **`docker-compose.yml`** (xizmatlar: postgres, redis, minio, mailpit, +
 observability profili)
 
 Compose faylida **`app` xizmati yo'q**. Faza 0 DoD ning birinchi bandi:
+
 > `git clone` → `docker compose up` → ishlaydigan API, **hech qanday qo'lda qadam yo'q**
 
 README (`README.md:168-176`) buni to'g'ri va halol hujjatlaydi (5 qadam:
@@ -638,20 +715,25 @@ qila olmaydi; SUPER_ADMIN rolini berish uchun bazaga qo'lda `INSERT` kerak
 
 ### 🟡 KICHIK
 
-| # | Topilma | Joy | Ta'sir |
-|---|---|---|---|
-| K-1 | `openapi:export` skripti ishlamaydi — `scripts/` papkasi mavjud emas | `package.json:40` | `pnpm openapi:export` → ENOENT |
-| K-2 | 5 ta ustun `@map` siz — DB'da camelCase (`"timeCategory"`, `"pairingSystem"`), qolgan hammasi snake_case | `prisma/schema.prisma` | Xom SQL'da tirnoq talab qiladi, `docs/03` konvensiyasini buzadi |
-| K-3 | `.gitattributes` yo'q → Windows'da `format:check` har doim yiqiladi (123 fayl), `lint-staged` esa har staged faylni qayta yozadi | repo ildizi | Windows'da ishlash noqulay; CI'da muammo yo'q |
-| K-4 | Express 5 uchun eskirgan route naqshi `'*'` — har ishga tushishda 3 ta ogohlantirish | `metrics.module.ts:108`, pino, throttler | Hozir avto-konvertatsiya qilinadi; keyingi major versiyada buziladi |
-| K-5 | PDF eksport yo'q (juftlik varaqasi, jadval, natijalar) | `src/core/export/` | Faza 1 Ish doirasi + offline degradatsiya rejasi bajarilmagan |
-| K-6 | Kutish ro'yxati (waitlist) yo'q | `tournament.service.ts:277` | To'lgan seksiyada `SECTION_FULL`, navbat yo'q |
-| K-7 | Eskirgan TODO: "Faza 2: PairingModule" — Swiss dvigateli allaqachon ulangan | `app.module.ts:157` | O'quvchini chalg'itadi (`arbiter.service.ts:86` da ishlaydi) |
-| K-8 | TRF eksportida shahar va federatsiya qattiq kodlangan (`022 Tashkent`, `032 UZB`) | `export-mapping.ts:20-22` | Boshqa shahardagi turnir noto'g'ri eksport qilinadi |
-| K-9 | Audit sababi `after` JSONB ichida saqlanadi, alohida ustun emas | `audit.service.ts:83-88`, `audit_logs` jadvali | Sabab bo'yicha filtrlash/indekslash mumkin emas; `/admin/audit-logs` javobida ko'rinmaydi |
-| K-10 | `OutboxPublisher` shutdown paytida xato log qiladi (`P1017: Server has closed the connection`) | `outbox.publisher.ts:43,77` | Har deploy'da ERROR-darajali shovqin; funksional zarar yo'q |
-| K-11 | `dbPoolWaiting` metrikasi ro'yxatdan o'tgan, lekin hech qachon oziqlantirilmaydi (kodda halol qayd etilgan) | `metrics.service.ts:446-455` | `docs/11 §6.1` talab qiladi; dashboard'da bo'sh panel |
-| K-12 | HTTP metrikalari `farzin_` prefiksisiz (`http_request_duration_seconds`), qolgan hammasi prefiksli | `metrics.service.ts:216,224` | Ataylab (`docs/15:369` shunday yozadi), lekin nomlash nomuvofiqligi ko'rinadi |
+| #       | Topilma                                                                                                     | Joy                                            | Ta'sir                                                                                                                                                                                                                                                                                                                                                   |
+| ------- | ----------------------------------------------------------------------------------------------------------- | ---------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| K-1     | `openapi:export` skripti ishlamaydi — `scripts/` papkasi mavjud emas                                        | `package.json:40`                              | `pnpm openapi:export` → ENOENT                                                                                                                                                                                                                                                                                                                           |
+| K-2     | 5 ta ustun `@map` siz — DB'da camelCase (`"timeCategory"`, `"pairingSystem"`), qolgan hammasi snake_case    | `prisma/schema.prisma`                         | Xom SQL'da tirnoq talab qiladi, `docs/03` konvensiyasini buzadi                                                                                                                                                                                                                                                                                          |
+| K-3 ✅  | `.gitattributes` yo'q → Windows'da `format:check` yiqiladi                                                  | repo ildizi                                    | **TUZATILDI 2026-09-01 (`7100e7f`)** — `* text=auto eol=lf`                                                                                                                                                                                                                                                                                              |
+| K-4     | Express 5 uchun eskirgan route naqshi `'*'` — har ishga tushishda 3 ta ogohlantirish                        | `metrics.module.ts:108`, pino, throttler       | Hozir avto-konvertatsiya qilinadi; keyingi major versiyada buziladi                                                                                                                                                                                                                                                                                      |
+| K-5 ✅  | PDF eksport yo'q (juftlik varaqasi, jadval, natijalar)                                                      | `src/core/export/`                             | **TUZATILDI 2026-09-01 (`2ab0ae5`)** — `pdf-writer.ts` + 2 endpoint                                                                                                                                                                                                                                                                                      |
+| K-6     | Kutish ro'yxati (waitlist) yo'q                                                                             | `tournament.service.ts:277`                    | To'lgan seksiyada `SECTION_FULL`, navbat yo'q                                                                                                                                                                                                                                                                                                            |
+| K-7     | Eskirgan TODO: "Faza 2: PairingModule" — Swiss dvigateli allaqachon ulangan                                 | `app.module.ts:157`                            | O'quvchini chalg'itadi (`arbiter.service.ts:86` da ishlaydi)                                                                                                                                                                                                                                                                                             |
+| K-8     | TRF eksportida shahar va federatsiya qattiq kodlangan (`022 Tashkent`, `032 UZB`)                           | `export-mapping.ts:20-22`                      | Boshqa shahardagi turnir noto'g'ri eksport qilinadi                                                                                                                                                                                                                                                                                                      |
+| K-9     | Audit sababi `after` JSONB ichida saqlanadi, alohida ustun emas                                             | `audit.service.ts:83-88`, `audit_logs` jadvali | Sabab bo'yicha filtrlash/indekslash mumkin emas; `/admin/audit-logs` javobida ko'rinmaydi                                                                                                                                                                                                                                                                |
+| K-10    | `OutboxPublisher` shutdown paytida xato log qiladi (`P1017: Server has closed the connection`)              | `outbox.publisher.ts:43,77`                    | Har deploy'da ERROR-darajali shovqin; funksional zarar yo'q                                                                                                                                                                                                                                                                                              |
+| K-11    | `dbPoolWaiting` metrikasi ro'yxatdan o'tgan, lekin hech qachon oziqlantirilmaydi (kodda halol qayd etilgan) | `metrics.service.ts:446-455`                   | `docs/11 §6.1` talab qiladi; dashboard'da bo'sh panel                                                                                                                                                                                                                                                                                                    |
+| K-12    | HTTP metrikalari `farzin_` prefiksisiz (`http_request_duration_seconds`), qolgan hammasi prefiksli          | `metrics.service.ts:216,224`                   | Ataylab (`docs/15:369` shunday yozadi), lekin nomlash nomuvofiqligi ko'rinadi                                                                                                                                                                                                                                                                            |
+| K-13    | Docker image DoD chegarasidan katta: api **829 MB**, worker **1.02 GB** (chegara 250 MB)                    | `Dockerfile`                                   | `pnpm prune --prod` pnpm store'da peer sifatida ushlanib qolgan `prisma` (67 MB) va `typescript` (23 MB) ni olib tashlamaydi; `.bin/prisma` symlink'i esa o'chgani uchun CLI baribir chaqirilmaydi — ~90 MB o'lik yuk. Farq Dockerfile sarlavhasida o'lchov bilan izohlangan (DoD "yoki farq izohlangan" varianti). To'g'ri yechim: `pnpm deploy --prod` |
+| K-14    | `docs/runbooks/` papkasi yo'q, lekin 11 ta alert `runbook_url` bilan unga ishora qiladi                     | `infra/prometheus/farzin-rules.yml`            | docs/15 §6.5 4-qoidasi "runbook'siz alert qo'shilmaydi" deydi. Bu qoidadan ONGLI chekinish: alertsiz qolish runbooksiz alertdan yomonroq                                                                                                                                                                                                                 |
+| K-15 ✅ | Prettier versiyasi suzuvchi (`^3.4.2` → 3.9.5) — 101 faylda formatlash farqi, CI'da ham yiqilardi           | `package.json`                                 | **TUZATILDI 2026-09-01 (`715515f`)** — qayta formatlandi, versiya aniq qotirildi. Audit "sabab faqat CRLF" degan xulosasi TO'LIQ EMAS edi                                                                                                                                                                                                                |
+| K-16 ✅ | Dockerfile HEALTHCHECK `/api/health/live` ga urinardi, haqiqiy yo'l `/health/live`                          | `Dockerfile`                                   | **TUZATILDI 2026-09-01 (`526510f`)** — konteyner abadiy `unhealthy` bo'lardi va compose `depends_on: service_healthy` hech qachon ochilmasdi                                                                                                                                                                                                             |
+| K-17 ✅ | `pnpm prune --prod` prune'dan keyin `prepare` (husky) ni qayta chaqirib build'ni yiqitardi                  | `Dockerfile:42`                                | **TUZATILDI 2026-09-01 (`526510f`)** — `--ignore-scripts`. KRITIK-1 ning IKKINCHI to'sig'i edi                                                                                                                                                                                                                                                           |
 
 ### ✅ Yaxshi bajarilgan joylar (qisqacha)
 
@@ -671,18 +753,24 @@ bayonlar, va ular audit natijalari bilan to'liq mos chiqdi.
 
 ## 6. Yetishmayotgan funksiyalar (muhimlik tartibida)
 
+Tuzatish bosqichidan KEYINGI holat. Yopilganlar ~~chizilgan~~.
+
 1. **Frontend** — butun UI qatlami. Dizayn maketlari tayyor, kod yo'q. (JIDDIY-7)
-2. **Parolni tiklash va o'zgartirish** — TZ da bor, kodda yo'q. (KRITIK-2)
-3. **Ishlaydigan Docker image va deploy quvuri** — hozir artefakt yo'q. (KRITIK-1, JIDDIY-1)
-4. **Email yetkazish** — tasdiqlash xati, xabarnoma kanali auth bilan ulanmagan. (KRITIK-3)
-5. **Hakam tomonidan ro'yxatga olish + ommaviy import** — real turnir uchun majburiy. (JIDDIY-8)
-6. **PDF eksport** — juftlik varaqasi, jadval; offline zaxira rejasining asosi. (K-5)
-7. **Alert va dashboard qatlami** — metrikalar bor, ularga qaraydigan hech kim yo'q. (JIDDIY-3)
-8. **Real ma'lumot bilan validatsiya** — Swiss-Manager solishtirish, FIDE hakami tasdig'i, real turnir. Bu **kod emas, jarayon** — lekin Faza 2 ni yopish uchun boshqa yo'l yo'q.
-9. **Click/Payme integratsiyasi** — sandbox hisob ma'lumotlari kerak. (JIDDIY-9)
-10. **Maktab moduli (Faza 7)** — sxemada modellar bor, kod yo'q. Bu B2G daromad yo'li.
-11. **Load test va K8s manifestlari** — Faza 5 DoD ning 4 bandi shunga bog'liq.
-12. **Masalalar (puzzles)** — dizayn brifida "5 ta narsadan biri", sxemada model bor, kod yo'q.
+2. ~~Parolni tiklash va o'zgartirish~~ ✅ `5038671`
+3. ~~Ishlaydigan Docker image va deploy quvuri~~ ✅ `526510f`, `5ae5698`
+4. ~~Email yetkazish~~ ✅ `c2df66d`
+5. ~~Hakam tomonidan ro'yxatga olish~~ ✅ `af06554` (CSV _profil yaratish_ — huquqiy blokerda)
+6. ~~PDF eksport~~ ✅ `2ab0ae5`
+7. ~~Alert qatlami~~ ✅ `0867f38` (**Grafana dashboard** hali yo'q — 25-band)
+8. **Real ma'lumot bilan validatsiya** — Swiss-Manager solishtirish, FIDE
+   hakami tasdig'i, real turnir. Bu **kod emas, jarayon** — Faza 2 ni
+   yopishning boshqa yo'li yo'q.
+9. **Click/Payme integratsiyasi** — sandbox kredensiallari kerak. (JIDDIY-9)
+10. **O'yin taymerlarining multi-instance ishlashi** — 22-band. (JIDDIY-6)
+11. **Fair-play kalibratsiyasi** — ma'lum toza/chit o'yin to'plami kerak. (JIDDIY-10)
+12. **Maktab moduli (Faza 7)** — sxemada modellar bor, kod yo'q. B2G daromad yo'li.
+13. **Load test va K8s manifestlari** — Faza 5 DoD ning 4 bandi shunga bog'liq.
+14. **Masalalar (puzzles)** — dizayn brifida "5 ta narsadan biri", kod yo'q.
 
 ### Raqobat konteksti — nima yetishmayotgani sezilib turadi
 
@@ -707,41 +795,63 @@ bunda **yo'q va yo'qligi darhol sezilarli** uchta narsa:
 
 Tartib — ta'sir/xarajat nisbati bo'yicha. Hajm: **S** ≈ 1 kun, **M** ≈ 2–5 kun, **L** ≈ 1–3 hafta.
 
-### Darhol (deploy qilish imkoniyatini tiklash)
+### Darhol (deploy qilish imkoniyatini tiklash) — ✅ HAMMASI BAJARILDI
 
-| # | Ish | Hajm | Nima ochadi |
-|---|---|---|---|
-| 1 | `Dockerfile:49` — Stockfish'ni API image'idan chiqarib faqat worker image'iga qo'yish (edge/testing repo yoki alohida stage) | **S** | KRITIK-1; Faza 0 DoD ×2 |
-| 2 | `ci.yml:17-21` — `push`/`pull_request` triggerlarini yoqish | **S** | JIDDIY-1; barcha keyingi regressiyalar avtomatik ushlanadi |
-| 3 | `.gitattributes` qo'shish (`* text=auto eol=lf`) | **S** | K-3; `format:check` ikkala platformada bir xil |
-| 4 | `docker/prometheus/prometheus.yml` va `infra/prometheus/farzin-rules.yml` yozish (kod izohlari allaqachon qoidalarni ta'riflaydi) | **M** | JIDDIY-3; 5 ta TZ bandi |
-| 5 | `docker-compose.yml` ga `app` + `worker` xizmatlarini qo'shish | **S** | JIDDIY-11; Faza 0 DoD #1 |
+| #   | Ish                                                   | Hajm  | Holat                                                                                         |
+| --- | ----------------------------------------------------- | ----- | --------------------------------------------------------------------------------------------- |
+| 1   | `Dockerfile` — Stockfish'ni API image'idan chiqarish  | **S** | ✅ `526510f` — ikkita to'siq (stockfish + husky), API/worker ajratildi, HEALTHCHECK tuzatildi |
+| 2   | `ci.yml` — `push`/`pull_request` triggerlarini yoqish | **S** | ✅ `5ae5698` — + docker job endi ikkala image'ni quradi                                       |
+| 3   | `.gitattributes` qo'shish                             | **S** | ✅ `7100e7f` (+ `715515f` — prettier drift, rejada yo'q edi)                                  |
+| 4   | Prometheus konfigi va alert qoidalari                 | **M** | ✅ `0867f38` — 3 recording + 11 alert, promtool tasdiqladi, alert jonli FIRING bo'ldi         |
+| 5   | compose'ga `app` + `worker`                           | **S** | ✅ `9cd3937` — + `migrate` xizmati; toza holatdan `up` ishlaydi                               |
 
-### Keyin (foydalanuvchi oqimlarini yopish)
+### Keyin (foydalanuvchi oqimlarini yopish) — ✅ HAMMASI BAJARILDI
 
-| # | Ish | Hajm | Nima ochadi |
-|---|---|---|---|
-| 6 | `login:ip` limitini muvaffaqiyatda reset qilish + limitni qayta baholash | **S** | JIDDIY-4; maktab/kafe stsenariysi |
-| 7 | Email yuborishni `NotificationService` orqali ulash (shablon + listener) | **S** | KRITIK-3 |
-| 8 | `POST /auth/password/forgot` + `/reset` + `/change` (TZ `docs/10:1423` limitlari bilan) | **M** | KRITIK-2 |
-| 9 | `recomputeStandings` da haqiqiy `floatHistory` yozish | **S** | JIDDIY-5 |
-| 10 | Hakam tomonidan ro'yxatga olish (`playerId` DTO'da) + CSV ommaviy import | **M** | JIDDIY-8; Faza 1 + Faza 7 |
-| 11 | `/metrics` uchun bearer token yoki repoga ingress/NetworkPolicy manifesti | **S** | JIDDIY-2 |
-| 12 | `main.ts` da `rawBody: true` (provayder kodidan **oldin**) | **S** | JIDDIY-9 ning eng xavfli qismi |
-| 13 | Seed'ga SUPER_ADMIN va demo turnir qo'shish | **S** | JIDDIY-11; onboarding |
-| 14 | Log redaksiya testi (parol/token/karta log'da yo'qligi) | **S** | Faza 0 DoD #8 + Faza 4 DoD #8 |
+| #   | Ish                                                 | Hajm  | Holat                                                                           |
+| --- | --------------------------------------------------- | ----- | ------------------------------------------------------------------------------- |
+| 6   | `login:ip` limitini muvaffaqiyatda qaytarish        | **S** | ✅ `4628068` — `refund()`, IP limiti 20 ga qayta baholandi                      |
+| 7   | Email yuborishni `NotificationService` orqali ulash | **S** | ✅ `c2df66d` — `TRANSACTIONAL_MAILER` porti; mailpit'da jonli tasdiqlandi       |
+| 8   | `/auth/password/forgot` + `/reset` + `/change`      | **M** | ✅ `5038671` — 10 ta yangi integration test                                     |
+| 9   | `recomputeStandings` da haqiqiy `floatHistory`      | **S** | ✅ `3a7082e`                                                                    |
+| 10  | Hakam tomonidan ro'yxatga olish + ommaviy import    | **M** | ✅ `af06554` — CSV _profil yaratish_ ONGLI ravishda chiqarildi (huquqiy bloker) |
+| 11  | `/metrics` himoyasi                                 | **S** | ✅ `493661e` — `METRICS_TOKEN`, timing-safe, 404                                |
+| 12  | `main.ts` da `rawBody: true`                        | **S** | ✅ `f2eed80`                                                                    |
+| 13  | Seed'ga SUPER_ADMIN va demo turnir                  | **S** | ✅ `5d46f93` — idempotentligi va prod qorovuli tekshirildi                      |
+| 14  | Log redaksiya testi                                 | **S** | ✅ `6e3db73` — haqiqiy pino bilan; qorovul haqiqiyligi tasdiqlandi              |
 
 ### Katta ishlar
 
-| # | Ish | Hajm | Nima ochadi |
-|---|---|---|---|
-| 15 | PDF eksport (juftlik varaqasi, jadval, natijalar) | **M** | K-5; offline degradatsiya |
-| 16 | Rate limit + o'yin taymerlarini Redis'ga ko'chirish (multi-instance) | **M** | JIDDIY-6; Faza 5 DoD ×2 |
-| 17 | k6 load testlari + K8s manifestlari | **L** | Faza 5 DoD ×3 |
-| 18 | Swiss golden test to'plami (Chess-Results ommaviy ma'lumotidan 5 turnir) | **L** | Faza 2 DoD ×3 — **bu fazani yopishning yagona yo'li** |
-| 19 | **Frontend** — dizayn maketlaridan Next.js ilovasi | **L** (bir necha oy) | JIDDIY-7; Faza 1/6 DoD; loyihaning ko'rinishi |
-| 20 | Click/Payme sandbox integratsiyasi | **L** | Faza 4 DoD ×4 (tashqi hisob ma'lumotlariga bog'liq) |
-| 21 | Stockfish worker image + fair-play kalibratsiyasi | **L** | JIDDIY-10; Faza 6 DoD ×3 |
+| #   | Ish                                               | Hajm          | Holat                                                                    |
+| --- | ------------------------------------------------- | ------------- | ------------------------------------------------------------------------ |
+| 15  | PDF eksport (juftlik varaqasi, jadval)            | **M**         | ✅ `2ab0ae5` — 15 ta test, jonli PDF fayl tekshirildi                    |
+| 16  | Rate limit + o'yin taymerlarini Redis'ga          | **M**         | 🟡 `3db1070` — rate limit BAJARILDI; **taymerlar YO'Q** (quyida 22-band) |
+| 17  | k6 load testlari + K8s manifestlari               | **L**         | ❌ **BAJARILMADI**                                                       |
+| 18  | Swiss golden test to'plami (5 real turnir)        | **L**         | ❌ **BAJARILMADI**                                                       |
+| 19  | **Frontend** — Next.js ilovasi                    | **L** (oylar) | ❌ **BAJARILMADI**                                                       |
+| 20  | Click/Payme sandbox integratsiyasi                | **L**         | ❌ **BAJARILMADI**                                                       |
+| 21  | Stockfish worker image + fair-play kalibratsiyasi | **L**         | 🟡 worker image ✅ (`526510f`); **kalibratsiya YO'Q**                    |
+
+#### Nega 17–21 bajarilmadi — halol sabablar
+
+Bular "vaqt yetmadi" emas, **bajarish uchun shu sessiyada mavjud
+bo'lmagan narsa kerak** bo'lgan bandlar:
+
+| #   | To'sig'i                                                                                                                                                                                                                                |
+| --- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 17  | DoD o'lchovni talab qiladi: "k6: 1000 concurrent o'yin, threshold'lar o'tadi", "Pod boshiga sig'im **o'lchangan**". Klaster va yuk generatsiya quvvatisiz yozilgan skript — ishlatilmagan kod, ya'ni auditning o'zi ogohlantirgan naqsh |
+| 18  | Chess-Results/Swiss-Manager real turnir dump'lari kerak (tashqi ma'lumot) **va** har farqni FIDE hakami bilan tekshirish. Ma'lumotni to'qib bo'lmaydi — golden test'ning butun mohiyati real natijada                                   |
+| 19  | Reja o'zi "bir necha oy" deb baholaydi. Dizayn maketlari tayyor, lekin bu bitta sessiyaga sig'adigan ish emas                                                                                                                           |
+| 20  | Click/Payme **sandbox merchant kredensiallari** kerak (docs.click.uz ro'yxati). Imzo formulasi provayder hujjatidan olinadi — `click.provider.ts:17-38` buni aniq yozadi: "Imzo formulasi BU YERDA O'YLAB TOPILMAYDI"                   |
+| 21  | Kalibratsiya ma'lum TOZA va ma'lum CHIT o'yinlar to'plamini talab qiladi. Bunday ma'lumot yo'q; to'qilgan to'plamdagi "yolg'on-pozitiv darajasi" — soxta raqam, va docs/08 bo'yicha bu odam karyerasiga tegadigan soha                  |
+
+### Yangi qo'shilgan bandlar (audit davomida topilgan)
+
+| #   | Ish                                                                                        | Hajm  | Nima ochadi                                                               |
+| --- | ------------------------------------------------------------------------------------------ | ----- | ------------------------------------------------------------------------- |
+| 22  | O'yin taymerlarini multi-instance qilish: `ownerNodeId` affinity + forward (docs/07 §10.3) | **L** | JIDDIY-6 ning qolgan yarmi; Faza 5 DoD "pod o'ldirilsa o'yin yo'qolmaydi" |
+| 23  | Image slimming: `pnpm deploy --prod` bilan yassi `node_modules`                            | **S** | K-13; DoD 250 MB chegarasi                                                |
+| 24  | `docs/runbooks/` — 11 ta alert uchun runbook                                               | **M** | K-14; docs/15 §6.5 4-qoidasi                                              |
+| 25  | Grafana datasource + birinchi dashboard                                                    | **S** | Faza 1 DoD "birinchi dashboard" (JIDDIY-3 dan qolgan)                     |
 
 ### Bu rejaga kirmagan, lekin bloklaydigan narsalar
 
