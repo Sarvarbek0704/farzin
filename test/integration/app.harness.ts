@@ -64,7 +64,10 @@ export async function createTestApp(): Promise<TestApp> {
   const moduleRef = await Test.createTestingModule({ imports: [AppModule] }).compile();
 
   // --- src/main.ts bilan bir xil global sozlash ----------------------------
-  const app = moduleRef.createNestApplication({ bufferLogs: true });
+  // `rawBody: true` — main.ts bilan bir xil. Busiz `req.rawBody`
+  // undefined bo'lardi va webhook imzo yo'li testda SINALMASDI
+  // (billing.controller.ts webhook izohi).
+  const app = moduleRef.createNestApplication({ bufferLogs: true, rawBody: true });
   app.useLogger(app.get(Logger));
 
   // Xavfsizlik (docs/10-security.md §11) — test NODE_ENV'da prod emas:

@@ -37,14 +37,36 @@ export interface CheckoutResult {
 
 export interface WebhookVerifyInput {
   /**
-   * TODO(billing): real provayder ulanganda bu XOM baytlar (Buffer)
-   * bo'lishi SHART — imzo xom body ustidan tekshiriladi, qayta
-   * serializatsiya qilingan obyekt ustidan EMAS (docs/09 §10.2).
-   * Hozircha express.json parse qilingan JSON keladi; stub adapterlar
-   * baribir PROVIDER_NOT_CONFIGURED tashlaydi.
+   * Webhook'ning XOM baytlari — imzo AYNAN shular ustidan tekshiriladi
+   * (docs/09 §10.2).
+   *
+   * ═══════════════════════════════════════════════════════════════════════
+   *  NEGA PARSE QILINGAN OBYEKT YARAMAYDI
+   *
+   *  HMAC bayt oqimidan hisoblanadi. `JSON.parse` → `JSON.stringify`
+   *  aylanishi baytlarni O'ZGARTIRADI: kalitlar tartibi, bo'shliqlar,
+   *  Unicode escape va son formati (`1.0` → `1`) saqlanmaydi. Natijada
+   *  to'g'ri imzo RAD ETILADI yoki — ancha yomoni — noto'g'ri imzo
+   *  QABUL QILINADI, chunki taqqoslash boshqa ma'lumot ustida boradi.
+   *  Bu to'lov yo'qotish yo'li.
+   *
+   *  Ilgari bu yerda parse qilingan JSON kelardi va `main.ts` da
+   *  `rawBody: true` YO'Q edi (docs/AUDIT.md JIDDIY-9). Stub adapterlar
+   *  baribir PROVIDER_NOT_CONFIGURED tashlagani uchun bu sezilmasdi —
+   *  ya'ni xato real provayder ulangan KUNI chiqardi.
+   * ═══════════════════════════════════════════════════════════════════════
+   *
+   * `null` — xom body mavjud emas (masalan `Content-Type` JSON emas yoki
+   * body bo'sh). Adapter bunday holatda imzoni tekshira olmaydi va rad
+   * etishi SHART; "ehtimol to'g'ri" yo'li YO'Q.
    */
-  readonly rawBody: unknown;
+  readonly rawBody: Buffer | null;
   readonly headers: Readonly<Record<string, string | string[] | undefined>>;
+  /**
+   * Parse qilingan body — imzo tekshirilgandan KEYIN maydonlarni o'qish
+   * uchun qulaylik. Imzo uchun HECH QACHON ishlatilmaydi.
+   */
+  readonly parsedBody: unknown;
 }
 
 /** Adapter webhook'ni tekshirib, provayder-neytral hodisaga keltiradi. */

@@ -10,9 +10,12 @@ import {
   ParseUUIDPipe,
   Post,
   Query,
+  type RawBodyRequest,
+  Req,
 } from '@nestjs/common';
 import { ApiBearerAuth, ApiHeader, ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { SkipThrottle } from '@nestjs/throttler';
+import type { Request } from 'express';
 
 import { NotFoundError } from '../../core/errors/domain.error';
 import { Public } from '../../shared/auth/public.decorator';
@@ -142,19 +145,20 @@ export class BillingController {
    * @SkipThrottle — webhook'da rate limit YO'Q (docs/10-security.md §7.1
    * jadvali: provayder retry'ini bloklash = to'lov yo'qotish).
    *
-   * TODO(billing): real provayder ulanganda imzo XOM body ustidan
-   * tekshirilishi kerak — main.ts'da NestFactory.create(..., { rawBody:
-   * true }) yoqiladi va bu yerga RawBodyRequest keladi (docs/09 §10.2).
-   * Hozircha parse qilingan JSON uzatiladi; stub adapterlar baribir
-   * PROVIDER_NOT_CONFIGURED tashlaydi.
+   * XOM body: `main.ts` da `rawBody: true` yoqilgan, shuning uchun bu
+   * yerda `req.rawBody` (Buffer) mavjud va imzo AYNAN shu baytlar ustidan
+   * tekshiriladi (docs/09 §10.2). Parse qilingan `body` faqat imzo
+   * TEKSHIRILGANDAN KEYIN maydonlarni o'qish uchun — sabab
+   * payment-provider.port.ts `WebhookVerifyInput` izohida.
    */
   @Public()
   @SkipThrottle()
   @Post('billing/webhooks/:provider')
   @HttpCode(HttpStatus.OK)
-  @ApiOperation({ summary: "Provayder webhook (imzo adapter'da tekshiriladi)" })
+  @ApiOperation({ summary: 'Provayder webhook (imzo XOM body ustidan tekshiriladi)' })
   webhook(
     @Param('provider') provider: string,
+    @Req() req: RawBodyRequest<Request>,
     @Body() body: unknown,
     @Headers() headers: Record<string, string | string[] | undefined>,
   ): Promise<{ received: true; duplicate: boolean }> {
@@ -163,7 +167,11 @@ export class BillingController {
       // Noma'lum provayder segmenti — 404, ro'yxat oshkor qilinmaydi.
       throw new NotFoundError('PaymentProvider', provider);
     }
-    return this.billingService.webhook(code, body, headers);
+    return this.billingService.webhook(code, {
+      rawBody: req.rawBody ?? null,
+      parsedBody: body,
+      headers,
+    });
   }
 
   @Post('payments/:id/refund')

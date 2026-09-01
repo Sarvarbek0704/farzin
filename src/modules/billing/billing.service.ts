@@ -311,8 +311,12 @@ export class BillingService {
    */
   async webhook(
     providerCode: PaymentProviderValue,
-    rawBody: unknown,
-    headers: Readonly<Record<string, string | string[] | undefined>>,
+    input: {
+      /** XOM baytlar — imzo AYNAN shular ustidan (payment-provider.port.ts). */
+      rawBody: Buffer | null;
+      parsedBody: unknown;
+      headers: Readonly<Record<string, string | string[] | undefined>>;
+    },
   ): Promise<{ received: true; duplicate: boolean }> {
     const adapter = this.registry.get(providerCode);
     const providerLabel = paymentProviderLabel(providerCode);
@@ -320,7 +324,11 @@ export class BillingService {
     // 1. Imzo/normalizatsiya. Stub adapterlar shu yerda
     //    PROVIDER_NOT_CONFIGURED tashlaydi (422, yon ta'sirsiz).
     const event = await this.timedProviderCall(providerLabel, 'webhook', () =>
-      adapter.verifyWebhook({ rawBody, headers }),
+      adapter.verifyWebhook({
+        rawBody: input.rawBody,
+        parsedBody: input.parsedBody,
+        headers: input.headers,
+      }),
     );
 
     // 2. To'lovni topish: avval provayder tranzaksiya ID, keyin

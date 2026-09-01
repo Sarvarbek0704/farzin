@@ -36,7 +36,19 @@ BigInt.prototype.toJSON = function (this: bigint): string {
 };
 
 async function bootstrap(): Promise<void> {
-  const app = await NestFactory.create(AppModule, { bufferLogs: true });
+  const app = await NestFactory.create(AppModule, {
+    bufferLogs: true,
+    // XOM body saqlanadi (`req.rawBody`) — to'lov webhook imzosi AYNAN
+    // shu baytlar ustidan tekshiriladi. Parse qilingan obyektni qayta
+    // serializatsiya qilish baytlarni o'zgartiradi va imzo tekshiruvini
+    // ma'nosiz qiladi (payment-provider.port.ts WebhookVerifyInput).
+    //
+    // ⚠️  Provayder kodidan OLDIN kerak edi: stub adapterlar baribir
+    //     PROVIDER_NOT_CONFIGURED tashlagani uchun bu yetishmovchilik
+    //     sezilmasdi va real provayder ulangan kuni chiqardi
+    //     (docs/AUDIT.md JIDDIY-9).
+    rawBody: true,
+  });
 
   app.useLogger(app.get(Logger));
 
