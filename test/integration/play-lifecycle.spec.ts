@@ -337,10 +337,14 @@ describe('play lifecycle (integration)', () => {
     // B avvalgi testda uzilgan — yangi socket.
     socketB = await connectPlay(tokenB);
 
+    // 15+0 = 15 daqiqa → RAPID. Ilgari bu yerda 10+0 turardi va test
+    // uni RAPID deb atardi, lekin docs/06:667 "blits ≤ 10" deydi —
+    // ya'ni 10 daqiqa hali BLITZ. Kategoriya tekshiruvi qo'shilgunga
+    // qadar (K-19) buni hech narsa ushlamasdi.
     const bucket = {
       timeCategory: 'RAPID',
       clockType: 'SUDDEN_DEATH',
-      baseTimeSeconds: 600,
+      baseTimeSeconds: 900,
       incrementSeconds: 0,
     };
     const matchedAP = new Promise<{ gameId: string }>((resolve) => {

@@ -1,15 +1,15 @@
 <!-- AUDIT-SUMMARY
 loyiha: farzin
 sana: 2026-09-01
-tayyorlik: 74
+tayyorlik: 75
 holat: ishlaydi
 tz_bandlari: 32/87
 build: ok
 typecheck: ok
 lint: ok
-test: 49
+test: 51
 kritik: 0
-jiddiy: 5
+jiddiy: 4
 kichik: 13
 -->
 
@@ -34,7 +34,7 @@ va `web/` da Next.js frontend (13 route).
 **Kod sifati bu portfeldagi eng yuqori darajalardan biri** — `strict` TypeScript
 toza o'tadi, lint toza, arxitektura chegaralari CI vositasi bilan majburlanadi,
 va kodning o'zi o'z cheklovlarini halol hujjatlaydi.
-Testlar: **49 to'plam — 538 unit + 105 integration, hammasi yashil**
+Testlar: **51 to'plam — 551 unit + 105 integration, hammasi yashil**
 (auditdan keyin +6 to'plam, +63 test).
 
 **Auditda eng katta muammo deploy qilib bo'lmasligi edi** — `docker build`
@@ -816,7 +816,7 @@ qila olmaydi; SUPER_ADMIN rolini berish uchun bazaga qo'lda `INSERT` kerak
 | K-16 ✅ | Dockerfile HEALTHCHECK `/api/health/live` ga urinardi, haqiqiy yo'l `/health/live`                          | `Dockerfile`                                   | **TUZATILDI 2026-09-01 (`526510f`)** — konteyner abadiy `unhealthy` bo'lardi va compose `depends_on: service_healthy` hech qachon ochilmasdi                                                                                                                                                                                                             |
 | K-17 ✅ | `pnpm prune --prod` prune'dan keyin `prepare` (husky) ni qayta chaqirib build'ni yiqitardi                  | `Dockerfile:42`                                | **TUZATILDI 2026-09-01 (`526510f`)** — `--ignore-scripts`. KRITIK-1 ning IKKINCHI to'sig'i edi                                                                                                                                                                                                                                                           |
 | K-18 | **WS gateway anonim tomoshabinni RAD ETADI, REST esa qo'llaydi** | `play.gateway.ts:167-172` | `GET /play/games/:id` `@Public` va `viewerRole: 'spectator'` qaytaradi, ya'ni dizayn anonim tomoshabinni nazarda tutadi. Lekin `handleConnection` tokenni SHARTSIZ talab qiladi va tokensiz socket'ni `token_expired` bilan uzadi. Natijada anonim ko'ruvchi jonli yangilanish OLA OLMAYDI. Frontend hozircha buni ochiq aytadi ("statik ko'rinish — jonli yangilanish uchun kiring") va socket'ni umuman ochmaydi. Jonli tekshiruvda aniqlandi (2026-09-01). Tuzatish: gateway'da tokensiz ulanishga FAQAT `spectator` roli bilan ruxsat berish |
-| K-19 | **`timeCategory` reyting hovuzini tanlaydi, lekin vaqt bilan solishtirilmaydi** | `matchmaking.service.ts:161`, `matchmaking-join.dto.ts:12-24` | DTO `timeCategory` ni faqat ro'yxatdan (`BULLET\|BLITZ\|RAPID\|CLASSICAL`) tekshiradi, `baseTimeSeconds` bilan MOSLIGINI tekshirmaydi. Ayni shu qiymat bilan `getCurrentRating(playerId, 'ONLINE', timeCategory)` chaqiriladi, ya'ni u reyting hovuzini tanlaydi. Natija: klient 30 daqiqalik o'yinni `BULLET` deb yuborib, bullet reytingini o'ynab olishi mumkin — docs/06 §5 kategoriyalarni ataylab ajratganiga zid. Frontend o'z tomonidan kategoriyani vaqtdan hisoblaydi (`web/lib/time-control.ts`), lekin bu **klient tomonidagi qoida** — API'ni to'g'ridan-to'g'ri chaqirgan odamni to'xtatmaydi. Tuzatish: DTO/servisda kategoriyani `base + 60×inc` dan hisoblab, kelgan qiymat bilan solishtirish (mos kelmasa 422) yoki umuman klientdan qabul qilmay, serverda hisoblash |
+| K-19 ✅ | **`timeCategory` reyting hovuzini tanlaydi, lekin vaqt bilan solishtirilmaydi** | `matchmaking.service.ts:161`, `matchmaking-join.dto.ts:12-24` | DTO `timeCategory` ni faqat ro'yxatdan (`BULLET\|BLITZ\|RAPID\|CLASSICAL`) tekshiradi, `baseTimeSeconds` bilan MOSLIGINI tekshirmaydi. Ayni shu qiymat bilan `getCurrentRating(playerId, 'ONLINE', timeCategory)` chaqiriladi, ya'ni u reyting hovuzini tanlaydi. Natija: klient 30 daqiqalik o'yinni `BULLET` deb yuborib, bullet reytingini o'ynab olishi mumkin — docs/06 §5 kategoriyalarni ataylab ajratganiga zid. Frontend o'z tomonidan kategoriyani vaqtdan hisoblaydi (`web/lib/time-control.ts`), lekin bu **klient tomonidagi qoida** — API'ni to'g'ridan-to'g'ri chaqirgan odamni to'xtatmaydi. Tuzatish: DTO/servisda kategoriyani `base + 60×inc` dan hisoblab, kelgan qiymat bilan solishtirish (mos kelmasa 422) yoki umuman klientdan qabul qilmay, serverda hisoblash. **TUZATILDI 2026-09-01 (`a3eaf72`)** — `src/core/clock/time-category.ts` (sof funksiya, docs/06 §5 ONLINE chegaralari) + `time-control.guard.ts` ikkala kirish nuqtasida (matchmaking join va chaqiruv). Mos kelmasa 422 `TIME_CATEGORY_MISMATCH`, kutilgan qiymat aytiladi. Jonli tekshirildi: 1800s+BULLET → 422, 60s+CLASSICAL → 422. Frontend chegaralari ham serverga keltirildi (avval OTB dagi 60 daqiqani ishlatardi) |
 
 ### ✅ Yaxshi bajarilgan joylar (qisqacha)
 
