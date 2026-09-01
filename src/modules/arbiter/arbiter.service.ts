@@ -396,6 +396,27 @@ export class ArbiterService {
       history,
     );
 
+    // Float tarixi — `buildPairingStates` FIDE C.04.3 Article 1.4 bo'yicha
+    // hisoblaydi (juftlashtirishda ishlatiladigan AYNAN o'sha kod).
+    //
+    // ⚠️  Ilgari bu yerda `floatHistory: []` qattiq yozilgan edi, izohda esa
+    //     "round-robin'da float yo'q" deyilgan — lekin bu metod SWISS_DUTCH
+    //     seksiyalar uchun ham chaqiriladi. Natijada jadval API'si Swiss
+    //     turnirlarida HAR DOIM bo'sh float qaytarardi, holbuki
+    //     `farzin_pairing_float_count` metrikasi nolga teng emas edi
+    //     (docs/AUDIT.md JIDDIY-5). Sxema bu maydonni "juftlashtirish uchun
+    //     kerak" deb ta'riflaydi — noto'g'ri ma'lumot jimgina tarqalardi.
+    //
+    // Round-robin uchun natija baribir bo'sh massiv bo'ladi (float faqat
+    // turli ochkoli o'yinchilar uchraganda paydo bo'ladi), ya'ni eski
+    // xulq saqlanadi — endi u FARAZ emas, HISOB natijasi.
+    const floatByRegistration = new Map<string, string[]>(
+      buildPairingStates(toSeeds(participants), history).map((state) => [
+        String(state.playerId),
+        [...state.floatHistory],
+      ]),
+    );
+
     const ratingById = new Map(participants.map((p) => [p.id, p.ratingAtEntry]));
     const inputs: PlayerTieBreakInput[] = views.map((view) => {
       const rating = ratingById.get(view.registrationId);
@@ -423,7 +444,7 @@ export class ArbiterService {
       draws: view.draws,
       losses: view.losses,
       colorHistory: [...view.colorHistory],
-      floatHistory: [], // round-robin'da float yo'q (docs/05 §1.2)
+      floatHistory: floatByRegistration.get(view.registrationId) ?? [],
     }));
 
     await this.repo.upsertStandings(section.id, rows);
