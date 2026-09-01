@@ -2,29 +2,20 @@ import { notFound } from 'next/navigation';
 
 import { ApiError, getGame } from '@/lib/api';
 import { TIME_CATEGORY_LABEL, formatTimeControl } from '@/lib/format';
-import { ChessBoard } from '@/components/board';
-import { BackLink, Card, PageHeader, TitleTag } from '@/components/ui';
+import { LiveGame } from './live-game';
+import { BackLink, PageHeader } from '@/components/ui';
 
 /**
  * O'yin ko'rinishi — TOMOSHABIN uchun, ommaviy.
  *
- * ⚠️  Bu KO'RISH sahifasi, o'ynash EMAS. Yurish qilish server-authoritative
- *     taymer va Socket.IO gateway'i bilan ishlaydi (docs/07) — u alohida
- *     interaktiv bo'lak sifatida qo'shiladi. Bu yerda taxta joriy FEN'ni
- *     ko'rsatadi va yurishlar ro'yxati beriladi.
+ * Server komponenti boshlang'ich holatni beradi — birinchi chizish tez
+ * bo'lsin va sahifa JavaScript'siz ham mazmunli bo'lsin. Keyin
+ * `LiveGame` (klient) Socket.IO bilan jonli holatga o'tadi.
  *
- *     Nega shunday bo'lingan: taxtani ko'rsatish uchun WebSocket kerak
- *     emas, va u LITSENZIYA savolini yopadigan birinchi qadam
- *     (components/board.tsx izohi).
+ * ⚠️  Bu yo'l TOMOSHABIN sifatida ulanadi (token yo'q): taxta yangilanadi,
+ *     lekin yurish qilinmaydi. O'ynash uchun o'yinchi tokeni kerak —
+ *     live-game.tsx dagi `token` propi.
  */
-
-/** Soat: ms → `m:ss`. Manba serverda, bu faqat ko'rsatish. */
-function formatClock(ms: number): string {
-  const total = Math.max(0, Math.floor(ms / 1000));
-  const minutes = Math.floor(total / 60);
-  const seconds = total % 60;
-  return `${String(minutes)}:${String(seconds).padStart(2, '0')}`;
-}
 
 const STATUS_LABEL: Record<string, string> = {
   ACTIVE: 'Davom etmoqda',
@@ -51,16 +42,6 @@ export default async function GamePage({ params }: { params: Promise<{ id: strin
     throw e;
   });
 
-  // Yurishlar juftlik bo'lib ko'rsatiladi: "1. e4 e5".
-  const movePairs: { number: number; white: string; black: string | null }[] = [];
-  for (let i = 0; i < game.moves.length; i += 2) {
-    movePairs.push({
-      number: i / 2 + 1,
-      white: game.moves[i] ?? '',
-      black: game.moves[i + 1] ?? null,
-    });
-  }
-
   return (
     <>
       <BackLink href="/turnirlar">Turnirlar</BackLink>
@@ -78,83 +59,17 @@ export default async function GamePage({ params }: { params: Promise<{ id: strin
         </div>
       </PageHeader>
 
-      <div style={{ display: 'flex', gap: 24, flexWrap: 'wrap', alignItems: 'flex-start' }}>
-        <ChessBoard fen={game.fen} />
-
-        <div style={{ flex: '1 1 260px', minWidth: 240 }}>
-          <Card>
-            <PlayerLine
-              player={game.black}
-              clockMs={game.clock.blackMs}
-              active={game.clock.running === 'b'}
-            />
-            <div className="board-rule" style={{ margin: '12px 0' }} />
-            <PlayerLine
-              player={game.white}
-              clockMs={game.clock.whiteMs}
-              active={game.clock.running === 'w'}
-            />
-          </Card>
-
-          <div style={{ marginTop: 16 }}>
-            <h3 style={{ marginBottom: 8 }}>Yurishlar</h3>
-            {movePairs.length === 0 ? (
-              <p className="muted small">Hali yurish qilinmagan.</p>
-            ) : (
-              <ol
-                className="tabular small"
-                style={{
-                  margin: 0,
-                  paddingLeft: 26,
-                  maxHeight: 320,
-                  overflowY: 'auto',
-                }}
-              >
-                {movePairs.map((pair) => (
-                  <li key={pair.number}>
-                    {pair.white}
-                    {pair.black !== null && ` ${pair.black}`}
-                  </li>
-                ))}
-              </ol>
-            )}
-          </div>
-        </div>
-      </div>
+      {/*
+        Server komponenti boshlang'ich holatni beradi (SEO va tez
+        birinchi chizish), keyin klient Socket.IO bilan JONLI holatga
+        o'tadi. Token yo'q — tomoshabin: taxta faqat ko'rish uchun.
+      */}
+      <LiveGame initial={game} token={null} />
 
       <p className="muted small" style={{ marginTop: 24 }}>
-        Bu tomoshabin ko`rinishi — jonli yangilanish va yurish qilish keyingi bo`lakda.
+        Tomoshabin ko`rinishi: taxta jonli yangilanadi, lekin yurish qilish uchun
+        o`yinchi sifatida kirish kerak.
       </p>
     </>
-  );
-}
-
-function PlayerLine({
-  player,
-  clockMs,
-  active,
-}: {
-  player: { firstName: string; lastName: string; title: string | null; rating: number };
-  clockMs: number;
-  active: boolean;
-}) {
-  return (
-    <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12 }}>
-      <span>
-        <TitleTag title={player.title} />
-        {player.lastName} {player.firstName}{' '}
-        <span className="muted small tabular">{Math.round(player.rating)}</span>
-      </span>
-      <span
-        className="tabular"
-        style={{
-          fontWeight: 600,
-          // Soati yurayotgan tomon ajralib tursin.
-          color: active ? 'var(--accent)' : 'var(--ink-secondary)',
-        }}
-      >
-        {formatClock(clockMs)}
-      </span>
-    </div>
   );
 }

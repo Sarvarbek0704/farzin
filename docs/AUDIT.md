@@ -1,7 +1,7 @@
 <!-- AUDIT-SUMMARY
 loyiha: farzin
 sana: 2026-09-01
-tayyorlik: 68
+tayyorlik: 72
 holat: ishlaydi
 tz_bandlari: 32/87
 build: ok
@@ -10,7 +10,7 @@ lint: ok
 test: 49
 kritik: 0
 jiddiy: 4
-kichik: 12
+kichik: 13
 -->
 
 # Farzin — loyiha holati auditi
@@ -642,9 +642,12 @@ darhol ko'rsatadi.
 
 **Nega hali ham QISMAN — nima yo'q:**
 
-- **Onlayn o'yinda YURISH qilish** (Faza 5 UI). Taxta va tomoshabin
-  ko'rinishi QO'SHILDI (`/oyin/[id]`), lekin jonli yangilanish va
-  yurish qilish Socket.IO qatlamini talab qiladi — u alohida bo'lak.
+- **Onlayn o'yin UI QO'SHILDI** (`/oyin/[id]` + `live-game.tsx`):
+  Socket.IO orqali jonli holat, yurish qilish, durang taklifi va
+  taslim. Kontrakt jonli tekshirilgan (quyida).
+
+  Qolgani: matchmaking navbati UI va o'yinlar ro'yxati sahifasi —
+  hozircha o'yinga faqat to'g'ridan-to'g'ri havola bilan kiriladi.
 
   ⚠️  **chessground GPL-3.0 blokeri YOPILDI.** `docs/README.md` uni
       "tijorat mahsulotga mos keladimi — Yurist" degan *bloklovchi*
@@ -653,14 +656,18 @@ darhol ko'rsatadi.
       bog'liqlik daraxti tekshirildi — 289 paket, GPL/AGPL/SSPL/CC-BY-NC
       oilasidan HECH NARSA yo'q (MIT 247, ISC 12, Apache-2.0 10, BSD 12,
       MPL-2.0 3). Ya'ni bu savolni yuristga yubormasa ham bo'ladi.
-- **Fair-play komissiya paneli** (Faza 6 DoD) — backend API tayyor, UI yo'q.
+- ~~Fair-play komissiya paneli~~ ✅ QO'SHILDI (`ad54fdb`) — ishlar
+  ro'yxati, signallar, qaror formasi. Uchala qorovul (asos uzunligi,
+  sanksiya muddati, takroriy qaror) jonli tekshirilgan.
 - **To'lov oqimi UI** — provayderlar ulanmagani uchun (JIDDIY-9) mazmunsiz.
-- **Til almashtirgich** (`uz-Cyrl`/`ru`/`en`) — shriftlar kirillga tayyor,
-  lekin matnlar hozircha faqat `uz-Latn` da qattiq yozilgan.
+- ~~Til almashtirgich~~ ✅ QO'SHILDI (`e904635`) — to'rt til, lug'at
+  to'liqligi 124 test bilan majburlangan. Qolgan cheklov: cookie
+  asosida, ya'ni SEO uchun URL prefiksli lokalizatsiya kerak bo'ladi.
 - **Mobil ko'rinish** — jadvallar `overflow-x` bilan surilади, lekin
   maketlardagi mobil layout alohida ishlanmagan.
-- Frontend uchun **test yo'q** (E2E ham, komponent ham). Tekshiruv
-  hozircha qo'lda o'tkazilgan jonli smoke-test darajasida.
+- Frontend testlari QISMAN (`93774f8`, `e904635`): sof mantiq
+  (formatlash, lug'at) 142 test bilan qoplangan. **E2E va komponent
+  testlari hali yo'q** — sahifalar jonli smoke-test bilan tekshirilgan.
 
 ---
 
@@ -798,6 +805,7 @@ qila olmaydi; SUPER_ADMIN rolini berish uchun bazaga qo'lda `INSERT` kerak
 | K-15 ✅ | Prettier versiyasi suzuvchi (`^3.4.2` → 3.9.5) — 101 faylda formatlash farqi, CI'da ham yiqilardi           | `package.json`                                 | **TUZATILDI 2026-09-01 (`715515f`)** — qayta formatlandi, versiya aniq qotirildi. Audit "sabab faqat CRLF" degan xulosasi TO'LIQ EMAS edi                                                                                                                                                                                                                |
 | K-16 ✅ | Dockerfile HEALTHCHECK `/api/health/live` ga urinardi, haqiqiy yo'l `/health/live`                          | `Dockerfile`                                   | **TUZATILDI 2026-09-01 (`526510f`)** — konteyner abadiy `unhealthy` bo'lardi va compose `depends_on: service_healthy` hech qachon ochilmasdi                                                                                                                                                                                                             |
 | K-17 ✅ | `pnpm prune --prod` prune'dan keyin `prepare` (husky) ni qayta chaqirib build'ni yiqitardi                  | `Dockerfile:42`                                | **TUZATILDI 2026-09-01 (`526510f`)** — `--ignore-scripts`. KRITIK-1 ning IKKINCHI to'sig'i edi                                                                                                                                                                                                                                                           |
+| K-18 | **WS gateway anonim tomoshabinni RAD ETADI, REST esa qo'llaydi** | `play.gateway.ts:167-172` | `GET /play/games/:id` `@Public` va `viewerRole: 'spectator'` qaytaradi, ya'ni dizayn anonim tomoshabinni nazarda tutadi. Lekin `handleConnection` tokenni SHARTSIZ talab qiladi va tokensiz socket'ni `token_expired` bilan uzadi. Natijada anonim ko'ruvchi jonli yangilanish OLA OLMAYDI. Frontend hozircha buni ochiq aytadi ("statik ko'rinish — jonli yangilanish uchun kiring") va socket'ni umuman ochmaydi. Jonli tekshiruvda aniqlandi (2026-09-01). Tuzatish: gateway'da tokensiz ulanishga FAQAT `spectator` roli bilan ruxsat berish |
 
 ### ✅ Yaxshi bajarilgan joylar (qisqacha)
 

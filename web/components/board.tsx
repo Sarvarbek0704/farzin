@@ -36,10 +36,20 @@ const DARK_SQUARE = '#4F7454';
 export function ChessBoard({
   fen,
   orientation = 'white',
+  onMove,
 }: {
   fen: string;
   /** Qora o'yinchi taxtani o'z tomonidan ko'radi. */
   orientation?: 'white' | 'black';
+  /**
+   * Yurish so'rovi. Berilmasa taxta FAQAT KO'RISH uchun.
+   *
+   * ⚠️  HAR DOIM `false` qaytaradi: taxta optimistik yangilanmaydi.
+   *     Yurish qonuniyligini SERVER hal qiladi va natija
+   *     `game:move_made` bilan keladi. Noto'g'ri yurish bir lahza
+   *     to'g'ri ko'rinib, keyin orqaga sakrashi — eng chalg'ituvchi xulq.
+   */
+  onMove?: (from: string, to: string) => boolean;
 }) {
   return (
     <div style={{ maxWidth: 440, width: '100%' }}>
@@ -47,9 +57,18 @@ export function ChessBoard({
         options={{
           position: fen,
           boardOrientation: orientation,
-          // Bu KO'RISH taxtasi: yurish qilinmaydi. Interaktiv o'yin
-          // WebSocket qatlami bilan birga qo'shiladi (Faza 5 UI).
-          allowDragging: false,
+          allowDragging: onMove !== undefined,
+          ...(onMove === undefined
+            ? {}
+            : {
+                onPieceDrop: ({
+                  sourceSquare,
+                  targetSquare,
+                }: {
+                  sourceSquare: string;
+                  targetSquare: string | null;
+                }) => (targetSquare === null ? false : onMove(sourceSquare, targetSquare)),
+              }),
           darkSquareStyle: { backgroundColor: DARK_SQUARE },
           lightSquareStyle: { backgroundColor: LIGHT_SQUARE },
           boardStyle: { borderRadius: '8px', overflow: 'hidden' },
