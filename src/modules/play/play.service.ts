@@ -25,6 +25,7 @@ import { PLAYER_PORT, type PlayerPort, type PlayerSummary } from '../player/play
 import { RATING_PORT, type RatingPort } from '../rating/rating.port';
 import { ClockStore } from './clock.store';
 import { PlayRepository, type FinishGameInput } from './play.repository';
+import { assertTimeCategoryMatches } from './time-control.guard';
 import {
   PLAY_GAME_FINISHED_EVENT,
   type ClaimTimeoutResult,
@@ -148,6 +149,12 @@ export class PlayService {
     actorUserId: string,
     input: CreateChallengeInput,
   ): Promise<GameStatePayload> {
+    // Do'stona o'yin reytingga kirmasa ham kategoriya to'g'ri bo'lsin:
+    // o'yin yozuvi shu qiymat bilan saqlanadi va keyinchalik hisobot,
+    // filtr va (reytingli o'yinlar yoqilganda) hovuz tanlash unga
+    // tayanadi (K-19).
+    assertTimeCategoryMatches(input);
+
     const me = await this.players.findSummaryByUserId(actorUserId);
     if (me === null) {
       throw new BusinessRuleError(

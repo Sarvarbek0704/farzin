@@ -2,40 +2,44 @@ import { describe, expect, it } from 'vitest';
 
 import { PRESETS, categoryFor, presetLabel } from './time-control';
 
+/**
+ * Bu testlar server tomonidagi `src/core/clock/time-category.spec.ts`
+ * bilan JUFTLIKDA turadi: ikkala tomon docs/06 §5 ning ONLINE
+ * chegaralarini bir xil qo'llashi shart. Server mos kelmagan
+ * kategoriyani 422 bilan rad etadi.
+ */
 describe('categoryFor', () => {
-  it('3 daqiqadan kam — bullet (onlayn konventsiyasi)', () => {
+  it('3 daqiqadan kam — bullet', () => {
     expect(categoryFor(60, 0)).toBe('BULLET');
-    expect(categoryFor(60, 1)).toBe('BULLET'); // 60 + 60 = 120 < 180
-    // 2+1: 120 + 60 = AYNAN 180 -> blits. Lichess uni bullet deydi
-    // (u base + 40 x inc ishlatadi), biz FIDE ning 60 x inc formulasida
-    // qolamiz: bitta formulani oxirigacha qo`llash aralashtirishdan afzal.
-    expect(categoryFor(120, 1)).toBe('BLITZ');
+    expect(categoryFor(60, 1)).toBe('BULLET'); // 1 + 1 = 2 daqiqa
+    expect(categoryFor(119, 0)).toBe('BULLET');
   });
 
-  it('increment umumiy vaqtga 60 barobar qo`shiladi (FIDE formulasi)', () => {
-    // 60 + 60x2 = 180 -> bullet EMAS. Increment'siz 60s bullet edi.
-    expect(categoryFor(60, 0)).toBe('BULLET');
+  it('increment daqiqaga 1:1 qo`shiladi (docs/06 §5.1)', () => {
+    // 1+0 bullet edi; 1+2 esa 3 daqiqa -> blits.
     expect(categoryFor(60, 2)).toBe('BLITZ');
   });
 
-  it('3+0 = 180s — blits, bullet emas (chegara ochiq)', () => {
+  it('aynan 3 daqiqa — blits, bullet emas', () => {
     expect(categoryFor(180, 0)).toBe('BLITZ');
+    expect(categoryFor(120, 1)).toBe('BLITZ'); // 2 + 1 = 3
   });
 
-  it('FIDE: 10 daqiqa va undan kam — blits', () => {
+  it('10 daqiqaning O`ZI ham blits (FIDE: 10 va undan kam)', () => {
     expect(categoryFor(600, 0)).toBe('BLITZ');
-    expect(categoryFor(599, 0)).toBe('BLITZ');
+    expect(categoryFor(180, 7)).toBe('BLITZ'); // 3 + 7 = 10
   });
 
-  it('FIDE: 10 dan ko`p, 60 dan kam — rapid', () => {
+  it('10 dan ko`p, 30 dan kam — rapid', () => {
     expect(categoryFor(601, 0)).toBe('RAPID');
-    expect(categoryFor(900, 10)).toBe('RAPID'); // 15+10 = 1500s
-    expect(categoryFor(3599, 0)).toBe('RAPID');
+    expect(categoryFor(900, 10)).toBe('RAPID'); // 15 + 10 = 25
+    expect(categoryFor(29 * 60, 0)).toBe('RAPID');
   });
 
-  it('60 daqiqa va undan ko`p — klassik', () => {
-    expect(categoryFor(3600, 0)).toBe('CLASSICAL');
-    expect(categoryFor(5400, 30)).toBe('CLASSICAL'); // 90+30
+  it('ONLAYN klassik 30 daqiqadan — OTB dagi 60 dan emas', () => {
+    expect(categoryFor(30 * 60, 0)).toBe('CLASSICAL');
+    expect(categoryFor(20 * 60, 10)).toBe('CLASSICAL'); // 20 + 10 = 30
+    expect(categoryFor(45 * 60, 0)).toBe('CLASSICAL');
   });
 });
 

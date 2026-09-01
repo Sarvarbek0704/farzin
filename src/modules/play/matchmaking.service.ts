@@ -9,6 +9,7 @@ import { PLAYER_PORT, type PlayerPort } from '../player/player.port';
 import { RATING_PORT, type RatingPort } from '../rating/rating.port';
 import { REDIS } from '../../shared/redis/redis.module';
 import { PlayService } from './play.service';
+import { assertTimeCategoryMatches } from './time-control.guard';
 import {
   PLAY_MATCHED_EVENT,
   type ClockTypeValue,
@@ -150,6 +151,10 @@ export class MatchmakingService {
     if (pool.clockType === 'MULTI_STAGE') {
       throw multiStageNotImplemented();
     }
+    // Kategoriya reyting hovuzini tanlaydi — u vaqtga MOS bo'lishi shart
+    // (K-19). Tekshiruv `getCurrentRating` dan OLDIN: aks holda noto'g'ri
+    // hovuzdan reyting o'qib bo'lingan bo'lardi.
+    assertTimeCategoryMatches(pool);
     const me = await this.players.findSummaryByUserId(userId);
     if (me === null) {
       throw new BusinessRuleError(

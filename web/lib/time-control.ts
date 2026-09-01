@@ -22,18 +22,21 @@
 export type TimeCategory = 'BULLET' | 'BLITZ' | 'RAPID' | 'CLASSICAL';
 
 /**
- * FIDE Handbook: blits — 10 daqiqa va undan kam; rapid — 10 dan ko'p,
- * 60 dan kam; qolgani klassik. O'lchov `base + 60 x increment`
- * (bir o'yinchiga taxminiy umumiy vaqt).
+ * Chegaralar — docs/06-rating-system.md §5 jadvalining ONLINE qatorlari:
+ * bullet < 3 daq, blits 3–10, rapid 10–30, klassik ≥ 30.
+ * Formula §5.1: `effective_minutes = base_minutes + increment_seconds`.
  *
- * "Bullet" FIDE'da YO'Q — bu onlayn konventsiya (3 daqiqadan kam).
- * Chegara ochiq: 3+0 = 180s blits hisoblanadi, bullet emas.
+ * ⚠️  ONLAYN klassik 30 daqiqadan boshlanadi — OTB dagi 60 dan EMAS.
+ *     Bu funksiya server tomonidagi `onlineTimeCategory`
+ *     (`src/core/clock/time-category.ts`) bilan BIR XIL bo'lishi shart:
+ *     server endi mos kelmagan kategoriyani 422 `TIME_CATEGORY_MISMATCH`
+ *     bilan rad etadi, ya'ni farq darhol buzilgan tugmaga aylanadi.
  */
 export function categoryFor(baseSeconds: number, incrementSeconds: number): TimeCategory {
-  const total = baseSeconds + 60 * incrementSeconds;
-  if (total < 180) return 'BULLET';
-  if (total <= 600) return 'BLITZ';
-  if (total < 3600) return 'RAPID';
+  const effectiveMinutes = baseSeconds / 60 + incrementSeconds;
+  if (effectiveMinutes < 3) return 'BULLET';
+  if (effectiveMinutes <= 10) return 'BLITZ';
+  if (effectiveMinutes < 30) return 'RAPID';
   return 'CLASSICAL';
 }
 
