@@ -1,10 +1,20 @@
+import type { Metadata } from 'next';
 import Link from 'next/link';
 
 import { listTournaments, type Tournament } from '@/lib/api';
 import { formatDateRange, formatSom, statusView } from '@/lib/format';
 import { EmptyState, ErrorState, PageHeader } from '@/components/ui';
+import { getTranslator } from '@/lib/i18n.server';
 
-export const metadata = { title: 'Turnirlar' };
+/**
+ * Sahifa sarlavhasi ham tarjima qilinadi — brauzer yorlig'i va qidiruv
+ * natijasi foydalanuvchi tilida bo'lishi kerak. Statik `metadata` buni
+ * qila olmaydi, chunki til cookie'dan (so'rovdan) keladi.
+ */
+export async function generateMetadata(): Promise<Metadata> {
+  const t = await getTranslator();
+  return { title: t('tournaments.title') };
+}
 
 /**
  * Turnir kalendari — ommaviy.
@@ -15,6 +25,7 @@ export const metadata = { title: 'Turnirlar' };
  * TURGAN holda ko'rmasa, Swiss-Manager'dan ko'chmaydi.
  */
 export default async function TournamentsPage() {
+  const t = await getTranslator();
   let tournaments: Tournament[] = [];
   let error: string | null = null;
 
@@ -26,49 +37,43 @@ export default async function TournamentsPage() {
 
   return (
     <>
-      <PageHeader
-        title="Turnirlar"
-        subtitle="Ommaviy kalendar. Turnirni ochib ishtirokchilar ro'yxati va jonli jadvalni ko'ring."
-      />
+      <PageHeader title={t('tournaments.title')} subtitle={t('tournaments.subtitle')} />
 
       {error !== null ? (
         <ErrorState message={error} />
       ) : tournaments.length === 0 ? (
-        <EmptyState
-          title="Hozircha turnir yo`q"
-          hint="Tashkilotchilar turnir e`lon qilgach, u shu yerda ko`rinadi."
-        />
+        <EmptyState title={t('tournaments.empty')} hint={t('tournaments.emptyHint')} />
       ) : (
         <div className="table-wrap">
           <table>
             <thead>
               <tr>
-                <th>Turnir</th>
-                <th>Sana</th>
-                <th>Joy</th>
-                <th>Start puli</th>
-                <th>Holat</th>
+                <th>{t('table.tournament')}</th>
+                <th>{t('table.date')}</th>
+                <th>{t('table.venue')}</th>
+                <th>{t('table.entryFee')}</th>
+                <th>{t('table.status')}</th>
               </tr>
             </thead>
             <tbody>
-              {tournaments.map((t) => {
-                const status = statusView(t.status);
+              {tournaments.map((item) => {
+                const status = statusView(item.status);
                 return (
-                  <tr key={t.id}>
+                  <tr key={item.id}>
                     <td>
-                      <Link href={`/turnirlar/${t.id}`} style={{ fontWeight: 500 }}>
-                        {t.name}
+                      <Link href={`/turnirlar/${item.id}`} style={{ fontWeight: 500 }}>
+                        {item.name}
                       </Link>
-                      {t.isNationallyRated && (
-                        <div className="muted small">Milliy reytingga hisoblanadi</div>
+                      {item.isNationallyRated && (
+                        <div className="muted small">{t('tournaments.nationallyRated')}</div>
                       )}
                     </td>
                     <td className="tabular" style={{ whiteSpace: 'nowrap' }}>
-                      {formatDateRange(t.startDate, t.endDate)}
+                      {formatDateRange(item.startDate, item.endDate)}
                     </td>
-                    <td className="muted">{t.venueName ?? '—'}</td>
+                    <td className="muted">{item.venueName ?? '—'}</td>
                     <td className="tabular" style={{ whiteSpace: 'nowrap' }}>
-                      {formatSom(t.entryFeeAmount)}
+                      {formatSom(item.entryFeeAmount)}
                     </td>
                     <td>
                       <span className={status.className}>{status.label}</span>

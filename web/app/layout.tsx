@@ -3,6 +3,10 @@ import { IBM_Plex_Mono, Inter, Playfair_Display } from 'next/font/google';
 import Link from 'next/link';
 import type { ReactNode } from 'react';
 
+import { LanguageSwitcher } from '@/components/language-switcher';
+import { translate } from '@/lib/i18n';
+import { getLocale } from '@/lib/i18n.server';
+
 import './globals.css';
 
 /**
@@ -42,16 +46,18 @@ export const metadata: Metadata = {
     "Turnir kalendari, jonli jadval va milliy Glicko-2 reyting. O'zbekiston shaxmati uchun ochiq ma'lumotlar.",
 };
 
-/** Navigatsiya — dizayn tizimidagi `uz-Latn` yorliqlari. */
+/** Navigatsiya — yorliqlar lug'atdan (dizayn tizimidagi LOCALES jadvali). */
 const NAV = [
-  { href: '/turnirlar', label: 'Turnirlar' },
-  { href: '/reyting', label: 'Reyting' },
-  { href: '/konsol', label: 'Konsol' },
+  { href: '/turnirlar', key: 'nav.tournaments' },
+  { href: '/reyting', key: 'nav.ratings' },
+  { href: '/konsol', key: 'nav.console' },
 ] as const;
 
-export default function RootLayout({ children }: { children: ReactNode }) {
+export default async function RootLayout({ children }: { children: ReactNode }) {
+  const locale = await getLocale();
+
   return (
-    <html lang="uz-Latn" className={`${playfair.variable} ${inter.variable} ${mono.variable}`}>
+    <html lang={locale} className={`${playfair.variable} ${inter.variable} ${mono.variable}`}>
       <body>
         <header
           style={{
@@ -91,10 +97,12 @@ export default function RootLayout({ children }: { children: ReactNode }) {
                   href={item.href}
                   style={{ color: 'var(--ink-secondary)', fontSize: 14, fontWeight: 500 }}
                 >
-                  {item.label}
+                  {translate(locale, item.key)}
                 </Link>
               ))}
             </nav>
+
+            <LanguageSwitcher current={locale} />
           </div>
         </header>
 
@@ -116,7 +124,7 @@ export default function RootLayout({ children }: { children: ReactNode }) {
               Foydalanuvchini "hammasi tayyor" degan taassurotga
               solmaslik uchun buni ochiq yozamiz.
             */}
-            Ommaviy ma`lumotlar · Hakam konsoli va onlayn o`yin ishlab chiqilmoqda
+            {translate(locale, 'footer.note')}
           </div>
         </footer>
       </body>

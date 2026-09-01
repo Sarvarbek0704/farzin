@@ -1,10 +1,15 @@
+import type { Metadata } from 'next';
 import Link from 'next/link';
 
 import { listRatings, type RatingRow } from '@/lib/api';
 import { formatRating, fullName } from '@/lib/format';
 import { EmptyState, ErrorState, PageHeader, TitleTag } from '@/components/ui';
+import { getTranslator } from '@/lib/i18n.server';
 
-export const metadata = { title: 'Reyting' };
+export async function generateMetadata(): Promise<Metadata> {
+  const t = await getTranslator();
+  return { title: t('ratings.title') };
+}
 
 /**
  * Milliy reyting ro'yxati.
@@ -20,6 +25,7 @@ export const metadata = { title: 'Reyting' };
  *      AYTILADI, aks holda "tizim buzuq" deb o'ylanadi.
  */
 export default async function RatingsPage() {
+  const t = await getTranslator();
   let rows: RatingRow[] = [];
   let error: string | null = null;
 
@@ -31,27 +37,21 @@ export default async function RatingsPage() {
 
   return (
     <>
-      <PageHeader
-        title="Milliy reyting"
-        subtitle="Glicko-2, klassik vaqt nazorati, taxta ortidagi (OTB) o'yinlar. Reyting ishonch oralig'i (RD) bilan birga beriladi — bu son emas, taqsimot."
-      />
+      <PageHeader title={t('ratings.title')} subtitle={t('ratings.subtitle')} />
 
       {error !== null ? (
         <ErrorState message={error} />
       ) : rows.length === 0 ? (
-        <EmptyState
-          title="Ro`yxat hozircha bo`sh"
-          hint="Reytingga faqat yetarli o`yin o`ynagan (established) o`yinchilar kiradi. Boshlang`ich davrda RD yuqori bo`ladi va o`yinchi ro`yxatda ko`rinmaydi."
-        />
+        <EmptyState title={t('ratings.empty')} hint={t('ratings.emptyHint')} />
       ) : (
         <div className="table-wrap">
           <table>
             <thead>
               <tr>
                 <th className="num">#</th>
-                <th>O`yinchi</th>
-                <th className="num">Reyting</th>
-                <th className="num">O`yin</th>
+                <th>{t('table.player')}</th>
+                <th className="num">{t('table.rating')}</th>
+                <th className="num">{t('table.games')}</th>
               </tr>
             </thead>
             <tbody>

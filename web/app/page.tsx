@@ -3,6 +3,7 @@ import Link from 'next/link';
 import { listTournaments, type Tournament } from '@/lib/api';
 import { formatDateRange, statusView } from '@/lib/format';
 import { PageHeader } from '@/components/ui';
+import { getTranslator } from '@/lib/i18n.server';
 
 /**
  * Bosh sahifa.
@@ -11,6 +12,7 @@ import { PageHeader } from '@/components/ui';
  * javob berish. Dizayn brifi: taxta motivi qahramon, qolgani jim.
  */
 export default async function HomePage() {
+  const t = await getTranslator();
   let live: Tournament[] = [];
   let failed = false;
 
@@ -28,44 +30,41 @@ export default async function HomePage() {
 
   return (
     <>
-      <PageHeader
-        title="O'zbekiston shaxmatining raqamli infratuzilmasi"
-        subtitle="Turnir kalendari, jonli jadval va milliy Glicko-2 reyting — ochiq va tekshirib bo'ladigan ma'lumot."
-      />
+      <PageHeader title={t('home.title')} subtitle={t('home.subtitle')} />
 
       <section style={{ display: 'grid', gap: 14, gridTemplateColumns: '1fr', marginBottom: 36 }}>
         <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
           <Link href="/turnirlar" className="card" style={{ flex: '1 1 240px', color: 'inherit' }}>
-            <h3 style={{ marginBottom: 6 }}>Turnirlar</h3>
+            <h3 style={{ marginBottom: 6 }}>{t('nav.tournaments')}</h3>
             <p className="muted small" style={{ margin: 0 }}>
-              Kalendar, ishtirokchilar, tur-ma-tur jadval va tie-break.
+              {t('home.tournamentsCard')}
             </p>
           </Link>
 
           <Link href="/reyting" className="card" style={{ flex: '1 1 240px', color: 'inherit' }}>
-            <h3 style={{ marginBottom: 6 }}>Milliy reyting</h3>
+            <h3 style={{ marginBottom: 6 }}>{t('ratings.title')}</h3>
             <p className="muted small" style={{ margin: 0 }}>
-              Glicko-2. Reyting ishonch oralig'i (RD) bilan birga ko'rsatiladi.
+              {t('home.ratingsCard')}
             </p>
           </Link>
         </div>
       </section>
 
       <section>
-        <h2 style={{ marginBottom: 14 }}>Hozir</h2>
+        <h2 style={{ marginBottom: 14 }}>{t('home.now')}</h2>
 
         {failed ? (
-          <p className="muted small">Turnir ma`lumotini olishning iloji bo`lmadi.</p>
+          <p className="muted small">{t('error.title')}</p>
         ) : live.length === 0 ? (
-          <p className="muted small">Ayni paytda faol turnir yo`q.</p>
+          <p className="muted small">{t('home.noActive')}</p>
         ) : (
           <div style={{ display: 'grid', gap: 10 }}>
-            {live.map((t) => {
-              const status = statusView(t.status);
+            {live.map((item) => {
+              const status = statusView(item.status);
               return (
                 <Link
-                  key={t.id}
-                  href={`/turnirlar/${t.id}`}
+                  key={item.id}
+                  href={`/turnirlar/${item.id}`}
                   className="card"
                   style={{ color: 'inherit', display: 'block' }}
                 >
@@ -77,12 +76,12 @@ export default async function HomePage() {
                       flexWrap: 'wrap',
                     }}
                   >
-                    <strong>{t.name}</strong>
+                    <strong>{item.name}</strong>
                     <span className={status.className}>{status.label}</span>
                   </div>
                   <div className="muted small tabular" style={{ marginTop: 4 }}>
-                    {formatDateRange(t.startDate, t.endDate)}
-                    {t.venueName !== null && ` · ${t.venueName}`}
+                    {formatDateRange(item.startDate, item.endDate)}
+                    {item.venueName !== null && ` · ${item.venueName}`}
                   </div>
                 </Link>
               );
