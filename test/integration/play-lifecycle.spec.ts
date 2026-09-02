@@ -3,6 +3,8 @@ import request from 'supertest';
 
 import { bearer, grantRole, registerUser, resetState, userIdFromToken } from './helpers';
 import { createTestApp, type TestApp } from './app.harness';
+import { GameTimers } from '../../src/modules/play/game-timers';
+import { PlayService } from '../../src/modules/play/play.service';
 
 /**
  * Play hayot sikli — Faza 5 DoD qoldiqlari (docs/07-realtime-and-clock.md):
@@ -227,6 +229,69 @@ describe('play lifecycle (integration)', () => {
     // Jonli soat yozuvi tozalandi (taymerlar ham — open handle qolmaydi).
     expect(await t.redis.get(`game:clock:${gameId}`)).toBeNull();
   }, 20_000);
+
+  // --- 1b. FLAG SUPURGICHI: instansiya o'lsa ham vaqt tugashi e'lon qilinadi ---------
+
+  it("instansiya o'lsa proaktiv taymer yo'qoladi — SUPURGICH o'yinni tugatadi", async () => {
+    const gameId = await createChallenge({
+      timeCategory: 'BULLET',
+      baseTimeSeconds: 5,
+    });
+    await joinBoth(gameId);
+
+    const endedAP = waitForGameEvent<Record<string, unknown>>(socketA, 'game:ended', gameId, 20_000);
+    await moveOk(socketA, gameId, 'e2', 'e4');
+
+    // ═══════════════════════════════════════════════════════════════════
+    //  INSTANSIYA O'LIMINI TAQLID QILAMIZ
+    //
+    //  Yurishdan keyin gateway mahalliy flag taymerini qo'yadi. Uni
+    //  o'chirish — taymer o'z instansiyasi bilan ketishiga TENG.
+    //  Boshqa hech narsa uni qayta qo'ymaydi (clearGame flag + tick).
+    // ═══════════════════════════════════════════════════════════════════
+    const timers = t.app.get(GameTimers);
+    timers.clearGame(gameId);
+
+    // Qora soati 5s — u tugaydi, lekin e'lon qiladigan hech kim yo'q.
+    // Supurgich nomzodi bo'lishi uchun o'yin FLAG_SWEEP_IDLE_MS (10s)
+    // qimirlamagan bo'lishi kerak.
+    await new Promise((r) => setTimeout(r, 11_000));
+
+    // NAZORAT: proaktiv yo'l HAQIQATAN yo'qolgan — o'yin hali ACTIVE.
+    const before = await t.prisma.onlineGame.findUniqueOrThrow({ where: { id: gameId } });
+    expect(before.status).toBe('ACTIVE');
+
+    // Boshqa instansiya supuradi (bu yerda: shu process, lekin kod yo'li
+    // AYNAN o'sha — @Interval bilan har nodeda ishlaydi).
+    await t.app.get(PlayService).sweepExpiredFlags();
+
+    const game = await t.prisma.onlineGame.findUniqueOrThrow({ where: { id: gameId } });
+    expect(game.status).toBe('TIMEOUT');
+    expect(game.winnerColor).toBe('WHITE');
+    expect(game.blackTimeLeftMs).toBe(0);
+
+    // Room'ga xabar YETDI — o'yinchi ekranida o'yin tugagan ko'rinadi.
+    const ended = await endedAP;
+    expect(ended.status).toBe('TIMEOUT');
+    expect(ended.winnerColor).toBe('WHITE');
+  }, 40_000);
+
+  it('supurgich vaqti tugamagan o`yinga TEGMAYDI', async () => {
+    // Uzoq nazorat: 10s dan ko'p qimirlamasa ham vaqti tugamagan.
+    const gameId = await createChallenge({
+      timeCategory: 'BLITZ',
+      baseTimeSeconds: 600,
+    });
+    await joinBoth(gameId);
+    await moveOk(socketA, gameId, 'd2', 'd4');
+    t.app.get(GameTimers).clearGame(gameId);
+
+    await new Promise((r) => setTimeout(r, 11_000));
+    await t.app.get(PlayService).sweepExpiredFlags();
+
+    const game = await t.prisma.onlineGame.findUniqueOrThrow({ where: { id: gameId } });
+    expect(game.status).toBe('ACTIVE');
+  }, 40_000);
 
   // --- 2. Diskonnekt → opponent_gone; reconnect → opponent_back + resync (§8) --------
 

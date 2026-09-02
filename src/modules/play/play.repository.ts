@@ -256,6 +256,33 @@ export class PlayRepository {
   async countActiveGames(): Promise<number> {
     return await this.prisma.onlineGame.count({ where: { status: 'ACTIVE' } });
   }
+
+  /**
+   * Uzoq vaqt QIMIRLAMAGAN faol o'yinlar — flag supurgichi uchun
+   * (docs/07 §3.5 proaktiv yo'lning ko'p instansli xavfsizlik tarmog'i).
+   *
+   * NEGA `updatedAt` bo'yicha filtr: soat faqat yurish bilan yangilanadi,
+   * ya'ni har yurishda `updatedAt` ko'tariladi. Yaqinda yurish bo'lgan
+   * o'yinning vaqti tugagan bo'lishi mumkin emas (eng qisqa nazoratda
+   * ham), shuning uchun ular skanerdan chiqariladi va supurgich arzon
+   * qoladi.
+   *
+   * `plyCount = 0` — oqning birinchi yurishi BEPUL (docs/07 §3.8), soat
+   * hali yurmagan: bunday o'yinda flag bo'lishi mumkin emas.
+   */
+  async listStaleActiveGameIds(idleForMs: number, limit: number): Promise<string[]> {
+    const rows = await this.prisma.onlineGame.findMany({
+      where: {
+        status: 'ACTIVE',
+        updatedAt: { lt: new Date(Date.now() - idleForMs) },
+        moves: { some: {} },
+      },
+      select: { id: true },
+      orderBy: { updatedAt: 'asc' },
+      take: limit,
+    });
+    return rows.map((r) => r.id);
+  }
 }
 
 // --- Mapper'lar -----------------------------------------------------------------

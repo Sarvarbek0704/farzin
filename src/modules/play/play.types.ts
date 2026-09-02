@@ -266,6 +266,26 @@ export interface PlayMatchedEvent {
  */
 export const PLAY_GAME_FINISHED_EVENT = 'play.game.finished';
 
+/**
+ * Supurgich o'yinni tugatdi — room'ga XABAR BERISH kerak.
+ *
+ * `PLAY_GAME_FINISHED_EVENT` dan FARQI: u tahlil/reyting uchun
+ * (fairplay, rating), bu esa faqat transport uchun. Ikkalasini bitta
+ * hodisaga qo'shish gateway'ni har tugagan o'yinda broadcast qilishga
+ * majburlardi — holbuki odatiy yo'llarda (yurish, taslim, claim)
+ * broadcast'ni handler'ning O'ZI qiladi va takrorlanardi.
+ *
+ * Gateway `server.to(room)` bilan yuboradi; Redis adapter (main.ts)
+ * uni BARCHA instansiyalarga tarqatadi, ya'ni o'yinchilar qaysi
+ * instansiyada bo'lishidan qat'i nazar xabar oladi.
+ */
+export const PLAY_TIMEOUT_SWEPT_EVENT = 'play.timeout.swept';
+
+export interface PlayTimeoutSweptEvent {
+  gameId: string;
+  ended: GameEndedPayload;
+}
+
 export interface PlayGameFinishedEvent {
   gameId: string;
   whitePlayerId: string;

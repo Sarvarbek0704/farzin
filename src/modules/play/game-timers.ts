@@ -17,9 +17,13 @@ import type { ClockPayload, TimeCategoryValue } from './play.types';
  *
  *  MULTI-INSTANCE HALOLLIGI (docs/07 §10.3 hali BAJARILMAGAN):
  *   - Flag taymeri OXIRGI yurishni qabul qilgan instance'da yashaydi.
- *     Instance o'lsa proaktiv yo'l yo'qoladi, lekin REAKTIV yo'l
- *     (game:claim_timeout, §3.5 1-yo'l) baribir ishlaydi — o'yin abadiy
- *     ACTIVE qolib ketmaydi, faqat flag e'loni raqib da'vosiga qoladi.
+ *     Instance o'lsa bu taymer u bilan ketadi. Ilgari bunda faqat
+ *     REAKTIV yo'l (game:claim_timeout) qolardi — ya'ni raqib da'vo
+ *     qilmasa o'yin osilib turardi. Endi UCHINCHI yo'l bor:
+ *     `PlayService.sweepExpiredFlags()` har instansiyada 10s da bir
+ *     ishlaydi va qimirlamay qolgan faol o'yinlarni tekshiradi
+ *     (qulfsiz — `checkFlag` idempotent). Ya'ni proaktiv e'lon
+ *     instansiya o'limidan OMON QOLADI, faqat kechikish bilan.
  *   - Grace taymeri socket ushlab turgan instance'da. ownerNodeId affinity
  *     va forward (§10.3) — keyingi bosqich; hozircha bitta instance rejimi.
  *   - Broadcast server.to(room) orqali — Redis adapter ulanganda (§10.1)

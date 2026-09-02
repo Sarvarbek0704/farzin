@@ -28,6 +28,7 @@ import {
 import { PlayService } from './play.service';
 import {
   PLAY_MATCHED_EVENT,
+  PLAY_TIMEOUT_SWEPT_EVENT,
   WS_EVENTS,
   type Ack,
   type ClaimTimeoutAckData,
@@ -41,6 +42,7 @@ import {
   type OpponentBackPayload,
   type OpponentGonePayload,
   type PlayMatchedEvent,
+  type PlayTimeoutSweptEvent,
 } from './play.types';
 
 /**
@@ -419,6 +421,25 @@ export class PlayGateway implements OnGatewayConnection, OnGatewayDisconnect {
       .to(`user:${event.whiteUserId}`)
       .to(`user:${event.blackUserId}`)
       .emit(WS_EVENTS.matched, { gameId: event.gameId });
+  }
+
+  /**
+   * Supurgich vaqt tugaganini e'lon qildi — room'ga yetkazamiz.
+   *
+   * Odatiy yo'llarda (yurish, taslim, claim, mahalliy flag taymeri)
+   * broadcast'ni handler'ning O'ZI qiladi. Supurgich esa service
+   * qatlamida ishlaydi va transportni bilmaydi, shuning uchun hodisa
+   * orqali keladi.
+   *
+   * `server.to(room)` — Redis adapter (main.ts) buni barcha
+   * instansiyalarga tarqatadi, ya'ni o'yinchilar boshqa nodeda
+   * bo'lsa ham xabar oladi. Mahalliy taymerlar ham tozalanadi:
+   * o'yin tugagan, ular endi keraksiz.
+   */
+  @OnEvent(PLAY_TIMEOUT_SWEPT_EVENT)
+  notifyTimeoutSwept(event: PlayTimeoutSweptEvent): void {
+    this.timers.clearGame(event.gameId);
+    this.server.to(roomOf(event.gameId)).emit(WS_EVENTS.ended, event.ended);
   }
 
   // --- Yordamchilar -----------------------------------------------------------------

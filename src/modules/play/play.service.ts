@@ -28,6 +28,7 @@ import { PlayRepository, type FinishGameInput } from './play.repository';
 import { assertTimeCategoryMatches } from './time-control.guard';
 import {
   PLAY_GAME_FINISHED_EVENT,
+  PLAY_TIMEOUT_SWEPT_EVENT,
   type ClaimTimeoutResult,
   type ClockPayload,
   type ClockTypeValue,
@@ -42,6 +43,7 @@ import {
   type OnlineGameStatusValue,
   type PlayerPayload,
   type PlayGameFinishedEvent,
+  type PlayTimeoutSweptEvent,
   type TimeCategoryValue,
 } from './play.types';
 
@@ -82,9 +84,10 @@ import {
  *     qiymatlari §3.8 jadvalidan (game-timers.DISCONNECT_GRACE_MS).
  *   - clock_update TICK (§3.7) — liveClockPayload(); 5s oralig'ida
  *     (past-vaqt 1s rejimi — keyingi bosqich).
- *   Multi-instance halolligi game-timers.ts sarlavhasida — §10.3 affinity
- *   hali bajarilmagan, taymer o'lgan instance bilan ketsa reaktiv yo'l
- *   qoladi.
+ *   - FLAG SUPURGICHI (sweepExpiredFlags) — mahalliy taymer instansiya
+ *     bilan yo'qolsa ham vaqt tugashi e'lon qilinadi. §10.3 affinity'ni
+ *     almashtirmaydi (grace taymeri hali mahalliy), lekin eng og'ir
+ *     oqibatni — vaqti tugagan o'yin osilib qolishini — yopadi.
  * ═══════════════════════════════════════════════════════════════════════════
  */
 
@@ -96,9 +99,29 @@ export interface CreateChallengeInput {
   incrementSeconds: number;
 }
 
+/**
+ * Supurgich oralig'i. Odatiy holatda proaktiv taymer millisekundlar
+ * ichida ishlaydi — bu yo'l faqat instansiya o'lganda kerak, shuning
+ * uchun tez-tez bo'lishi shart emas.
+ */
+const FLAG_SWEEP_INTERVAL_MS = 10_000;
+
+/**
+ * Nomzod bo'lish uchun o'yin shuncha vaqt qimirlamagan bo'lishi kerak.
+ * Yaqinda yurish bo'lgan o'yinni tekshirish keraksiz: uning taymeri
+ * tirik instansiyada.
+ */
+const FLAG_SWEEP_IDLE_MS = 10_000;
+
+/** Bitta supurishda ko'riladigan o'yinlar chegarasi — skan arzon qolsin. */
+const FLAG_SWEEP_LIMIT = 200;
+
 @Injectable()
 export class PlayService {
   private readonly logger = new Logger(PlayService.name);
+
+  /** Supurish ustma-ust ketmasin (sekin DB'da navbat yig'ilardi). */
+  private sweepingFlags = false;
 
   constructor(
     private readonly repo: PlayRepository,
@@ -131,6 +154,61 @@ export class PlayService {
       this.metrics.setActiveGames(await this.repo.countActiveGames(), { type: 'online' });
     } catch (err) {
       this.logger.warn(`Faol o'yinlar metrikasi yangilanmadi: ${String(err)}`);
+    }
+  }
+
+  /**
+   * FLAG SUPURGICHI — proaktiv yo'lning ko'p instansli xavfsizlik tarmog'i.
+   *
+   * ═══════════════════════════════════════════════════════════════════════
+   *  QAYSI TESHIKNI YOPADI (docs/AUDIT.md JIDDIY-6)
+   *
+   *  Proaktiv flag taymeri oxirgi yurishni qabul qilgan instansiyada
+   *  yashaydi (game-timers.ts). O'sha instansiya o'lsa taymer u bilan
+   *  ketadi va vaqt tugagani E'LON QILINMAYDI — o'yin raqib
+   *  `claim_timeout` yuborguncha ACTIVE qolib turadi. Raqib ham
+   *  uzilgan bo'lsa (yoki shunchaki kutmasa) o'yin osilib qoladi.
+   *
+   *  Supurgich HAR instansiyada ishlaydi va qimirlamay qolgan faol
+   *  o'yinlarni tekshiradi. Qulf KERAK EMAS: `checkFlag` →
+   *  `finishByTimeout` idempotent (o'yin allaqachon tugagan bo'lsa
+   *  `null` qaytaradi), ya'ni ikki instansiya bir vaqtda tekshirsa ham
+   *  natija bitta. Ortiqcha ish — arzon, ortiqcha broadcast — yo'q.
+   *
+   *  Bu §10.3 dagi `ownerNodeId` affinity'ni ALMASHTIRMAYDI: grace
+   *  taymeri va forward mexanizmi hali ochiq. Lekin eng og'ir oqibatni
+   *  (vaqti tugagan o'yin osilib qolishi) yopadi.
+   * ═══════════════════════════════════════════════════════════════════════
+   *
+   *  Narx: har `FLAG_SWEEP_INTERVAL_MS` da eng ko'pi `FLAG_SWEEP_LIMIT`
+   *  ta o'yin uchun bitta DB + bitta Redis o'qish. Nomzodlar
+   *  `updatedAt` bo'yicha filtrlanadi (repository izohiga qarang), ya'ni
+   *  odatiy holatda ro'yxat BO'SH.
+   */
+  @Interval(FLAG_SWEEP_INTERVAL_MS)
+  async sweepExpiredFlags(): Promise<void> {
+    if (this.sweepingFlags) {
+      // Oldingi supurish tugamagan — navbatdagisini o'tkazib yuboramiz.
+      return;
+    }
+    this.sweepingFlags = true;
+    try {
+      const ids = await this.repo.listStaleActiveGameIds(FLAG_SWEEP_IDLE_MS, FLAG_SWEEP_LIMIT);
+      for (const gameId of ids) {
+        const result = await this.checkFlag(gameId);
+        if (result.kind === 'ended') {
+          this.logger.log(`Supurgich vaqt tugaganini e'lon qildi: ${gameId}`);
+          this.events.emit(PLAY_TIMEOUT_SWEPT_EVENT, {
+            gameId,
+            ended: result.ended,
+          } satisfies PlayTimeoutSweptEvent);
+        }
+      }
+    } catch (err) {
+      // Supurish — xavfsizlik tarmog'i; yiqilishi asosiy yo'lni buzmaydi.
+      this.logger.warn(`Flag supurgichi yiqildi: ${String(err)}`);
+    } finally {
+      this.sweepingFlags = false;
     }
   }
 
