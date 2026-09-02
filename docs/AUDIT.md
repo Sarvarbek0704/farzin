@@ -1,7 +1,7 @@
 <!-- AUDIT-SUMMARY
 loyiha: farzin
 sana: 2026-09-01
-tayyorlik: 76
+tayyorlik: 77
 holat: ishlaydi
 tz_bandlari: 32/87
 build: ok
@@ -674,10 +674,13 @@ darhol ko'rsatadi.
   asosida, ya'ni SEO uchun URL prefiksli lokalizatsiya kerak bo'ladi.
 - **Mobil ko'rinish** — jadvallar `overflow-x` bilan surilади, lekin
   maketlardagi mobil layout alohida ishlanmagan.
-- Frontend testlari QISMAN (`93774f8`, `e904635`, `850e0de`): sof mantiq
-  (formatlash, lug'at, vaqt nazorati) 156 test bilan qoplangan. **E2E va
-  komponent testlari hali yo'q** — sahifalar jonli smoke-test bilan
-  tekshirilgan (navbat oqimi uchun: queued → matched → push → yurish).
+- Frontend testlari (`93774f8`, `e904635`, `850e0de`, `6be3462`):
+  **189 test** — sof mantiq (formatlash, lug'at, vaqt nazorati) va
+  komponent testlari (fair-play qaror formasi qorovullari, navbat
+  holatlari, taxta qulfi). Vitest ikki loyihaga bo'lingan: `logic`
+  (node) va `component` (jsdom).
+  **E2E hali yo'q** — to'liq oqim jonli smoke-test bilan tekshirilgan
+  (queued → matched → push → yurish; anonim tomoshabinga jonli event).
 
 ---
 
