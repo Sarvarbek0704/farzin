@@ -97,9 +97,13 @@ export default tseslint.config(
     },
   },
 
-  // --- Seed va skriptlar -----------------------------------------------------
+  // --- Seed, skriptlar va CLI vositalari --------------------------------------
+  //  `src/tools/**` — qo'lda ishga tushiriladigan vositalar (masalan
+  //  fair-play kalibrlashi). Ularning MAQSADI hisobotni terminalga
+  //  chiqarish, ya'ni Pino logger noto'g'ri vosita bo'lardi: chiqish
+  //  odam o'qishi uchun, log yig'ish uchun emas.
   {
-    files: ['prisma/seed.ts', 'scripts/**/*.ts'],
+    files: ['prisma/seed.ts', 'scripts/**/*.ts', 'src/tools/**/*.ts'],
     rules: {
       'no-console': 'off',
     },

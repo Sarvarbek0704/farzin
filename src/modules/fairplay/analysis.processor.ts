@@ -20,10 +20,9 @@ import {
 } from '../../shared/queue/queue.module';
 import { TERMINAL_STATUSES, type TimeCategoryValue } from '../play/play.types';
 import {
+  buildObservations,
   engineCorrelation,
-  MATE_CP,
   type EngineCorrelationResult,
-  type EngineMoveObservation,
 } from './engine/engine-correlation';
 import {
   ANALYSIS_ENGINE,
@@ -255,28 +254,12 @@ export class AnalysisProcessor implements OnModuleDestroy {
     isWhite: boolean,
     evals: readonly (PositionAnalysis | null)[],
   ): EngineCorrelationResult | null {
-    const observations: EngineMoveObservation[] = [];
-    for (const move of game.moves) {
-      if ((move.ply % 2 === 1) !== isWhite) {
-        continue;
-      }
-      if (move.ply <= OPENING_PLIES_EXCLUDED) {
-        continue; // debyut — nazariya chit emas (docs/08 §2.1)
-      }
-      const before = evals[move.ply - 1]; // pozitsiya yurishdan OLDIN (o'yinchi navbati)
-      const after = evals[move.ply]; // yurishdan KEYIN (raqib navbati)
-      if (before == null || after == null || before.bestMoveUci === '') {
-        continue;
-      }
-      observations.push({
-        playedUci: move.uci,
-        bestMoveUci: before.bestMoveUci,
-        evalBeforeCp: toCp(before),
-        // Keyingi pozitsiya bahosi RAQIB nuqtai nazarida — teskarisi olinadi.
-        evalAfterCp: -toCp(after),
-      });
-    }
-    return engineCorrelation(observations);
+    // Kuzatuv qurish SOF funksiyada (engine-correlation.ts) — kalibrlash
+    // vositasi aynan shu yo'ldan o'tadi, ya'ni o'lchov ishlab turgan
+    // detektorni o'lchaydi, uning nusxasini emas.
+    return engineCorrelation(
+      buildObservations(game.moves, isWhite, evals, OPENING_PLIES_EXCLUDED),
+    );
   }
 }
 
@@ -284,17 +267,6 @@ export class AnalysisProcessor implements OnModuleDestroy {
 
 function isTimingEligible(category: TimeCategoryValue): boolean {
   return category === 'CLASSICAL' || category === 'RAPID';
-}
-
-/** Mat bahosi cp shkalasiga: matni beruvchi tomon uchun +MATE_CP. */
-function toCp(p: PositionAnalysis): number {
-  if (p.evalCp !== null) {
-    return p.evalCp;
-  }
-  if (p.mate !== null) {
-    return p.mate > 0 ? MATE_CP : -MATE_CP;
-  }
-  return 0;
 }
 
 function round4(x: number): number {

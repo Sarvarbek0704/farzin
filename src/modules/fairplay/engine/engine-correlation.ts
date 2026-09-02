@@ -131,3 +131,78 @@ export function engineCorrelation(
     strength,
   };
 }
+
+// --- Kuzatuv qurish (sof) --------------------------------------------------------
+
+/** `analysis.processor` ga kerak bo'lgan minimal yurish shakli. */
+export interface AnalyzedMove {
+  readonly ply: number;
+  readonly uci: string;
+}
+
+/** `PositionAnalysis` ning shu yerga kerak bo'lgan qismi (port'ga bog'lanmaydi). */
+export interface PositionEval {
+  readonly bestMoveUci: string;
+  readonly evalCp: number | null;
+  readonly mate: number | null;
+}
+
+/** Mat bahosi cp shkalasiga: matni beruvchi tomon uchun +MATE_CP. */
+export function evalToCp(p: PositionEval): number {
+  if (p.evalCp !== null) {
+    return p.evalCp;
+  }
+  if (p.mate !== null) {
+    return p.mate > 0 ? MATE_CP : -MATE_CP;
+  }
+  return 0;
+}
+
+/**
+ * Yurishlar + pozitsiya baholaridan korrelyatsiya KUZATUVLARINI yig'ish.
+ *
+ * ═══════════════════════════════════════════════════════════════════════════
+ *  NEGA ALOHIDA EKSPORT QILINADI
+ *
+ *  Bu mantiq ilgari `analysis.processor` ning private metodi edi. Kalibrlash
+ *  vositasi (`src/tools/fairplay-calibration.ts`) o'lchov olayotganda
+ *  AYNAN SHU yo'ldan o'tishi shart — aks holda o'lchov ishlab turgan
+ *  detektorni emas, uning nusxasini o'lchagan bo'lardi va raqam yolg'on
+ *  ishonch berardi.
+ * ═══════════════════════════════════════════════════════════════════════════
+ *
+ *  `evals[i]` — `i` ply'dan KEYINGI pozitsiya bahosi; `evals[0]` boshlang'ich
+ *  pozitsiya. Baholanmagan pozitsiya `null` bo'lishi mumkin (engine xatosi).
+ *
+ *  Debyut chiqarib tashlanadi: nazariya bo'yicha yurish chit emas
+ *  (docs/08 §2.1).
+ */
+export function buildObservations(
+  moves: readonly AnalyzedMove[],
+  isWhite: boolean,
+  evals: readonly (PositionEval | null)[],
+  openingPliesExcluded: number,
+): EngineMoveObservation[] {
+  const observations: EngineMoveObservation[] = [];
+  for (const move of moves) {
+    if ((move.ply % 2 === 1) !== isWhite) {
+      continue;
+    }
+    if (move.ply <= openingPliesExcluded) {
+      continue;
+    }
+    const before = evals[move.ply - 1];
+    const after = evals[move.ply];
+    if (before == null || after == null || before.bestMoveUci === '') {
+      continue;
+    }
+    observations.push({
+      playedUci: move.uci,
+      bestMoveUci: before.bestMoveUci,
+      evalBeforeCp: evalToCp(before),
+      // Keyingi pozitsiya bahosi RAQIB nuqtai nazarida — teskarisi olinadi.
+      evalAfterCp: -evalToCp(after),
+    });
+  }
+  return observations;
+}
