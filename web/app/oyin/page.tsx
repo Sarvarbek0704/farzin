@@ -195,7 +195,7 @@ export default function PlayPage() {
               (±200 dan ±500 reytinggacha) — aynan mos raqib topilmasa, biroz farqli
               raqib beriladi. Juftlik topilishi bilan o&apos;yinga o&apos;tiladi.
             </p>
-            <button type="button" style={buttonStyle} onClick={() => void leave()}>
+            <button type="button" className="btn" onClick={() => void leave()}>
               Navbatdan chiqish
             </button>
           </div>
@@ -210,15 +210,12 @@ export default function PlayPage() {
                 type="button"
                 disabled={busy}
                 onClick={() => void join(preset)}
-                style={{
-                  ...buttonStyle,
-                  padding: '10px 16px',
-                  cursor: busy ? 'wait' : 'pointer',
-                  opacity: busy ? 0.6 : 1,
-                }}
+                className="btn"
+                // Preset tugmasi ikki qatorli: vaqt + kategoriya.
+                style={{ flexDirection: 'column', alignItems: 'flex-start', gap: 0 }}
               >
                 <span style={{ fontWeight: 600 }}>{presetLabel(preset)}</span>
-                <span className="muted small" style={{ display: 'block' }}>
+                <span className="muted small">
                   {CATEGORY_LABEL[categoryFor(preset.baseSeconds, preset.incrementSeconds)]}
                 </span>
               </button>
@@ -272,14 +269,3 @@ export default function PlayPage() {
     </>
   );
 }
-
-const buttonStyle: React.CSSProperties = {
-  background: 'transparent',
-  border: '1px solid var(--hairline)',
-  borderRadius: 8,
-  color: 'var(--ink)',
-  padding: '8px 14px',
-  font: 'inherit',
-  cursor: 'pointer',
-  textAlign: 'left',
-};

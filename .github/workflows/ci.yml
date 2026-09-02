@@ -176,6 +176,71 @@ jobs:
           cache-from: type=gha,scope=${{ matrix.target }}
           cache-to: type=gha,mode=max,scope=${{ matrix.target }}
 
+  # --- Frontend -------------------------------------------------------------
+  #  `web/` ALOHIDA paket (o'z package.json va lockfile) — shu sababli
+  #  alohida job va alohida `pnpm install`. Ilgari CI frontend'ga
+  #  UMUMAN tegmasdi: lint, typecheck, testlar va build faqat qo'lda
+  #  yuritilardi, ya'ni ular sinmaganini hech narsa kafolatlamasdi.
+  web:
+    name: Frontend (lint · typecheck · test · build)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: web
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: ${{ env.PNPM_VERSION }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: pnpm
+          cache-dependency-path: web/pnpm-lock.yaml
+
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm lint
+      - run: pnpm typecheck
+      - run: pnpm test
+      - run: pnpm build
+
+  # --- Frontend tartibi: HAQIQIY brauzerda ----------------------------------
+  #  jsdom tartibni hisoblamaydi (har element 0x0). Mobil layout, WCAG
+  #  2.5.8 nishon o'lchami va taxtaning full-bleed bo'lishi — piksel
+  #  da'volari, ular faqat chinakam brauzerda tekshiriladi.
+  web-e2e:
+    name: Frontend tartibi (Playwright)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    defaults:
+      run:
+        working-directory: web
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: ${{ env.PNPM_VERSION }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: pnpm
+          cache-dependency-path: web/pnpm-lock.yaml
+
+      - run: pnpm install --frozen-lockfile
+      - name: Chromium
+        run: pnpm exec playwright install --with-deps chromium
+      - run: pnpm build
+      - name: Tartib testlari
+        run: pnpm test:e2e
+
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: playwright-report
+          path: web/playwright-report/
+          retention-days: 7
+
   # --- Xavfsizlik -----------------------------------------------------------
   security:
     name: Xavfsizlik skani
@@ -207,7 +272,8 @@ jobs:
   ci-passed:
     name: CI o'tdi
     runs-on: ubuntu-latest
-    needs: [static, architecture, test-unit, test-integration, build, docker, security]
+    needs:
+      [static, architecture, test-unit, test-integration, build, docker, web, web-e2e, security]
     if: always()
     steps:
       - name: Natijani tekshirish

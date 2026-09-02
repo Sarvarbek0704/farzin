@@ -276,3 +276,157 @@ tbody tr:hover {
   background-size: 48px 100%;
   opacity: 0.85;
 }
+
+/* --- Tugma ------------------------------------------------------------ */
+/*
+ * WCAG 2.5.8 (Target Size, Minimum): bosiladigan nishon kamida
+ * 24x24 CSS px. Ilgari ayrim tugmalar `.badge` uslubi bilan
+ * chizilgan edi — u 12px shrift va 2px padding bilan ~20px balandlik
+ * beradi, ya'ni CHEGARADAN PAST. `.badge` — yorliq, tugma emas.
+ *
+ * Mobil uchun 44px tavsiya etiladi (2.5.5), shuning uchun tor
+ * ekranda balandlik oshiriladi (pastdagi media query).
+ */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-height: 32px;
+  padding: 7px 14px;
+  border: var(--hairline-width) solid var(--hairline);
+  border-radius: 8px;
+  background: transparent;
+  color: var(--ink);
+  font: inherit;
+  font-size: 14px;
+  cursor: pointer;
+}
+
+.btn:hover:not(:disabled) {
+  background: var(--elevated);
+}
+
+.btn:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
+.btn-danger {
+  color: var(--burgundy);
+  border-color: rgba(155, 44, 44, 0.45);
+}
+
+/* --- Taxta ramkasi ---------------------------------------------------- */
+/*
+ * CLS QOIDASI (dizayn tizimi §4.3): "board sizing is a CLS rule, not a
+ * nicety" — taxta yuklanmasdan OLDIN o'z joyini egallashi shart.
+ *
+ * `react-chessboard` klient komponenti: server HTML'ida u YO'Q va
+ * gidratatsiyadan keyin paydo bo'ladi. Ramkasiz sahifa shu lahzada
+ * SAKRAYDI — mobil ekranda ayniqsa yomon, chunki taxta butun ekran
+ * kengligini egallaydi.
+ *
+ * `aspect-ratio: 1/1` joyni oldindan band qiladi va ichida bo'sh
+ * "pergament" fon turadi.
+ */
+.board-frame {
+  width: 100%;
+  max-width: 440px;
+  aspect-ratio: 1 / 1;
+  border-radius: 8px;
+  overflow: hidden;
+  background: var(--board-light);
+}
+
+/* --- Mobil ------------------------------------------------------------ */
+/*
+ * Yagona chegara — 720px. Ko'p breakpoint kiritilmadi: har biri
+ * sinovdan o'tishi kerak bo'lgan yangi holat, va hozirgi maketlar
+ * ikki ko'rinishga mo'ljallangan (dizayn brifi §6: "desktop + mobile").
+ */
+@media (max-width: 720px) {
+  .container {
+    padding: 0 16px;
+  }
+
+  /* Bosish nishonlari kattalashadi (WCAG 2.5.5 tavsiyasi). */
+  .btn {
+    min-height: 44px;
+    padding: 10px 16px;
+  }
+
+  /*
+   * TAXTA TO'LIQ KENGLIKDA (dizayn tizimi §4.3: "board is full-bleed
+   * edge-to-edge"). Konteyner padding'i teskari margin bilan yechiladi —
+   * taxta chekkadan chekkaga cho'ziladi, qolgan matn esa joyida qoladi.
+   */
+  .board-frame {
+    max-width: none;
+    margin-left: -16px;
+    margin-right: -16px;
+    width: calc(100% + 32px);
+    border-radius: 0;
+  }
+
+  /* Jadval tor ekranda ham o'qilsin: shrift emas, ichki bo'shliq kichrayadi. */
+  thead th,
+  tbody td {
+    padding: 10px 10px;
+  }
+
+  .card {
+    padding: 14px;
+  }
+}
+
+/* --- Sarlavha paneli -------------------------------------------------- */
+/*
+ * Balandlik QAT'IY EMAS. Ilgari inline `height: 60` turardi va
+ * `flexWrap: wrap` bilan birga tor ekranda ikkinchi qator QIRQILARDI
+ * (til almashtirgichi ko'rinmay qolardi).
+ */
+.site-header {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  background: var(--surface);
+  border-bottom: var(--hairline-width) solid var(--hairline);
+}
+
+.site-header-inner {
+  display: flex;
+  align-items: center;
+  gap: 24px;
+  min-height: 60px;
+  flex-wrap: wrap;
+  padding-top: 8px;
+  padding-bottom: 8px;
+}
+
+.site-nav {
+  display: flex;
+  gap: 18px;
+  flex-wrap: wrap;
+}
+
+@media (max-width: 720px) {
+  .site-header-inner {
+    gap: 12px;
+    row-gap: 8px;
+  }
+
+  /*
+   * Havolalar orasidagi masofa BOSISH nishonini belgilaydi: 14px
+   * shrift ~20px qator balandligi beradi, ya'ni vertikal padding'siz
+   * WCAG 2.5.8 chegarasidan past bo'lardi.
+   */
+  .site-nav {
+    gap: 14px;
+  }
+
+  .site-nav a {
+    padding: 4px 0;
+    display: inline-block;
+  }
+}

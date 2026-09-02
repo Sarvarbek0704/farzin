@@ -64,12 +64,7 @@ function ConsoleShell({ children }: { children: ReactNode }) {
               Fair-play
             </Link>
           </nav>
-          <button
-            type="button"
-            onClick={() => void logout()}
-            className="badge"
-            style={{ cursor: 'pointer', background: 'transparent' }}
-          >
+          <button type="button" onClick={() => void logout()} className="btn">
             Chiqish
           </button>
         </div>

@@ -60,25 +60,13 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
   return (
     <html lang={locale} className={`${playfair.variable} ${inter.variable} ${mono.variable}`}>
       <body>
-        <header
-          style={{
-            borderBottom: '1px solid var(--hairline)',
-            background: 'var(--surface)',
-            position: 'sticky',
-            top: 0,
-            zIndex: 10,
-          }}
-        >
-          <div
-            className="container"
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: 24,
-              height: 60,
-              flexWrap: 'wrap',
-            }}
-          >
+        {/*
+          Balandlik CSS'da (`.site-header`), inline emas: mobil ekranda
+          qat'iy 60px o'ralgan qatorni QIRQARDI. Endi balandlik
+          minimal, kontent esa o'sishi mumkin.
+        */}
+        <header className="site-header">
+          <div className="container site-header-inner">
             <Link
               href="/"
               style={{
@@ -91,7 +79,7 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
               Farzin
             </Link>
 
-            <nav aria-label="Asosiy" style={{ display: 'flex', gap: 18 }}>
+            <nav aria-label="Asosiy" className="site-nav">
               {NAV.map((item) => (
                 <Link
                   key={item.href}

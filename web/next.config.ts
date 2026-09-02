@@ -16,6 +16,19 @@ const nextConfig: NextConfig = {
   // Konteynerda ishlatish uchun minimal chiqish (docs/11 §2).
   output: 'standalone',
 
+  /*
+   * Ildizni ANIQ ko'rsatamiz.
+   *
+   * Ikkita lockfile bor (root backend + shu paket) va Next ildizni
+   * o'zi taxmin qilib, root'ni tanlab olardi. Oqibati ikkita:
+   *  - har build'da ogohlantirish;
+   *  - `standalone` chiqishi `.next/standalone/web/server.js` ga
+   *    joylashardi, ya'ni ishga tushirish yo'li repo tuzilishiga
+   *    bog'liq bo'lib qolardi.
+   * Endi ildiz — shu paketning o'zi va server `.next/standalone/server.js`.
+   */
+  outputFileTracingRoot: import.meta.dirname,
+
   // Backend `/api/v1/*` ni shu origin ostida ochamiz — brauzerda CORS
   // muammosi umuman tug'ilmaydi va cookie (refresh) bir xil saytda
   // qoladi. Server tomondagi fetch to'g'ridan-to'g'ri API'ga boradi

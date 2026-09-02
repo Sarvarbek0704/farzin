@@ -52,7 +52,12 @@ export function ChessBoard({
   onMove?: (from: string, to: string) => boolean;
 }) {
   return (
-    <div style={{ maxWidth: 440, width: '100%' }}>
+    // `.board-frame` — joyni OLDINDAN band qiladi (aspect-ratio 1/1).
+    // Dizayn tizimi §4.3: "board sizing is a CLS rule, not a nicety".
+    // Taxta klient komponenti bo'lgani uchun server HTML'ida yo'q;
+    // ramkasiz sahifa gidratatsiya lahzasida sakrardi. Mobilda shu
+    // ramka chekkadan chekkaga cho'ziladi (full-bleed).
+    <div className="board-frame">
       <Chessboard
         options={{
           position: fen,
@@ -71,7 +76,9 @@ export function ChessBoard({
               }),
           darkSquareStyle: { backgroundColor: DARK_SQUARE },
           lightSquareStyle: { backgroundColor: LIGHT_SQUARE },
-          boardStyle: { borderRadius: '8px', overflow: 'hidden' },
+          // Burchak radiusi ramkada — mobilda u 0 ga tushadi va
+          // taxta chekkaga tekis yopishadi.
+          boardStyle: { width: '100%', height: '100%' },
         }}
       />
     </div>

@@ -213,18 +213,22 @@ export function LiveGame({ initial, token }: Props) {
 
         {isPlayer && active && (
           <div style={{ display: 'flex', gap: 8, marginTop: 12, flexWrap: 'wrap' }}>
+            {/*
+              `.btn` — `.badge` EMAS: nishon yorliq uchun, uning
+              o'lchami (~20px) WCAG 2.5.8 dagi 24x24 chegarasidan past
+              edi. Taslim tugmasi tasodifan bosilmasligi ham kerak,
+              lekin bosilishi kerak bo'lganda topilishi shart.
+            */}
             <button
               type="button"
-              className="badge"
-              style={{ cursor: 'pointer', background: 'transparent' }}
+              className="btn"
               onClick={() => socketRef.current?.emit('game:draw_offer', { gameId: game.gameId })}
             >
               Durang taklif qilish
             </button>
             <button
               type="button"
-              className="badge badge-cancelled"
-              style={{ cursor: 'pointer', background: 'transparent' }}
+              className="btn btn-danger"
               onClick={() => socketRef.current?.emit('game:resign', { gameId: game.gameId })}
             >
               Taslim
