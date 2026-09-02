@@ -1,0 +1,439 @@
+{
+  "uid": "farzin-turnir-kuni",
+  "title": "Farzin — turnir kuni",
+  "description": "Turnir kunida ochib qo'yiladigan yagona panel. Yuqoridan pastga: SLO -> nol tolerantlikdagi domen signallari -> onlayn o'yin -> turnir -> to'lov. Har panel docs/15-observability.md dagi metrikaga va infra/prometheus/farzin-rules.yml dagi alertga bog'langan.",
+  "tags": ["farzin", "turnir", "slo"],
+  "timezone": "browser",
+  "editable": false,
+  "schemaVersion": 39,
+  "version": 1,
+  "refresh": "30s",
+  "time": { "from": "now-6h", "to": "now" },
+  "templating": {
+    "list": [
+      {
+        "name": "job",
+        "label": "Job",
+        "type": "query",
+        "datasource": { "type": "prometheus", "uid": "prometheus" },
+        "query": "label_values(up, job)",
+        "regex": "farzin-.*",
+        "includeAll": true,
+        "multi": true,
+        "current": { "text": "All", "value": "$__all" }
+      }
+    ]
+  },
+  "panels": [
+    {
+      "type": "row",
+      "title": "SLO — mavjudlik va xato budjeti",
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 0 },
+      "collapsed": false,
+      "panels": []
+    },
+    {
+      "type": "stat",
+      "title": "Scrape target'lar tirikmi",
+      "description": "0 ga tushsa — FarzinTargetDown. Diqqat: bu holatda QOLGAN HAMMA alert jim bo'ladi, ya'ni ularning jimligi 'hammasi joyida' degani emas. Runbook: docs/runbooks/target-down.md",
+      "gridPos": { "h": 5, "w": 6, "x": 0, "y": 1 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "targets": [{ "expr": "sum(up{job=~\"farzin-.*\"})", "legendFormat": "tirik", "refId": "A" }],
+      "fieldConfig": {
+        "defaults": {
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "red", "value": null },
+              { "color": "green", "value": 1 }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": { "colorMode": "background", "graphMode": "none", "textMode": "auto" }
+    },
+    {
+      "type": "stat",
+      "title": "API mavjudligi (5 daq)",
+      "description": "SLO: 99.5%. Recording qoidasi farzin:api_availability:ratio_rate5m.",
+      "gridPos": { "h": 5, "w": 6, "x": 6, "y": 1 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "targets": [
+        { "expr": "farzin:api_availability:ratio_rate5m", "legendFormat": "5m", "refId": "A" }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percentunit",
+          "min": 0.9,
+          "max": 1,
+          "decimals": 4,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "red", "value": null },
+              { "color": "orange", "value": 0.99 },
+              { "color": "green", "value": 0.995 }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": { "colorMode": "background", "graphMode": "area", "textMode": "auto" }
+    },
+    {
+      "type": "timeseries",
+      "title": "Xato budjeti yonish tezligi",
+      "description": "1 dan yuqori = budjetni rejadan tez yeyapmiz. 14.4x -> page (FarzinApiErrorBudgetBurnFast), 6x -> ticket. Runbook: docs/runbooks/api-errors.md",
+      "gridPos": { "h": 5, "w": 12, "x": 12, "y": 1 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "targets": [
+        {
+          "expr": "(1 - farzin:api_availability:ratio_rate5m) / 0.005",
+          "legendFormat": "5m tezlik",
+          "refId": "A"
+        },
+        {
+          "expr": "(1 - farzin:api_availability:ratio_rate1h) / 0.005",
+          "legendFormat": "1h tezlik",
+          "refId": "B"
+        },
+        {
+          "expr": "(1 - farzin:api_availability:ratio_rate6h) / 0.005",
+          "legendFormat": "6h tezlik",
+          "refId": "C"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "none",
+          "custom": { "drawStyle": "line", "lineWidth": 2, "fillOpacity": 5 },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "orange", "value": 6 },
+              { "color": "red", "value": 14.4 }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": { "legend": { "displayMode": "list", "placement": "bottom" } }
+    },
+    {
+      "type": "row",
+      "title": "Nol tolerantlik — bu qatorda hamma narsa 0 bo'lishi SHART",
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 6 },
+      "collapsed": false,
+      "panels": []
+    },
+    {
+      "type": "stat",
+      "title": "FIDE absolyut kriteriya buzilishlari",
+      "description": "C1/C2/C3 (docs/05). Noldan farq qilsa turnirni TO'XTATING. Seriya nol bilan oldindan e'lon qilinadi, ya'ni birinchi buzilishdayoq ko'rinadi. Runbook: docs/runbooks/pairing-violation.md",
+      "gridPos": { "h": 5, "w": 8, "x": 0, "y": 7 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "targets": [
+        {
+          "expr": "sum(increase(farzin_pairing_criteria_violations_total[24h])) by (criterion)",
+          "legendFormat": "{{criterion}}",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "red", "value": 1 }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": { "colorMode": "background", "graphMode": "none", "textMode": "auto" }
+    },
+    {
+      "type": "stat",
+      "title": "Ledger nomutanosibligi (tiyin)",
+      "description": "Debet - kredit. Noldan farq qilsa billing operatsiyalarini to'xtating. Metrikaning YO'QLIGI 'nol' degani emas — u 'hali tekshirilmagan' degani. Runbook: docs/runbooks/ledger-imbalance.md",
+      "gridPos": { "h": 5, "w": 8, "x": 8, "y": 7 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "targets": [{ "expr": "farzin_ledger_imbalance_tiyin", "legendFormat": "tiyin", "refId": "A" }],
+      "fieldConfig": {
+        "defaults": {
+          "noValue": "tekshirilmagan",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "red", "value": 1 }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": { "colorMode": "background", "graphMode": "none", "textMode": "auto" }
+    },
+    {
+      "type": "stat",
+      "title": "Glicko-2 konvergensiya xatolari",
+      "description": "Sigma iteratsiyasi yaqinlashmadi — reyting ishonchsiz, natijani E'LON QILMANG. Runbook: docs/runbooks/glicko-convergence.md",
+      "gridPos": { "h": 5, "w": 8, "x": 16, "y": 7 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "targets": [
+        {
+          "expr": "sum(increase(farzin_glicko_convergence_failures_total[24h]))",
+          "legendFormat": "24 soatda",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "red", "value": 1 }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": { "colorMode": "background", "graphMode": "none", "textMode": "auto" }
+    },
+    {
+      "type": "row",
+      "title": "Onlayn o'yin",
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 12 },
+      "collapsed": false,
+      "panels": []
+    },
+    {
+      "type": "timeseries",
+      "title": "Faol o'yinlar va WS ulanishlari",
+      "description": "HPA manbai (docs/11 §4.4). WS soni instansiyalar bo'yicha yig'iladi.",
+      "gridPos": { "h": 7, "w": 12, "x": 0, "y": 13 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "targets": [
+        {
+          "expr": "sum(farzin_active_games) by (type)",
+          "legendFormat": "o'yin: {{type}}",
+          "refId": "A"
+        },
+        {
+          "expr": "sum(farzin_websocket_connections) by (namespace)",
+          "legendFormat": "WS: {{namespace}}",
+          "refId": "B"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": { "custom": { "drawStyle": "line", "lineWidth": 2, "fillOpacity": 10 } },
+        "overrides": []
+      },
+      "options": { "legend": { "displayMode": "list", "placement": "bottom" } }
+    },
+    {
+      "type": "timeseries",
+      "title": "Yurish qayta ishlash p95 (SLO 150 ms)",
+      "description": "docs/15 §6.2 SLO #2. Chegaradan oshsa FarzinMoveProcessingSlow. Runbook: docs/runbooks/move-latency.md",
+      "gridPos": { "h": 7, "w": 12, "x": 12, "y": 13 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "targets": [
+        {
+          "expr": "histogram_quantile(0.95, sum(rate(farzin_move_processing_duration_seconds_bucket[10m])) by (le))",
+          "legendFormat": "p95",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s",
+          "custom": {
+            "drawStyle": "line",
+            "lineWidth": 2,
+            "fillOpacity": 5,
+            "thresholdsStyle": { "mode": "line" }
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "red", "value": 0.15 }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": { "legend": { "displayMode": "list", "placement": "bottom" } }
+    },
+    {
+      "type": "timeseries",
+      "title": "Taymer drifti p99 (adolat)",
+      "description": "Kutilgan va haqiqiy uyg'onish payti orasidagi farq. Bu ADOLAT masalasi — o'yinchi haqsiz vaqt yo'qotmasin (docs/07 §3.3). Runbook: docs/runbooks/clock-drift.md",
+      "gridPos": { "h": 7, "w": 12, "x": 0, "y": 20 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "targets": [
+        {
+          "expr": "histogram_quantile(0.99, sum(rate(farzin_clock_drift_seconds_bucket[5m])) by (le, game_type))",
+          "legendFormat": "{{game_type}}",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s",
+          "custom": {
+            "drawStyle": "line",
+            "lineWidth": 2,
+            "fillOpacity": 5,
+            "thresholdsStyle": { "mode": "line" }
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "red", "value": 0.1 }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": { "legend": { "displayMode": "list", "placement": "bottom" } }
+    },
+    {
+      "type": "timeseries",
+      "title": "Diskonnektlar",
+      "description": "O'sish tarmoq muammosi yoki instansiya qayta ishga tushganini bildiradi. Grace tugasa o'yin ABANDONED bo'ladi (docs/07 §3.8).",
+      "gridPos": { "h": 7, "w": 12, "x": 12, "y": 20 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "targets": [
+        {
+          "expr": "sum(rate(farzin_game_disconnects_total[5m])) by (game_type)",
+          "legendFormat": "{{game_type}}",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "reqps",
+          "custom": { "drawStyle": "line", "lineWidth": 2, "fillOpacity": 10 }
+        },
+        "overrides": []
+      },
+      "options": { "legend": { "displayMode": "list", "placement": "bottom" } }
+    },
+    {
+      "type": "row",
+      "title": "Turnir",
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 27 },
+      "collapsed": false,
+      "panels": []
+    },
+    {
+      "type": "timeseries",
+      "title": "Juftlashtirish davomiyligi p95 (SLO 10 s)",
+      "description": "Seksiya hajmi bucket'lari bo'yicha. Alert faqat xs|s|m ni qamraydi — katta seksiyada sekinlik kutilgan. Runbook: docs/runbooks/pairing-slow.md",
+      "gridPos": { "h": 7, "w": 12, "x": 0, "y": 28 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "targets": [
+        {
+          "expr": "histogram_quantile(0.95, sum(rate(farzin_pairing_duration_seconds_bucket[10m])) by (le, section_size_bucket))",
+          "legendFormat": "{{section_size_bucket}}",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s",
+          "custom": {
+            "drawStyle": "line",
+            "lineWidth": 2,
+            "fillOpacity": 5,
+            "thresholdsStyle": { "mode": "line" }
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "red", "value": 10 }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": { "legend": { "displayMode": "list", "placement": "bottom" } }
+    },
+    {
+      "type": "timeseries",
+      "title": "Natija kiritish kechikishi va reyting davri lagi",
+      "description": "Natija kiritish lagi — hakam ishining tezligi. Davr lagi 2 soatdan oshsa FarzinRatingPeriodLagHigh. Runbook: docs/runbooks/rating-period-lag.md",
+      "gridPos": { "h": 7, "w": 12, "x": 12, "y": 28 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "targets": [
+        {
+          "expr": "histogram_quantile(0.95, sum(rate(farzin_result_entry_lag_seconds_bucket[30m])) by (le))",
+          "legendFormat": "natija kiritish p95",
+          "refId": "A"
+        },
+        {
+          "expr": "max(farzin_rating_period_lag_seconds)",
+          "legendFormat": "reyting davri lagi",
+          "refId": "B"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s",
+          "custom": { "drawStyle": "line", "lineWidth": 2, "fillOpacity": 5 }
+        },
+        "overrides": []
+      },
+      "options": { "legend": { "displayMode": "list", "placement": "bottom" } }
+    },
+    {
+      "type": "row",
+      "title": "To'lov",
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 35 },
+      "collapsed": false,
+      "panels": []
+    },
+    {
+      "type": "timeseries",
+      "title": "To'lov xatosi ulushi (provayder bo'yicha)",
+      "description": "5% dan oshsa FarzinPaymentFailureRateHigh. Ikkala provayderda ham oshsa — muammo bizda. Runbook: docs/runbooks/payment-failures.md",
+      "gridPos": { "h": 7, "w": 24, "x": 0, "y": 36 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "targets": [
+        {
+          "expr": "sum(rate(farzin_payment_failures_total[15m])) by (provider) / sum(rate(farzin_payment_attempts_total[15m])) by (provider)",
+          "legendFormat": "{{provider}}",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percentunit",
+          "min": 0,
+          "custom": {
+            "drawStyle": "line",
+            "lineWidth": 2,
+            "fillOpacity": 5,
+            "thresholdsStyle": { "mode": "line" }
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "red", "value": 0.05 }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": { "legend": { "displayMode": "list", "placement": "bottom" } }
+    }
+  ]
+}

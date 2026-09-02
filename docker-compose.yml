@@ -221,6 +221,12 @@ services:
       GF_AUTH_ANONYMOUS_ENABLED: 'true'
     volumes:
       - grafana_data:/var/lib/grafana
+      # Datasource va panel PROVISIONING orqali keladi, UI'dan qo'lda
+      # emas: qo'lda qo'shilgani konteyner qayta yaratilganda yo'qoladi
+      # va "menda ishlaydi" holatini keltirib chiqaradi. Panel JSON'i
+      # repoda — ko'rib chiqiladi va qayta tiklanadi.
+      - ./infra/grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./infra/grafana/dashboards:/var/lib/grafana/dashboards:ro
 
 volumes:
   postgres_data:

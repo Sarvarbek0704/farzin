@@ -1,0 +1,18 @@
+# Dashboard provisioning — fayldan yuklash.
+#
+# Panel JSON'i repoda yashaydi (infra/grafana/dashboards/), ya'ni u
+# ko'rib chiqiladi, versiyalanadi va qayta tiklanadi. UI'da qo'lda
+# tahrirlangan panel keyingi deploy'da YO'QOLADI — bu ataylab.
+apiVersion: 1
+
+providers:
+  - name: 'farzin'
+    orgId: 1
+    folder: 'Farzin'
+    type: file
+    disableDeletion: false
+    # UI'dan saqlashga ruxsat yo'q: haqiqat manbai — repo.
+    allowUiUpdates: false
+    options:
+      path: /var/lib/grafana/dashboards
+      foldersFromFilesStructure: false

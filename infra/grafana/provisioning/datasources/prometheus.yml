@@ -1,0 +1,18 @@
+# Grafana datasource — avtomatik ro'yxatga olish (provisioning).
+#
+# Qo'lda UI orqali qo'shish ATAYLAB ishlatilmaydi: u konteyner qayta
+# yaratilganda yo'qoladi va "menda ishlaydi" holatini keltirib chiqaradi.
+# Bu fayl versiyalanadi, ya'ni panel har joyda BIR XIL manbaga qaraydi.
+apiVersion: 1
+
+datasources:
+  - name: Prometheus
+    type: prometheus
+    access: proxy
+    # docker-compose ichidagi servis nomi (farzin-prometheus).
+    url: http://prometheus:9090
+    isDefault: true
+    editable: false
+    jsonData:
+      # `farzin-rules.yml` dagi eng qisqa interval — 30s.
+      timeInterval: 30s
