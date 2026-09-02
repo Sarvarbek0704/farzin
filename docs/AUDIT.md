@@ -1,7 +1,7 @@
 <!-- AUDIT-SUMMARY
 loyiha: farzin
 sana: 2026-09-02
-tayyorlik: 82
+tayyorlik: 85
 holat: ishlaydi
 tz_bandlari: 32/87
 build: ok
@@ -9,8 +9,8 @@ typecheck: ok
 lint: ok
 test: 51
 kritik: 0
-jiddiy: 4
-kichik: 13
+jiddiy: 3
+kichik: 12
 -->
 
 # Farzin — loyiha holati auditi
@@ -34,7 +34,7 @@ va `web/` da Next.js frontend (13 route).
 **Kod sifati bu portfeldagi eng yuqori darajalardan biri** — `strict` TypeScript
 toza o'tadi, lint toza, arxitektura chegaralari CI vositasi bilan majburlanadi,
 va kodning o'zi o'z cheklovlarini halol hujjatlaydi.
-Testlar: **51 to'plam — 551 unit + 113 integration, hammasi yashil**
+Testlar: **51 to'plam — 551 unit + 115 integration, hammasi yashil**
 (auditdan keyin +6 to'plam, +63 test).
 
 **Auditda eng katta muammo deploy qilib bo'lmasligi edi** — `docker build`
@@ -178,7 +178,7 @@ Belgilar: ✅ bajarilgan · 🟡 qisman · ❌ yo'q
 | PDF juftlik varaqasi                                   | 🟡    | **PDF QO'SHILDI** (`2ab0ae5`): 2 endpoint, jonli fayl tekshirildi. **Real hakam tasdig'i YO'Q**           |
 | Real hakam bilan haqiqiy turnir                        | ❌    | Isbot yo'q                                                                                                |
 | E2E: turnir → ro'yxat → juftlik → natija → jadval      | ✅    | **Shu auditda jonli o'tkazildi** (5 tur, 11 o'yinchi)                                                     |
-| Prometheus + RED + birinchi dashboard                  | 🟡    | Konfig va 11 alert QO'SHILDI (`0867f38`), jonli scrape ishladi. **Grafana dashboard hali yo'q** — 25-band |
+| Prometheus + RED + birinchi dashboard                  | ✅    | Konfig va 11 alert (`0867f38`) + Grafana provisioning va "Turnir kuni" paneli (`edf040d`), jonli tekshirildi |
 
 ### Faza 2 — Swiss engine (3/9)
 
@@ -561,7 +561,7 @@ hisoblaydi — `recomputeStandings` da o'sha natijani ishlatish.
 
 ---
 
-#### JIDDIY-6 — Faqat bitta instance rejimi 🟡 QISMAN TUZATILDI (2026-09-01, `3db1070`)
+#### JIDDIY-6 — Faqat bitta instance rejimi ✅ TUZATILDI (2026-09-01 `3db1070`, 2026-09-02 `379b7a1` + `d603fd0`)
 
 **`src/app.module.ts:124-126`** · **`src/modules/play/game-timers.ts:18-26`**
 
@@ -577,11 +577,17 @@ hisoblaydi — `recomputeStandings` da o'sha natijani ishlatish.
 > Integratsiya testi instansiya o'limini taqlid qiladi va NAZORAT
 > tasdig'i bilan boshlanadi (supurishdan oldin o'yin ACTIVE).
 >
-> **OCHIQ QOLDI:** grace (diskonnekt) taymeri va `ownerNodeId`
-> affinity/forward mexanizmi (docs/07 §10.3). Bu yangi dizayn,
-> `setTimeout` ni ko'chirish emas — reja bahosidan (M) kattaroq.
-> Yumshatuvchi omil: eng og'ir oqibat (vaqti tugagan o'yin osilib
-> qolishi) endi yopilgan.
+> **Grace ham tuzatildi (2026-09-02, `d603fd0`):** uzilish izi endi
+> Redis'da (`game:gone:{gameId}:{side}` + indeks), `sweepAbandonedGames()`
+> har nodeda 15s da bir qarorni davom ettiradi. "Hali ham yo'qmi?"
+> savoliga presence markeri javob beradi, in-memory registr emas.
+>
+> **OCHIQ QOLDI:** `ownerNodeId` affinity va instansiyalararo forward
+> (docs/07 §10.3). Ular AMALDA endi kerak emas: ikkala taymer ham
+> supurgich bilan qoplangan va broadcast Redis adapteri orqali
+> ketadi. §10.3 ni bajarish faqat KECHIKISHNI kamaytiradi (supurgich
+> 10-15s, affinity esa darhol) — ya'ni bu optimallashtirish, teshik
+> emas.
 
 Uchta holat bitta process xotirasida yashaydi:
 
@@ -828,7 +834,7 @@ qila olmaydi; SUPER_ADMIN rolini berish uchun bazaga qo'lda `INSERT` kerak
 | K-11    | `dbPoolWaiting` metrikasi ro'yxatdan o'tgan, lekin hech qachon oziqlantirilmaydi (kodda halol qayd etilgan) | `metrics.service.ts:446-455`                   | `docs/11 §6.1` talab qiladi; dashboard'da bo'sh panel                                                                                                                                                                                                                                                                                                    |
 | K-12    | HTTP metrikalari `farzin_` prefiksisiz (`http_request_duration_seconds`), qolgan hammasi prefiksli          | `metrics.service.ts:216,224`                   | Ataylab (`docs/15:369` shunday yozadi), lekin nomlash nomuvofiqligi ko'rinadi                                                                                                                                                                                                                                                                            |
 | K-13    | Docker image DoD chegarasidan katta: api **829 MB**, worker **1.02 GB** (chegara 250 MB)                    | `Dockerfile`                                   | `pnpm prune --prod` pnpm store'da peer sifatida ushlanib qolgan `prisma` (67 MB) va `typescript` (23 MB) ni olib tashlamaydi; `.bin/prisma` symlink'i esa o'chgani uchun CLI baribir chaqirilmaydi — ~90 MB o'lik yuk. Farq Dockerfile sarlavhasida o'lchov bilan izohlangan (DoD "yoki farq izohlangan" varianti). To'g'ri yechim: `pnpm deploy --prod` |
-| K-14    | `docs/runbooks/` papkasi yo'q, lekin 11 ta alert `runbook_url` bilan unga ishora qiladi                     | `infra/prometheus/farzin-rules.yml`            | docs/15 §6.5 4-qoidasi "runbook'siz alert qo'shilmaydi" deydi. Bu qoidadan ONGLI chekinish: alertsiz qolish runbooksiz alertdan yomonroq                                                                                                                                                                                                                 |
+| K-14 ✅ | `docs/runbooks/` papkasi yo'q, lekin 11 ta alert `runbook_url` bilan unga ishora qiladi                     | `infra/prometheus/farzin-rules.yml`            | docs/15 §6.5 4-qoidasi "runbook'siz alert qo'shilmaydi" deydi. Bu qoidadan ONGLI chekinish: alertsiz qolish runbooksiz alertdan yomonroq. **TUZATILDI 2026-09-02 (`edf040d`)** — 10 ta runbook yozildi, har `runbook_url` haqiqiy faylga ishora qiladi (skript bilan tekshirildi) |
 | K-15 ✅ | Prettier versiyasi suzuvchi (`^3.4.2` → 3.9.5) — 101 faylda formatlash farqi, CI'da ham yiqilardi           | `package.json`                                 | **TUZATILDI 2026-09-01 (`715515f`)** — qayta formatlandi, versiya aniq qotirildi. Audit "sabab faqat CRLF" degan xulosasi TO'LIQ EMAS edi                                                                                                                                                                                                                |
 | K-16 ✅ | Dockerfile HEALTHCHECK `/api/health/live` ga urinardi, haqiqiy yo'l `/health/live`                          | `Dockerfile`                                   | **TUZATILDI 2026-09-01 (`526510f`)** — konteyner abadiy `unhealthy` bo'lardi va compose `depends_on: service_healthy` hech qachon ochilmasdi                                                                                                                                                                                                             |
 | K-17 ✅ | `pnpm prune --prod` prune'dan keyin `prepare` (husky) ni qayta chaqirib build'ni yiqitardi                  | `Dockerfile:42`                                | **TUZATILDI 2026-09-01 (`526510f`)** — `--ignore-scripts`. KRITIK-1 ning IKKINCHI to'sig'i edi                                                                                                                                                                                                                                                           |
@@ -862,7 +868,7 @@ Tuzatish bosqichidan KEYINGI holat. Yopilganlar ~~chizilgan~~.
 4. ~~Email yetkazish~~ ✅ `c2df66d`
 5. ~~Hakam tomonidan ro'yxatga olish~~ ✅ `af06554` (CSV _profil yaratish_ — huquqiy blokerda)
 6. ~~PDF eksport~~ ✅ `2ab0ae5`
-7. ~~Alert qatlami~~ ✅ `0867f38` (**Grafana dashboard** hali yo'q — 25-band)
+7. ~~Alert qatlami~~ ✅ `0867f38` · ~~Grafana dashboard~~ ✅ `edf040d`
 8. **Real ma'lumot bilan validatsiya** — Swiss-Manager solishtirish, FIDE
    hakami tasdig'i, real turnir. Bu **kod emas, jarayon** — Faza 2 ni
    yopishning boshqa yo'li yo'q.
@@ -951,8 +957,8 @@ bo'lmagan narsa kerak** bo'lgan bandlar:
 | --- | ------------------------------------------------------------------------------------------ | ----- | ------------------------------------------------------------------------- |
 | 22  | O'yin taymerlarini multi-instance qilish: `ownerNodeId` affinity + forward (docs/07 §10.3) | **L** | JIDDIY-6 ning qolgan yarmi; Faza 5 DoD "pod o'ldirilsa o'yin yo'qolmaydi" |
 | 23  | Image slimming: `pnpm deploy --prod` bilan yassi `node_modules`                            | **S** | K-13; DoD 250 MB chegarasi                                                |
-| 24  | `docs/runbooks/` — 11 ta alert uchun runbook                                               | **M** | K-14; docs/15 §6.5 4-qoidasi                                              |
-| 25  | Grafana datasource + birinchi dashboard                                                    | **S** | Faza 1 DoD "birinchi dashboard" (JIDDIY-3 dan qolgan)                     |
+| ~~24~~ ✅ | `docs/runbooks/` — 10 ta alert uchun runbook (`edf040d`)                               | **M** | K-14; docs/15 §6.5 4-qoidasi                                              |
+| ~~25~~ ✅ | Grafana datasource + "Turnir kuni" paneli (`edf040d`)                                  | **S** | Faza 1 DoD "birinchi dashboard" (JIDDIY-3 dan qolgan)                     |
 
 ### Bu rejaga kirmagan, lekin bloklaydigan narsalar
 
