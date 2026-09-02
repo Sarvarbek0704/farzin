@@ -55,7 +55,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   /** Refresh cookie orqali yangi access token olish. */
   const refresh = useCallback(async (): Promise<string | null> => {
-    const res = await fetch('/api/v1/auth/refresh', { method: 'POST' });
+    // ⚠️  `keepalive` MAJBURIY. Refresh har chaqiriqda cookie'ni
+    //     AYLANTIRADI (rotation) va reuse-detection'da grace davri yo'q
+    //     (docs/10 §2.4 — ataylab). Foydalanuvchi refresh ketayotganda
+    //     boshqa sahifaga o'tsa, oddiy fetch BEKOR bo'ladi: server
+    //     allaqachon aylantirgan, yangi cookie esa yo'qoladi — keyingi
+    //     refresh eski token bilan borib, BUTUN sessiya oilasi bekor
+    //     qilinadi (jonli sinovda "tez navigatsiya = chiqib qolish"
+    //     bo'lib ko'ringan xato). `keepalive` bilan so'rov sahifa
+    //     almashganda ham yakunlanadi va Set-Cookie qo'llanadi.
+    const res = await fetch('/api/v1/auth/refresh', { method: 'POST', keepalive: true });
     if (!res.ok) {
       return null;
     }
@@ -79,6 +88,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ email, password }),
+      // Cookie o'rnatuvchi so'rov — navigatsiya uni yo'qotmasin
+      // (refresh'dagi izohga qarang).
+      keepalive: true,
     });
 
     if (!res.ok) {
@@ -95,7 +107,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const logout = useCallback(async (): Promise<void> => {
-    await fetch('/api/v1/auth/logout', { method: 'POST' }).catch(() => undefined);
+    await fetch('/api/v1/auth/logout', { method: 'POST', keepalive: true }).catch(() => undefined);
     tokenRef.current = null;
     setAccessToken(null);
   }, []);

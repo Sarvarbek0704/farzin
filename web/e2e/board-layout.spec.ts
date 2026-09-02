@@ -67,10 +67,11 @@ test.describe('taxta tartibi', () => {
   test.describe('desktop (1280px)', () => {
     test.use({ viewport: { width: 1280, height: 900 } });
 
-    test('taxta 440px dan oshmaydi va yon panel yonida turadi', async ({ page }) => {
+    test('taxta QAHRAMON o`lchamida (brif: 560-640px) va yon panel yonida', async ({ page }) => {
       await page.goto(`/oyin/${String(gameId)}`);
       const board = await boxOf(page.locator('.board-frame'), 'taxta ramkasi');
-      expect(board.width).toBeLessThanOrEqual(440);
+      expect(board.width).toBeLessThanOrEqual(640);
+      expect(board.width).toBeGreaterThanOrEqual(480);
 
       // Yurishlar paneli taxtaning YONIDA (pastida emas).
       const moves = await boxOf(page.getByRole('heading', { name: 'Yurishlar' }), 'Yurishlar sarlavhasi');

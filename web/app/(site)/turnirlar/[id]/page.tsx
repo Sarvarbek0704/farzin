@@ -73,7 +73,9 @@ export default async function TournamentPage({ params }: { params: Promise<{ id:
             {formatDateRange(tournament.startDate, tournament.endDate)}
           </span>
           {tournament.venueName !== null && <span className="badge">{tournament.venueName}</span>}
-          <span className="badge tabular">{formatSom(tournament.entryFeeAmount)}</span>
+          <span className={formatSom(tournament.entryFeeAmount) === 'Bepul' ? 'badge' : 'badge tabular'}>
+            {formatSom(tournament.entryFeeAmount)}
+          </span>
           {tournament.isNationallyRated && <span className="badge">Milliy reyting</span>}
           {tournament.isFideRated && <span className="badge">FIDE reyting</span>}
         </div>

@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { io, type Socket } from 'socket.io-client';
 
-import { BackLink, Card, EmptyState } from '@/components/ui';
+import { Card, EmptyState, PageHeader } from '@/components/ui';
 import { readJson, useAuth } from '@/lib/auth';
 import { formatTimeControl } from '@/lib/format';
 import {
@@ -232,25 +232,31 @@ export default function PlayPage() {
   if (accessToken === null) {
     return (
       <>
-        <BackLink href="/">Bosh sahifa</BackLink>
-        <h1 style={{ fontSize: 30, marginBottom: 8 }}>Onlayn o&apos;yin</h1>
-        <EmptyState
-          title="O&apos;ynash uchun kirish kerak"
-          hint="Reyting va fair-play nazorati o'yinchi kimligini bilishni talab qiladi. Tomoshabin sifatida istalgan o'yinni tokensiz ko'rish mumkin."
-        />
-        <Link href="/konsol/kirish" className="small">
-          Kirish →
-        </Link>
+        <PageHeader kicker="Onlayn" title="Onlayn o'yin" />
+        <div className="card empty">
+          <span className="empty-glyph" aria-hidden="true">
+            ♞
+          </span>
+          <p style={{ margin: 0, fontWeight: 500 }}>O&apos;ynash uchun kirish kerak</p>
+          <p className="muted small" style={{ margin: '8px auto 18px', maxWidth: '48ch' }}>
+            Reyting va fair-play nazorati o&apos;yinchi kimligini bilishni talab qiladi.
+            Tomoshabin sifatida istalgan o&apos;yinni tokensiz ko&apos;rish mumkin.
+          </p>
+          <Link href="/konsol/kirish" className="btn btn-primary">
+            Kirish →
+          </Link>
+        </div>
       </>
     );
   }
 
   return (
     <>
-      <BackLink href="/">Bosh sahifa</BackLink>
-
-      <div className="board-rule" style={{ width: 72, marginBottom: 14 }} />
-      <h1 style={{ fontSize: 30, marginBottom: 6 }}>Onlayn o&apos;yin</h1>
+      <PageHeader
+        kicker="Onlayn"
+        title="Onlayn o'yin"
+        subtitle="Vaqt nazoratini tanlang — mos reytingli raqib avtomatik topiladi."
+      />
 
       {error !== null && (
         <p role="alert" style={{ color: 'var(--burgundy)' }}>
@@ -258,7 +264,7 @@ export default function PlayPage() {
         </p>
       )}
 
-      <h2 style={{ marginTop: 22, marginBottom: 10 }}>Navbat</h2>
+      <h2 style={{ marginBottom: 12 }}>Navbat</h2>
 
       {!socketReady && queue.kind === 'idle' && (
         <p className="muted small" style={{ marginTop: 0 }} role="status">
@@ -290,7 +296,13 @@ export default function PlayPage() {
           </div>
         </Card>
       ) : (
-        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+        <div
+          style={{
+            display: 'grid',
+            gridTemplateColumns: 'repeat(auto-fill, minmax(120px, 1fr))',
+            gap: 10,
+          }}
+        >
           {PRESETS.map((preset) => {
             // Socket ulanmaguncha navbatga turmaymiz: juftlik shu
             // oraliqda tuzilsa `matchmaking:matched` yo'qolardi.
@@ -305,9 +317,11 @@ export default function PlayPage() {
                 onClick={() => void join(preset)}
                 className="btn"
                 // Preset tugmasi ikki qatorli: vaqt + kategoriya.
-                style={{ flexDirection: 'column', alignItems: 'flex-start', gap: 0 }}
+                style={{ flexDirection: 'column', gap: 2, padding: '14px 10px', height: 'auto' }}
               >
-                <span style={{ fontWeight: 600 }}>{presetLabel(preset)}</span>
+                <span className="tabular" style={{ fontWeight: 600, fontSize: 17 }}>
+                  {presetLabel(preset)}
+                </span>
                 <span className="muted small">
                   {CATEGORY_LABEL[categoryFor(preset.baseSeconds, preset.incrementSeconds)]}
                 </span>
@@ -317,7 +331,7 @@ export default function PlayPage() {
         </div>
       )}
 
-      <h2 style={{ marginTop: 28, marginBottom: 10 }}>Faol o&apos;yinlarim</h2>
+      <h2 style={{ marginTop: 40, marginBottom: 12 }}>Faol o&apos;yinlarim</h2>
 
       {games === null ? (
         <p className="muted">Yuklanmoqda…</p>

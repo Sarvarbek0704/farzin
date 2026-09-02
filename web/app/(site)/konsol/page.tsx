@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { useCallback, useEffect, useState } from 'react';
 
 import type { Page, Tournament } from '@/lib/api';
+import { EmptyState, PageHeader } from '@/components/ui';
 import { readJson, useAuth } from '@/lib/auth';
 import { formatDateRange, statusView } from '@/lib/format';
 
@@ -37,11 +38,11 @@ export default function ConsoleHome() {
 
   return (
     <>
-      <div className="board-rule" style={{ width: 72, marginBottom: 14 }} />
-      <h1 style={{ fontSize: 30, marginBottom: 6 }}>Hakam konsoli</h1>
-      <p className="muted small" style={{ marginTop: 0, marginBottom: 22 }}>
-        Turnirni ochib seksiya qo`shing, tur generatsiya qiling va natija kiriting.
-      </p>
+      <PageHeader
+        kicker="Boshqaruv"
+        title="Hakam konsoli"
+        subtitle="Turnirni ochib seksiya qo'shing, tur generatsiya qiling va natija kiriting."
+      />
 
       {error !== null && (
         <p role="alert" style={{ color: 'var(--burgundy)' }}>
@@ -50,9 +51,13 @@ export default function ConsoleHome() {
       )}
 
       {items === null ? (
-        <p className="muted">Yuklanmoqda…</p>
+        <div className="skeleton" style={{ height: 220 }} />
       ) : items.length === 0 ? (
-        <div className="card">Turnir yo`q.</div>
+        <EmptyState
+          glyph="♜"
+          title="Turnir yo'q"
+          hint="Tashkilotchi turnir e'lon qilgach, u shu yerda ko'rinadi."
+        />
       ) : (
         <div className="table-wrap">
           <table>

@@ -2,55 +2,59 @@ import Link from 'next/link';
 import type { ReactNode } from 'react';
 
 /**
- * Umumiy UI bo'laklari.
+ * Umumiy UI bo'laklari — dizayn tizimining React tomoni.
  *
- * ⚠️  BO'SH va XATO holatlari BIRINCHI DARAJALI ekran (dizayn brifi):
- *     "empty/error/loading states" alohida talab qilingan. Ular
- *     keyinroq qo'shiladigan bezak emas — foydalanuvchi ularni
- *     muvaffaqiyatli holatdan KAM ko'rmaydi.
+ * ⚠️  BO'SH va XATO holatlari birinchi darajali ekran (dizayn brifi §7):
+ *     foydalanuvchi ularni muvaffaqiyatli holatdan KAM ko'rmaydi.
  */
 
+/** Sahifa boshi: kicker + serif sarlavha + izoh. Hamma sahifada BIR XIL. */
 export function PageHeader({
+  kicker,
   title,
   subtitle,
   children,
 }: {
+  kicker?: string;
   title: string;
   subtitle?: string;
   children?: ReactNode;
 }) {
   return (
-    <header style={{ marginBottom: 24 }}>
-      <div className="board-rule" style={{ width: 96, marginBottom: 14 }} />
-      <h1>{title}</h1>
-      {subtitle !== undefined && (
-        <p className="muted" style={{ marginTop: 8, marginBottom: 0, maxWidth: '62ch' }}>
-          {subtitle}
-        </p>
+    <header className="page-head">
+      {kicker !== undefined && (
+        <div>
+          <span className="kicker">{kicker}</span>
+        </div>
       )}
+      <h1 style={{ marginTop: kicker !== undefined ? 10 : 0 }}>{title}</h1>
+      {subtitle !== undefined && <p className="muted">{subtitle}</p>}
       {children}
     </header>
   );
 }
 
 /**
- * Bo'sh holat.
- *
- * Har doim SABABNI aytadi va — imkon bo'lsa — keyingi qadamni beradi.
- * "Ma'lumot yo'q" degan yolg'iz jumla foydalanuvchini boshi berk
- * ko'chaga olib boradi.
+ * Bo'sh holat — donaning silueti bilan (brif §4.3: "piece glyphs double
+ * as empty-state art"). Har doim SABAB va imkon bo'lsa keyingi qadam.
  */
-export function EmptyState({ title, hint }: { title: string; hint?: string }) {
+export function EmptyState({
+  title,
+  hint,
+  glyph = '♟',
+}: {
+  title: string;
+  hint?: string;
+  glyph?: string;
+}) {
   return (
-    <div className="card" style={{ textAlign: 'center', padding: '40px 20px' }}>
-      <div
-        className="board-rule"
-        aria-hidden="true"
-        style={{ width: 64, margin: '0 auto 16px', opacity: 0.5 }}
-      />
+    <div className="card empty">
+      <span className="empty-glyph" aria-hidden="true">
+        {glyph}
+      </span>
       <p style={{ margin: 0, fontWeight: 500 }}>{title}</p>
       {hint !== undefined && (
-        <p className="muted small" style={{ margin: '6px 0 0' }}>
+        <p className="muted small" style={{ margin: '8px auto 0', maxWidth: '48ch' }}>
           {hint}
         </p>
       )}
@@ -58,30 +62,28 @@ export function EmptyState({ title, hint }: { title: string; hint?: string }) {
   );
 }
 
-/**
- * Xato holati.
- *
- * Texnik detal KO'RSATILMAYDI (backend ham RFC 9457 da faqat traceId
- * beradi) — foydalanuvchiga nima qilishini aytamiz.
- */
+/** Xato holati — texnik detal ko'rsatilmaydi, qadam aytiladi. */
 export function ErrorState({ message }: { message: string }) {
   return (
     <div
-      className="card"
+      className="card empty"
       role="alert"
-      style={{ borderColor: 'rgba(155,44,44,.45)', textAlign: 'center', padding: '32px 20px' }}
+      style={{ borderColor: 'color-mix(in srgb, var(--burgundy) 45%, transparent)' }}
     >
+      <span className="empty-glyph" aria-hidden="true">
+        ♚
+      </span>
       <p style={{ margin: 0, fontWeight: 500, color: 'var(--burgundy)' }}>
         Ma`lumotni olishning iloji bo`lmadi
       </p>
-      <p className="muted small" style={{ margin: '6px 0 0' }}>
+      <p className="muted small" style={{ margin: '8px 0 0' }}>
         {message}
       </p>
     </div>
   );
 }
 
-/** Unvon nishoni — GM/IM/... oltin rangda, KAM ishlatiladi. */
+/** Unvon nishoni — GM/IM/... oltin rangda, KAM ishlatiladi (brif: gilt sparing). */
 export function TitleTag({ title }: { title: string | null }) {
   if (title === null || title === '') {
     return null;
@@ -93,11 +95,11 @@ export function Card({ children }: { children: ReactNode }) {
   return <div className="card">{children}</div>;
 }
 
-/** Sahifa ichidagi "orqaga" havolasi. */
+/** "Orqaga" havolasi — har ichki sahifada bir xil joy va ko'rinish. */
 export function BackLink({ href, children }: { href: string; children: ReactNode }) {
   return (
-    <Link href={href} className="small" style={{ display: 'inline-block', marginBottom: 12 }}>
-      ← {children}
+    <Link href={href} className="crumb">
+      {children}
     </Link>
   );
 }

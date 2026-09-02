@@ -206,6 +206,127 @@ const DICTIONARY = {
     ru: 'Открытые данные · Консоль судьи и онлайн-игра в разработке',
     en: 'Open data · Arbiter console and online play in development',
   },
+
+  'footer.tagline': {
+    'uz-Latn': "O'zbekiston shaxmatining raqamli infratuzilmasi — ochiq reyting, turnirlar va onlayn o'yin.",
+    'uz-Cyrl': 'Ўзбекистон шахматининг рақамли инфратузилмаси — очиқ рейтинг, турнирлар ва онлайн ўйин.',
+    ru: 'Цифровая инфраструктура узбекского шахмата — открытый рейтинг, турниры и онлайн-игра.',
+    en: 'The digital infrastructure of Uzbek chess — open ratings, tournaments and online play.',
+  },
+  'footer.sections': {
+    'uz-Latn': "Bo'limlar",
+    'uz-Cyrl': 'Бўлимлар',
+    ru: 'Разделы',
+    en: 'Sections',
+  },
+  'footer.forOrgs': {
+    'uz-Latn': 'Tashkilotlar uchun',
+    'uz-Cyrl': 'Ташкилотлар учун',
+    ru: 'Для организаций',
+    en: 'For organisations',
+  },
+  'footer.calendar': {
+    'uz-Latn': 'Turnir kalendari',
+    'uz-Cyrl': 'Турнир календари',
+    ru: 'Календарь турниров',
+    en: 'Tournament calendar',
+  },
+  'hero.kicker': {
+    'uz-Latn': 'Milliy shaxmat platformasi',
+    'uz-Cyrl': 'Миллий шахмат платформаси',
+    ru: 'Национальная шахматная платформа',
+    en: 'The national chess platform',
+  },
+  'hero.play': {
+    'uz-Latn': "O'ynash",
+    'uz-Cyrl': 'Ўйнаш',
+    ru: 'Играть',
+    en: 'Play',
+  },
+  'hero.calendar': {
+    'uz-Latn': 'Turnir kalendari',
+    'uz-Cyrl': 'Турнир календари',
+    ru: 'Календарь турниров',
+    en: 'Tournament calendar',
+  },
+  'home.features': {
+    'uz-Latn': 'Platforma nimalarni qamraydi',
+    'uz-Cyrl': 'Платформа нималарни қамрайди',
+    ru: 'Что охватывает платформа',
+    en: 'What the platform covers',
+  },
+  'feature.play.title': {
+    'uz-Latn': "Onlayn o'yin",
+    'uz-Cyrl': 'Онлайн ўйин',
+    ru: 'Онлайн-игра',
+    en: 'Online play',
+  },
+  'feature.play.text': {
+    'uz-Latn': "Reytingli o'yinlar — bullet'dan klassikgacha. Soat serverda: adolat taxmin emas.",
+    'uz-Cyrl': 'Рейтингли ўйинлар — буллетдан классикгача. Соат серверда: адолат тахмин эмас.',
+    ru: 'Рейтинговые партии — от пули до классики. Часы на сервере: честность не на доверии.',
+    en: 'Rated games from bullet to classical. Clocks live on the server — fairness is not a guess.',
+  },
+  'feature.rating.title': {
+    'uz-Latn': 'Milliy reyting',
+    'uz-Cyrl': 'Миллий рейтинг',
+    ru: 'Национальный рейтинг',
+    en: 'National rating',
+  },
+  'feature.rating.text': {
+    'uz-Latn': "Glicko-2, ishonch oralig'i (RD) bilan ochiq ko'rsatiladi. Tekshirib bo'ladigan ma'lumot.",
+    'uz-Cyrl': 'Glicko-2, ишонч оралиғи (RD) билан очиқ кўрсатилади. Текшириб бўладиган маълумот.',
+    ru: 'Glicko-2, открыто показывается с интервалом уверенности (RD). Проверяемые данные.',
+    en: 'Glicko-2, shown openly with its confidence interval (RD). Auditable by anyone.',
+  },
+  'feature.tournaments.title': {
+    'uz-Latn': 'Turnirlar',
+    'uz-Cyrl': 'Турнирлар',
+    ru: 'Турниры',
+    en: 'Tournaments',
+  },
+  'feature.tournaments.text': {
+    'uz-Latn': "FIDE Dutch Swiss juftlashtirish, jonli jadval va tie-break'lar — hakam vositasi bilan.",
+    'uz-Cyrl': 'FIDE Dutch Swiss жуфтлаштириш, жонли жадвал ва тай-брейклар — ҳакам воситаси билан.',
+    ru: 'Жеребьёвка FIDE Dutch Swiss, живая таблица и тай-брейки — с инструментом судьи.',
+    en: 'FIDE Dutch Swiss pairings, live standings and tie-breaks — with the arbiter console.',
+  },
+  'feature.school.title': {
+    'uz-Latn': 'Maktab shaxmati',
+    'uz-Cyrl': 'Мактаб шахмати',
+    ru: 'Школьные шахматы',
+    en: 'School chess',
+  },
+  'feature.school.text': {
+    'uz-Latn': "Maktab, klub va federatsiya kabinetlari — keyingi bosqichda.",
+    'uz-Cyrl': 'Мактаб, клуб ва федерация кабинетлари — кейинги босқичда.',
+    ru: 'Кабинеты школ, клубов и федерации — на следующем этапе.',
+    en: 'School, club and federation dashboards — next phase.',
+  },
+  'home.b2b.title': {
+    'uz-Latn': 'Klub va federatsiyalar uchun',
+    'uz-Cyrl': 'Клуб ва федерациялар учун',
+    ru: 'Клубам и федерациям',
+    en: 'For clubs and federations',
+  },
+  'home.b2b.text': {
+    'uz-Latn': "Turnir o'tkazish, natija kiritish va reyting hisobi — bitta tizimda, hakam uchun qulay konsol bilan.",
+    'uz-Cyrl': 'Турнир ўтказиш, натижа киритиш ва рейтинг ҳисоби — битта тизимда, ҳакам учун қулай консол билан.',
+    ru: 'Проведение турниров, ввод результатов и расчёт рейтинга — в одной системе, с удобной консолью судьи.',
+    en: 'Run tournaments, enter results and compute ratings in one system, with an arbiter-friendly console.',
+  },
+  'home.b2b.cta': {
+    'uz-Latn': 'Konsolga kirish',
+    'uz-Cyrl': 'Консолга кириш',
+    ru: 'Войти в консоль',
+    en: 'Open the console',
+  },
+  'soon': {
+    'uz-Latn': 'Tez orada',
+    'uz-Cyrl': 'Тез орада',
+    ru: 'Скоро',
+    en: 'Soon',
+  },
 } as const satisfies Record<string, Record<Locale, string>>;
 
 export type MessageKey = keyof typeof DICTIONARY;

@@ -4,7 +4,7 @@ import Link from 'next/link';
 import { useCallback, useEffect, useState } from 'react';
 
 import { readJson, useAuth } from '@/lib/auth';
-import { BackLink, EmptyState } from '@/components/ui';
+import { EmptyState, PageHeader } from '@/components/ui';
 import { CASE_STATUS_LABEL, caseStatusClass } from '@/lib/fairplay';
 
 /**
@@ -54,14 +54,11 @@ export default function FairplayCasesPage() {
 
   return (
     <>
-      <BackLink href="/konsol">Konsol</BackLink>
-
-      <div className="board-rule" style={{ width: 72, marginBottom: 14 }} />
-      <h1 style={{ fontSize: 30, marginBottom: 6 }}>Fair-play ishlari</h1>
-      <p className="muted small" style={{ marginTop: 0, marginBottom: 20, maxWidth: '64ch' }}>
-        Tahlil ish OCHADI, lekin hech qachon jazolamaydi. Har qaror odam tomonidan,
-        yozma asos bilan chiqariladi va audit logga tushadi.
-      </p>
+      <PageHeader
+        kicker="Komissiya"
+        title="Fair-play ishlari"
+        subtitle="Tahlil ish ochadi, lekin hech qachon jazolamaydi. Har qaror odam tomonidan, yozma asos bilan chiqariladi va audit logga tushadi."
+      />
 
       {error !== null && (
         <p role="alert" style={{ color: 'var(--burgundy)' }}>
@@ -70,7 +67,7 @@ export default function FairplayCasesPage() {
       )}
 
       {cases === null ? (
-        <p className="muted">Yuklanmoqda…</p>
+        <div className="skeleton" style={{ height: 180 }} />
       ) : cases.length === 0 ? (
         <EmptyState
           title="Ochiq ish yo`q"

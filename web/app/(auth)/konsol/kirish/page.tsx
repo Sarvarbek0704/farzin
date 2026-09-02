@@ -5,7 +5,12 @@ import { useEffect, useState, type SyntheticEvent } from 'react';
 
 import { useAuth } from '@/lib/auth';
 
-/** Hakam/administrator kirishi. */
+/**
+ * Hakam / administrator kirishi.
+ *
+ * Bu ekran `(auth)` guruhida — sayt navigatsiyasisiz, markazda
+ * (dizayn brifi §6.2). Foydalanuvchi bu yerda bitta ish qiladi.
+ */
 export default function LoginPage() {
   const { accessToken, login } = useAuth();
   const router = useRouter();
@@ -39,15 +44,17 @@ export default function LoginPage() {
   return (
     <div className="centered-shell">
       <div>
-        <div className="board-rule" style={{ width: 72, marginBottom: 14 }} />
-        <h1 style={{ fontSize: 28, marginBottom: 6 }}>Konsolga kirish</h1>
-        <p className="muted small" style={{ marginTop: 0, marginBottom: 18 }}>
-          Hakam, tashkilotchi va administratorlar uchun.
-        </p>
+        <div style={{ textAlign: 'center', marginBottom: 22 }}>
+          <span className="kicker">Hakam konsoli</span>
+          <h1 style={{ fontSize: 30, marginTop: 8 }}>Konsolga kirish</h1>
+          <p className="muted small" style={{ margin: '8px 0 0' }}>
+            Hakam, tashkilotchi va administratorlar uchun.
+          </p>
+        </div>
 
-        <form onSubmit={(e) => void onSubmit(e)} className="card stack" style={{ gap: 14 }}>
-          <label className="stack" style={{ gap: 6 }}>
-            <span className="small">Email</span>
+        <form onSubmit={(e) => void onSubmit(e)} className="card stack" style={{ gap: 16 }}>
+          <label>
+            <span className="label">Email</span>
             <input
               type="email"
               required
@@ -60,8 +67,8 @@ export default function LoginPage() {
             />
           </label>
 
-          <label className="stack" style={{ gap: 6 }}>
-            <span className="small">Parol</span>
+          <label>
+            <span className="label">Parol</span>
             <input
               type="password"
               required
@@ -80,7 +87,7 @@ export default function LoginPage() {
             </p>
           )}
 
-          <button type="submit" disabled={busy} className="btn btn-primary btn-block">
+          <button type="submit" disabled={busy} className="btn btn-primary btn-lg btn-block">
             {busy ? 'Tekshirilmoqda…' : 'Kirish'}
           </button>
         </form>

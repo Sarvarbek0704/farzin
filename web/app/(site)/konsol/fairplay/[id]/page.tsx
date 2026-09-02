@@ -119,7 +119,9 @@ export default function FairplayCasePage({ params }: { params: Promise<{ id: str
     <>
       <BackLink href="/konsol/fairplay">Fair-play ishlari</BackLink>
 
-      <h1 style={{ fontSize: 26, marginBottom: 10 }}>Ish {detail.case.id.slice(0, 8)}…</h1>
+      <h1 style={{ fontSize: 28, marginBottom: 12 }}>
+        Ish <span className="tabular">{detail.case.id.slice(0, 8)}…</span>
+      </h1>
 
       <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', marginBottom: 18 }}>
         <span className="badge">{CASE_STATUS_LABEL[detail.case.status] ?? detail.case.status}</span>

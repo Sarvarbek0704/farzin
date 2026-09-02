@@ -4,7 +4,6 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { io, type Socket } from 'socket.io-client';
 
 import { ChessBoard } from '@/components/board';
-import { Card } from '@/components/ui';
 import type { GameState } from '@/lib/api';
 
 /** Gateway ack konverti — play.types.ts `Ack<T>` bilan bir xil. */
@@ -178,47 +177,64 @@ export function LiveGame({ initial, token }: Props) {
   // ketadi, ya'ni uzilgan holda sudrash faqat aldardi.
   const canMove = isPlayer && active && connection === 'open';
   const orientation = game.viewerRole === 'black' ? 'black' : 'white';
+  // Yuqorida RAQIB, pastda O'ZIM (tomoshabin uchun: yuqorida qora).
+  const topIsBlack = orientation === 'white';
+  const whiteName = `${game.white.lastName} ${game.white.firstName}`;
+  const blackName = `${game.black.lastName} ${game.black.firstName}`;
 
   return (
-    <div style={{ display: 'flex', gap: 24, flexWrap: 'wrap', alignItems: 'flex-start' }}>
+    <div className="game-layout">
+      {/*
+        TARTIB (brif §6.4): taxta chapda, o'ng ustunda yuqoridan pastga —
+        raqib podi, yurishlar, o'z podim, boshqaruv. Pod tartibi
+        YO'NALISHGA bog'liq: pastda har doim O'ZIM turaman.
+      */}
       <div>
         <ChessBoard fen={game.fen} orientation={orientation} {...(canMove ? { onMove } : {})} />
         <ConnectionBadge state={connection} />
       </div>
 
-      <div style={{ flex: '1 1 260px', minWidth: 240 }}>
+      <div className="stack" style={{ gap: 12, minWidth: 0 }}>
         {notice !== null && (
-          <p
-            role="status"
-            className="small"
-            style={{ color: 'var(--amber)', marginTop: 0 }}
-          >
+          <p role="status" className="small" style={{ color: 'var(--amber)', margin: 0 }}>
             {notice}
           </p>
         )}
 
-        <Card>
-          <ClockLine
-            label={`${game.black.lastName} ${game.black.firstName}`}
-            ms={game.clock.blackMs}
-            active={game.clock.running === 'b'}
-          />
-          <div className="board-rule" style={{ margin: '12px 0' }} />
-          <ClockLine
-            label={`${game.white.lastName} ${game.white.firstName}`}
-            ms={game.clock.whiteMs}
-            active={game.clock.running === 'w'}
-          />
-        </Card>
+        <PlayerPod
+          label={topIsBlack ? blackName : whiteName}
+          ms={topIsBlack ? game.clock.blackMs : game.clock.whiteMs}
+          active={game.clock.running === (topIsBlack ? 'b' : 'w')}
+        />
+
+        <div className="card" style={{ padding: 16 }}>
+          <h3 className="kicker" style={{ margin: 0 }}>
+            Yurishlar
+          </h3>
+          {game.moves.length === 0 ? (
+            <p className="muted small" style={{ margin: '8px 0 0' }}>
+              Hali yurish qilinmagan.
+            </p>
+          ) : (
+            <ol className="movelist" style={{ marginTop: 8 }}>
+              {pairMoves(game.moves).map((pair) => (
+                <li key={pair.number}>
+                  {pair.white}
+                  {pair.black !== null && ` ${pair.black}`}
+                </li>
+              ))}
+            </ol>
+          )}
+        </div>
+
+        <PlayerPod
+          label={topIsBlack ? whiteName : blackName}
+          ms={topIsBlack ? game.clock.whiteMs : game.clock.blackMs}
+          active={game.clock.running === (topIsBlack ? 'w' : 'b')}
+        />
 
         {isPlayer && active && (
-          <div style={{ display: 'flex', gap: 8, marginTop: 12, flexWrap: 'wrap' }}>
-            {/*
-              `.btn` — `.badge` EMAS: nishon yorliq uchun, uning
-              o'lchami (~20px) WCAG 2.5.8 dagi 24x24 chegarasidan past
-              edi. Taslim tugmasi tasodifan bosilmasligi ham kerak,
-              lekin bosilishi kerak bo'lganda topilishi shart.
-            */}
+          <div className="row" style={{ gap: 8 }}>
             <button
               type="button"
               className="btn"
@@ -235,20 +251,6 @@ export function LiveGame({ initial, token }: Props) {
             </button>
           </div>
         )}
-
-        <h3 style={{ marginTop: 18, marginBottom: 8 }}>Yurishlar</h3>
-        {game.moves.length === 0 ? (
-          <p className="muted small">Hali yurish qilinmagan.</p>
-        ) : (
-          <ol className="tabular small" style={{ margin: 0, paddingLeft: 26, maxHeight: 300, overflowY: 'auto' }}>
-            {pairMoves(game.moves).map((pair) => (
-              <li key={pair.number}>
-                {pair.white}
-                {pair.black !== null && ` ${pair.black}`}
-              </li>
-            ))}
-          </ol>
-        )}
       </div>
     </div>
   );
@@ -262,15 +264,14 @@ function pairMoves(moves: string[]): { number: number; white: string; black: str
   return pairs;
 }
 
-function ClockLine({ label, ms, active }: { label: string; ms: number; active: boolean }) {
+/** O'yinchi podi — ism + soat (brif §5.4/§5.5 soddalashtirilgan birinchi bo'lagi). */
+function PlayerPod({ label, ms, active }: { label: string; ms: number; active: boolean }) {
   const total = Math.max(0, Math.floor(ms / 1000));
+  const low = active && total < 10;
   return (
-    <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12 }}>
-      <span>{label}</span>
-      <span
-        className="tabular"
-        style={{ fontWeight: 600, color: active ? 'var(--accent)' : 'var(--ink-secondary)' }}
-      >
+    <div className="pod">
+      <span className="pod-name">{label}</span>
+      <span className="pod-clock" data-active={active || undefined} data-low={low || undefined}>
         {Math.floor(total / 60)}:{String(total % 60).padStart(2, '0')}
       </span>
     </div>

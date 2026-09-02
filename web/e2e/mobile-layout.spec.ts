@@ -87,7 +87,8 @@ test.describe('desktop tartib (1280px)', () => {
   test('konteyner markazda va maksimal kenglikdan oshmaydi', async ({ page }) => {
     await page.goto('/turnirlar');
     const box = await boxOf(page.locator('main.container'), 'asosiy konteyner');
-    expect(box.width).toBeLessThanOrEqual(1120);
+    // Dizayn tizimi: marketing konteyneri 1200 (brif §4.3).
+    expect(box.width).toBeLessThanOrEqual(1200);
     // Markazda: chap chekka va o'ng chekka teng (1px yaxlitlash chegarasi).
     expect(Math.abs(box.x - (1280 - box.width - box.x))).toBeLessThanOrEqual(1);
   });
