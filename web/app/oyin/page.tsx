@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { io, type Socket } from 'socket.io-client';
 
 import { BackLink, Card, EmptyState } from '@/components/ui';
@@ -29,13 +29,29 @@ import {
  *
  *  Ikkinchi holatda juftlik KEYIN, boshqa odam qo'shilganda tuziladi va
  *  bu haqda server `matchmaking:matched` eventini `user:{userId}`
- *  xonasiga yuboradi (play.gateway.ts:388 notifyMatched). Shuning uchun
- *  bu yerda `my/games` takroriy so'rov bilan tekshirilmaydi — socket
- *  ochamiz va eventni kutamiz. Takroriy so'rov 2-3 soniya kechikish va
- *  keraksiz yuk berardi.
+ *  xonasiga yuboradi (play.gateway.ts notifyMatched). Shuning uchun
+ *  navbat holati TAKRORIY SO'ROV bilan tekshirilmaydi — socket ochamiz
+ *  va eventni kutamiz. Takroriy so'rov 2-3 soniya kechikish va keraksiz
+ *  yuk berardi.
  *
  *  Socket `/play` namespace'iga token bilan ulanadi; ulanish paytida
- *  gateway avtomatik `user:{sub}` xonasiga qo'shadi (gateway:176).
+ *  gateway avtomatik `user:{sub}` xonasiga qo'shadi.
+ *
+ * ───────────────────────────────────────────────────────────────────────────
+ *  LEKIN PUSH — KAFOLAT EMAS (E2E ochib bergan xato)
+ *
+ *  Event BIR MARTA yuboriladi va qayta o'ynatilmaydi. Socket ulanmagan
+ *  yoki uzilgan lahzada juftlik tuzilsa, xabar butunlay yo'qoladi va
+ *  foydalanuvchi "Navbatdan chiqish" ekranida MUZLAB qolardi —
+ *  raqibining soati esa allaqachon ishlab turgan bo'lardi. Bu jonli
+ *  brauzer testida aniqlandi: Playwright tugmani sahifa
+ *  interaktiv bo'lishi bilanoq bosadi, ya'ni socket ulanishidan OLDIN.
+ *
+ *  Ikki qatlamli yechim:
+ *   1. Bo'shliqni OCHMASLIK — presetlar socket ulanmaguncha o'chiq;
+ *   2. Bo'shliq baribir ochilsa (uzilish) — har ulanishda `my/games`
+ *      tekshiriladi va navbatga turishdan OLDIN bo'lmagan yangi o'yin
+ *      topilsa unga o'tiladi (`recoverMissedMatch`).
  * ═══════════════════════════════════════════════════════════════════════════
  */
 
@@ -61,21 +77,62 @@ export default function PlayPage() {
   const [games, setGames] = useState<GameRow[] | null>(null);
   const [queue, setQueue] = useState<QueueState>({ kind: 'idle' });
   const [error, setError] = useState<string | null>(null);
+  const [socketReady, setSocketReady] = useState(false);
 
-  const loadGames = useCallback(async (): Promise<void> => {
-    try {
-      setGames(await readJson<GameRow[]>(await authFetch('/api/v1/play/my/games')));
-    } catch (e) {
-      setError(e instanceof Error ? e.message : 'Xato');
-    }
+  // Effekt ichidan O'QILADIGAN, lekin uni QAYTA ISHGA TUSHIRMAYDIGAN
+  // qiymatlar. State bo'lsa socket har navbat o'zgarishida uzilib
+  // qayta ulanardi — aynan biz to'sayotgan bo'shliqni kengaytirib.
+  const queueRef = useRef<QueueState>({ kind: 'idle' });
+  queueRef.current = queue;
+  /** Navbatga turishdan OLDIN mavjud bo'lgan o'yinlar. */
+  const knownGameIds = useRef<Set<string>>(new Set());
+
+  const loadGames = useCallback(async (): Promise<GameRow[]> => {
+    const rows = await readJson<GameRow[]>(await authFetch('/api/v1/play/my/games'));
+    setGames(rows);
+    return rows;
   }, [authFetch]);
 
   useEffect(() => {
     if (accessToken === undefined || accessToken === null) {
       return;
     }
-    void loadGames();
+    void loadGames().catch((e: unknown) => {
+      setError(e instanceof Error ? e.message : 'Xato');
+    });
   }, [accessToken, loadGames]);
+
+  const goToGame = useCallback(
+    (gameId: string) => {
+      setQueue({ kind: 'idle' });
+      router.push(`/oyin/${gameId}`);
+    },
+    [router],
+  );
+
+  /**
+   * Push'ni O'TKAZIB YUBORGAN bo'lsak, o'yinni o'zimiz topamiz.
+   *
+   * `matchmaking:matched` BIR MARTA yuboriladi va qayta o'ynatilmaydi.
+   * Socket uzilgan yoki hali ulanmagan lahzada juftlik tuzilsa, xabar
+   * butunlay yo'qoladi — foydalanuvchi "Navbatdan chiqish" ekranida
+   * muzlab qolardi, raqibining soati esa ishlayotgan bo'lardi.
+   *
+   * Shuning uchun har ulanishda: navbatda turgan bo'lsak, `my/games`
+   * dan navbatga turishdan OLDIN bo'lmagan o'yinni qidiramiz. Eski
+   * o'yinlar ro'yxati `knownGameIds` da — aks holda foydalanuvchini
+   * allaqachon mavjud boshqa o'yiniga tortib ketardik.
+   */
+  const recoverMissedMatch = useCallback(async (): Promise<void> => {
+    if (queueRef.current.kind === 'idle') {
+      return;
+    }
+    const rows = await loadGames();
+    const fresh = rows.find((g) => g.status === 'ACTIVE' && !knownGameIds.current.has(g.id));
+    if (fresh !== undefined) {
+      goToGame(fresh.id);
+    }
+  }, [goToGame, loadGames]);
 
   // Juftlik topilganini KUTUVCHI socket. Navbatga turmasdan ham ochiq
   // turadi: o'yin boshqa qurilmada yoki chaqiruv orqali boshlansa ham
@@ -90,21 +147,37 @@ export default function PlayPage() {
       auth: { token: accessToken },
     });
 
+    socket.on('connect', () => {
+      setSocketReady(true);
+      // Ulanish (yoki QAYTA ulanish) — o'tkazib yuborilgan juftlikni
+      // tekshirish nuqtasi.
+      void recoverMissedMatch().catch(() => {
+        // Tiklash urinishining muvaffaqiyatsizligi navbatni buzmaydi;
+        // keyingi ulanishda yana urinib ko'riladi.
+      });
+    });
+
+    socket.on('disconnect', () => {
+      setSocketReady(false);
+    });
+
     socket.on('matchmaking:matched', (payload: { gameId: string }) => {
       // Navbat tugadi — darhol o'yinga o'tamiz. Bu yerda tasdiq
       // so'ralmaydi: raqibning soati ALLAQACHON ishlayapti.
-      setQueue({ kind: 'idle' });
-      router.push(`/oyin/${payload.gameId}`);
+      goToGame(payload.gameId);
     });
 
     return () => {
       socket.disconnect();
     };
-  }, [accessToken, router]);
+  }, [accessToken, goToGame, recoverMissedMatch]);
 
   async function join(preset: TimeControlPreset): Promise<void> {
     setError(null);
     setQueue({ kind: 'joining', preset });
+    // Navbatga turishdan OLDINGI o'yinlar — tiklash aynan YANGI
+    // o'yinni ajrata olishi uchun.
+    knownGameIds.current = new Set((games ?? []).map((g) => g.id));
     try {
       const res = await authFetch('/api/v1/play/matchmaking/join', {
         method: 'POST',
@@ -121,10 +194,20 @@ export default function PlayPage() {
       const result = await readJson<{ status: 'queued' | 'matched'; gameId?: string }>(res);
 
       if (result.status === 'matched' && result.gameId !== undefined) {
-        router.push(`/oyin/${result.gameId}`);
+        goToGame(result.gameId);
         return;
       }
       setQueue({ kind: 'queued', preset });
+      // Navbatga turgunimizcha juftlik tuzilgan bo'lishi mumkin (socket
+      // hali ulanmagan bo'lsa push yo'qoladi) — darhol tekshiramiz.
+      //
+      // ⚠️  Bu urinish ALOHIDA ushlanadi. Umumiy `catch` ga tushsa,
+      //     `my/games` so'rovining xatosi navbatni BEKOR qilingandek
+      //     ko'rsatardi — holbuki server tomonda odam navbatda turibdi
+      //     va juftlik istalgan payt tuzilishi mumkin.
+      await recoverMissedMatch().catch(() => {
+        // Keyingi ulanishda yana urinib ko'riladi.
+      });
     } catch (e) {
       setQueue({ kind: 'idle' });
       setError(e instanceof Error ? e.message : 'Xato');
@@ -177,6 +260,12 @@ export default function PlayPage() {
 
       <h2 style={{ marginTop: 22, marginBottom: 10 }}>Navbat</h2>
 
+      {!socketReady && queue.kind === 'idle' && (
+        <p className="muted small" style={{ marginTop: 0 }} role="status">
+          Serverga ulanilmoqda…
+        </p>
+      )}
+
       {queue.kind === 'queued' ? (
         <Card>
           <div className="stack" style={{ gap: 10 }}>
@@ -203,7 +292,11 @@ export default function PlayPage() {
       ) : (
         <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
           {PRESETS.map((preset) => {
-            const busy = queue.kind === 'joining';
+            // Socket ulanmaguncha navbatga turmaymiz: juftlik shu
+            // oraliqda tuzilsa `matchmaking:matched` yo'qolardi.
+            // Tiklash yo'li ham bor, lekin eng yaxshisi — bo'shliqni
+            // umuman ochmaslik.
+            const busy = queue.kind === 'joining' || !socketReady;
             return (
               <button
                 key={presetLabel(preset)}

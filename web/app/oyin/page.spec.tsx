@@ -41,6 +41,17 @@ vi.mock('socket.io-client', () => ({
   }),
 }));
 
+/** `my/games` qatori namunasi. */
+const GAME_ROW = {
+  id: 'game-1',
+  status: 'ACTIVE',
+  whitePlayerId: 'a',
+  blackPlayerId: 'b',
+  timeCategory: 'BLITZ',
+  baseTimeSeconds: 300,
+  incrementSeconds: 0,
+};
+
 function jsonResponse(body: unknown): Response {
   return new Response(JSON.stringify(body), {
     status: 200,
@@ -48,10 +59,27 @@ function jsonResponse(body: unknown): Response {
   });
 }
 
-async function renderPage() {
+async function renderPage(options: { connect?: boolean } = {}) {
   const { default: Page } = await import('./page');
   await act(async () => {
     render(<Page />);
+  });
+  // Haqiqiy socket ulangach `connect` chiqaradi; presetlar shundan
+  // keyin ochiladi. Testlar buni ATAYLAB qo'lda chaqiradi — ulanish
+  // bo'lmagan holat ham tekshiriladigan xulq.
+  if (options.connect !== false) {
+    await fire('connect', undefined);
+  }
+}
+
+/** Socket eventini chaqirish. */
+async function fire(event: string, payload: unknown): Promise<void> {
+  const handler = handlers.get(event);
+  if (handler === undefined) {
+    throw new Error(`"${event}" tinglovchisi ro'yxatdan o'tmagan`);
+  }
+  await act(async () => {
+    handler(payload);
   });
 }
 
@@ -66,14 +94,15 @@ describe('navbat sahifasi', () => {
 
   it('sessiya aniqlanmaguncha "kirmagansiz" DEYILMAYDI', async () => {
     token = undefined;
-    await renderPage();
+    // Socket ochilmaydi — `connect` ni chaqirib bo'lmaydi.
+    await renderPage({ connect: false });
     expect(screen.getByText(/Yuklanmoqda/)).toBeInTheDocument();
     expect(screen.queryByText(/kirish kerak/)).toBeNull();
   });
 
   it('kirilmagan — o`ynash taklif qilinmaydi, tomoshabinlik esa mumkin', async () => {
     token = null;
-    await renderPage();
+    await renderPage({ connect: false });
     expect(screen.getByText(/O.ynash uchun kirish kerak/)).toBeInTheDocument();
     expect(screen.getByRole('link', { name: /Kirish/ })).toBeInTheDocument();
     // Navbat tugmalari umuman ko'rsatilmaydi.
@@ -159,6 +188,84 @@ describe('navbat sahifasi', () => {
     await user.click(screen.getByRole('button', { name: /3\+2/ }));
 
     expect(push).toHaveBeenCalledWith('/oyin/game-9');
+  });
+
+  describe('push yo`qolganda tiklash (E2E ochib bergan xato)', () => {
+    it('socket ulanmaguncha navbatga turib bo`lmaydi', async () => {
+      await renderPage({ connect: false });
+      await screen.findByText(/Faol o.yin yo.q/);
+
+      expect(screen.getByRole('button', { name: /3\+2/ })).toBeDisabled();
+      expect(screen.getByRole('status')).toHaveTextContent(/ulanilmoqda/i);
+    });
+
+    it('ulangach navbat ochiladi', async () => {
+      await renderPage();
+      await screen.findByText(/Faol o.yin yo.q/);
+      expect(screen.getByRole('button', { name: /3\+2/ })).toBeEnabled();
+    });
+
+    it('QAYTA ulanishda o`tkazib yuborilgan juftlik topiladi', async () => {
+      const user = userEvent.setup();
+      await renderPage();
+      await screen.findByText(/Faol o.yin yo.q/);
+
+      authFetch.mockResolvedValue(jsonResponse({ status: 'queued' }));
+      await user.click(screen.getByRole('button', { name: /3\+2/ }));
+      await screen.findByRole('button', { name: /Navbatdan chiqish/ });
+      expect(push).not.toHaveBeenCalled();
+
+      // Uzilish paytida server juftlashtirdi va push yo'qoldi.
+      await fire('disconnect', undefined);
+      authFetch.mockResolvedValue(
+        jsonResponse([{ ...GAME_ROW, id: 'game-yangi', status: 'ACTIVE' }]),
+      );
+      await fire('connect', undefined);
+
+      expect(push).toHaveBeenCalledWith('/oyin/game-yangi');
+    });
+
+    it('ESKI o`yinga TORTIB KETMAYDI — faqat yangisi', async () => {
+      const user = userEvent.setup();
+      // Navbatga turishdan oldin allaqachon faol o'yin bor.
+      authFetch.mockResolvedValue(jsonResponse([{ ...GAME_ROW, id: 'game-eski' }]));
+      await renderPage();
+      await screen.findByRole('link', { name: /Davom ettirish/ });
+
+      authFetch.mockResolvedValue(jsonResponse({ status: 'queued' }));
+      await user.click(screen.getByRole('button', { name: /3\+2/ }));
+      await screen.findByRole('button', { name: /Navbatdan chiqish/ });
+
+      // Qayta ulanishda o'sha ESKI o'yin qaytadi — bu juftlik EMAS.
+      authFetch.mockResolvedValue(jsonResponse([{ ...GAME_ROW, id: 'game-eski' }]));
+      await fire('connect', undefined);
+
+      expect(push).not.toHaveBeenCalled();
+    });
+
+    it('navbatda BO`LMASA ulanish hech qayerga olib bormaydi', async () => {
+      authFetch.mockResolvedValue(jsonResponse([{ ...GAME_ROW, id: 'game-eski' }]));
+      await renderPage();
+      await screen.findByRole('link', { name: /Davom ettirish/ });
+
+      await fire('connect', undefined);
+      expect(push).not.toHaveBeenCalled();
+    });
+
+    it('tiklash so`rovi yiqilsa navbat BEKOR QILINMAYDI', async () => {
+      const user = userEvent.setup();
+      await renderPage();
+      await screen.findByText(/Faol o.yin yo.q/);
+
+      // join -> queued, keyingi `my/games` esa yiqiladi.
+      authFetch
+        .mockResolvedValueOnce(jsonResponse({ status: 'queued' }))
+        .mockRejectedValue(new Error('tarmoq uzildi'));
+      await user.click(screen.getByRole('button', { name: /3\+2/ }));
+
+      // Foydalanuvchi SERVERDA navbatda — UI ham shuni ko'rsatishi kerak.
+      expect(await screen.findByRole('button', { name: /Navbatdan chiqish/ })).toBeInTheDocument();
+    });
   });
 
   it('navbatda turganda PUSH kelsa ham o`yinga o`tiladi', async () => {
