@@ -211,7 +211,7 @@ export default function FairplayCasePage({ params }: { params: Promise<{ id: str
                 onChange={(e) => {
                   setDecision(e.target.value);
                 }}
-                style={fieldStyle}
+                className="field"
               >
                 {DECISIONS.map((d) => (
                   <option key={d.value} value={d.value}>
@@ -232,7 +232,7 @@ export default function FairplayCasePage({ params }: { params: Promise<{ id: str
                   onChange={(e) => {
                     setSanctionUntil(e.target.value);
                   }}
-                  style={fieldStyle}
+                  className="field"
                 />
               </label>
             )}
@@ -247,7 +247,8 @@ export default function FairplayCasePage({ params }: { params: Promise<{ id: str
                 onChange={(e) => {
                   setRationale(e.target.value);
                 }}
-                style={{ ...fieldStyle, resize: 'vertical' }}
+                className="field"
+                style={{ resize: 'vertical' }}
               />
               <span className="small muted tabular">
                 {rationale.trim().length} / {MIN_RATIONALE}
@@ -264,16 +265,9 @@ export default function FairplayCasePage({ params }: { params: Promise<{ id: str
               type="button"
               disabled={!canSubmit || busy}
               onClick={() => void decide()}
-              style={{
-                background: canSubmit ? 'var(--accent)' : 'var(--elevated)',
-                color: canSubmit ? '#0b0f0c' : 'var(--ink-secondary)',
-                border: 'none',
-                borderRadius: 8,
-                padding: '10px 14px',
-                font: 'inherit',
-                fontWeight: 600,
-                cursor: canSubmit && !busy ? 'pointer' : 'not-allowed',
-              }}
+              // Faol bo'lganda asosiy tugma, aks holda oddiy: qaror
+              // chiqarish tugmasi tasodifan "bosiladigan" ko'rinmasin.
+              className={canSubmit ? 'btn btn-primary' : 'btn'}
             >
               {busy ? 'Yuborilmoqda…' : 'Qarorni chiqarish'}
             </button>
@@ -283,12 +277,3 @@ export default function FairplayCasePage({ params }: { params: Promise<{ id: str
     </>
   );
 }
-
-const fieldStyle: React.CSSProperties = {
-  background: 'var(--bg)',
-  border: '1px solid var(--hairline)',
-  borderRadius: 8,
-  color: 'var(--ink)',
-  padding: '9px 11px',
-  font: 'inherit',
-};

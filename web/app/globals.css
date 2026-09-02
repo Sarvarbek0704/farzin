@@ -430,3 +430,87 @@ tbody tr:hover {
     display: inline-block;
   }
 }
+
+/* --- Forma maydonlari -------------------------------------------------- */
+/*
+ * Umumiy `.field` — ilgari har sahifa o'z inline `inputStyle` ini
+ * yozardi. Natijada uslub bir joyda tuzatilsa boshqasida eskirib
+ * qolardi va AVTOTO'LDIRISH muammosi hech qayerda hal qilinmagandi.
+ */
+.field {
+  width: 100%;
+  background: var(--elevated);
+  border: var(--hairline-width) solid var(--hairline);
+  border-radius: 8px;
+  color: var(--ink);
+  padding: 11px 12px;
+  font: inherit;
+  min-height: 44px;
+}
+
+.field::placeholder {
+  color: var(--ink-secondary);
+}
+
+.field:focus-visible {
+  border-color: var(--accent);
+}
+
+/*
+ * ⚠️  CHROME AVTOTO'LDIRISHI (haqiqiy foydalanuvchi ekranida topilgan).
+ *
+ * Chrome saqlangan parolni qo'ygan maydonga O'ZINING ko'k-kulrang fonini
+ * majburan chizadi va uni oddiy `background` bilan bekor qilib bo'lmaydi.
+ * Qorong'i temada natija: qora sahifada ikkita ochiq ko'k plita — tema
+ * butunlay buziladi.
+ *
+ * Yechim — ichki `box-shadow` bilan fonni QOPLASH (Chrome unga tegmaydi)
+ * va matn rangini `-webkit-text-fill-color` bilan majburlash. `transition`
+ * kechikishi zaxira sifatida: brauzer fonni kech qo'ysa ham u ko'rinmaydi.
+ */
+.field:-webkit-autofill,
+.field:-webkit-autofill:hover,
+.field:-webkit-autofill:focus,
+.field:-webkit-autofill:active {
+  -webkit-text-fill-color: var(--ink);
+  -webkit-box-shadow: 0 0 0 1000px var(--elevated) inset;
+  box-shadow: 0 0 0 1000px var(--elevated) inset;
+  caret-color: var(--ink);
+  transition: background-color 100000s ease-in-out 0s;
+}
+
+/* --- Asosiy tugma ------------------------------------------------------ */
+.btn-primary {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--bg);
+  font-weight: 600;
+}
+
+.btn-primary:hover:not(:disabled) {
+  background: var(--accent);
+  filter: brightness(1.06);
+}
+
+.btn-block {
+  width: 100%;
+}
+
+/* --- Markazlashtirilgan qobiq (kirish kabi kichik sahifalar) ------------ */
+/*
+ * Kirish formasi ILGARI sahifaning yuqori-chap burchagiga yopishardi va
+ * pastda katta bo'sh maydon qolardi — ekran tashlab ketilgandek
+ * ko'rinardi. Bunday sahifada kontent kam, shuning uchun uni markazga
+ * qo'yish yagona to'g'ri yechim.
+ */
+.centered-shell {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: min(70vh, 560px);
+}
+
+.centered-shell > * {
+  width: 100%;
+  max-width: 400px;
+}
