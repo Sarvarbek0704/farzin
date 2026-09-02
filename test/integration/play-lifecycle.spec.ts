@@ -276,6 +276,62 @@ describe('play lifecycle (integration)', () => {
     expect(ended.winnerColor).toBe('WHITE');
   }, 40_000);
 
+  it("instansiya o'lsa GRACE taymeri ham yo'qoladi — supurgich ABANDONED qiladi", async () => {
+    const gameId = await createChallenge();
+    await joinBoth(gameId);
+    await moveOk(socketA, gameId, 'e2', 'e4');
+
+    // Qora uziladi: gateway presence'ni o'chiradi, "ketgan" izini
+    // Redis'ga yozadi va MAHALLIY grace taymerini qo'yadi.
+    socketB.disconnect();
+    await waitForGameEvent(socketA, 'game:opponent_gone', gameId, 8_000);
+    expect(await t.redis.exists(`game:gone:${gameId}:b`)).toBe(1);
+
+    // INSTANSIYA O'LIMI: mahalliy taymer yo'qoladi.
+    t.app.get(GameTimers).clearGame(gameId);
+
+    // Grace (2s override) + supurgich zaxirasi (5s) o'tsin.
+    await new Promise((r) => setTimeout(r, 8_000));
+
+    // NAZORAT: mahalliy yo'l yo'q — o'yin hali ACTIVE.
+    const before = await t.prisma.onlineGame.findUniqueOrThrow({ where: { id: gameId } });
+    expect(before.status).toBe('ACTIVE');
+
+    const endedP = waitForGameEvent<Record<string, unknown>>(socketA, 'game:ended', gameId, 10_000);
+    await t.app.get(PlayService).sweepAbandonedGames();
+
+    const game = await t.prisma.onlineGame.findUniqueOrThrow({ where: { id: gameId } });
+    expect(game.status).toBe('ABANDONED');
+    // Oq hali ulangan → u g'olib (play.service winner semantikasi).
+    expect(game.winnerColor).toBe('WHITE');
+
+    const ended = await endedP;
+    expect(ended.status).toBe('ABANDONED');
+
+    // Iz tozalandi — supurgich ro'yxati o'smaydi.
+    expect(await t.redis.exists(`game:gone:${gameId}:b`)).toBe(0);
+
+    socketB = await connectPlay(tokenB);
+  }, 40_000);
+
+  it("grace ichida QAYTGAN o'yinchi supurgich tomonidan jazolanmaydi", async () => {
+    const gameId = await createChallenge();
+    await joinBoth(gameId);
+    await moveOk(socketA, gameId, 'd2', 'd4');
+
+    socketB.disconnect();
+    await waitForGameEvent(socketA, 'game:opponent_gone', gameId, 8_000);
+
+    // Qaytadi — "ketgan" izi o'chishi SHART.
+    socketB = await connectPlay(tokenB);
+    await emitAck(socketB, 'game:join', { gameId });
+    expect(await t.redis.exists(`game:gone:${gameId}:b`)).toBe(0);
+
+    await t.app.get(PlayService).sweepAbandonedGames();
+    const game = await t.prisma.onlineGame.findUniqueOrThrow({ where: { id: gameId } });
+    expect(game.status).toBe('ACTIVE');
+  }, 30_000);
+
   it('supurgich vaqti tugamagan o`yinga TEGMAYDI', async () => {
     // Uzoq nazorat: 10s dan ko'p qimirlamasa ham vaqti tugamagan.
     const gameId = await createChallenge({

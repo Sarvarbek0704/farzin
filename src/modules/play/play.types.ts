@@ -267,7 +267,8 @@ export interface PlayMatchedEvent {
 export const PLAY_GAME_FINISHED_EVENT = 'play.game.finished';
 
 /**
- * Supurgich o'yinni tugatdi — room'ga XABAR BERISH kerak.
+ * Supurgich o'yinni tugatdi (vaqt tugashi yoki tashlab ketish) —
+ * room'ga XABAR BERISH kerak.
  *
  * `PLAY_GAME_FINISHED_EVENT` dan FARQI: u tahlil/reyting uchun
  * (fairplay, rating), bu esa faqat transport uchun. Ikkalasini bitta
@@ -279,9 +280,9 @@ export const PLAY_GAME_FINISHED_EVENT = 'play.game.finished';
  * uni BARCHA instansiyalarga tarqatadi, ya'ni o'yinchilar qaysi
  * instansiyada bo'lishidan qat'i nazar xabar oladi.
  */
-export const PLAY_TIMEOUT_SWEPT_EVENT = 'play.timeout.swept';
+export const PLAY_GAME_SWEPT_EVENT = 'play.game.swept';
 
-export interface PlayTimeoutSweptEvent {
+export interface PlayGameSweptEvent {
   gameId: string;
   ended: GameEndedPayload;
 }

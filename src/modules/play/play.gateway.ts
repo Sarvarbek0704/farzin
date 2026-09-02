@@ -28,7 +28,7 @@ import {
 import { PlayService } from './play.service';
 import {
   PLAY_MATCHED_EVENT,
-  PLAY_TIMEOUT_SWEPT_EVENT,
+  PLAY_GAME_SWEPT_EVENT,
   WS_EVENTS,
   type Ack,
   type ClaimTimeoutAckData,
@@ -42,7 +42,7 @@ import {
   type OpponentBackPayload,
   type OpponentGonePayload,
   type PlayMatchedEvent,
-  type PlayTimeoutSweptEvent,
+  type PlayGameSweptEvent,
 } from './play.types';
 
 /**
@@ -436,8 +436,8 @@ export class PlayGateway implements OnGatewayConnection, OnGatewayDisconnect {
    * bo'lsa ham xabar oladi. Mahalliy taymerlar ham tozalanadi:
    * o'yin tugagan, ular endi keraksiz.
    */
-  @OnEvent(PLAY_TIMEOUT_SWEPT_EVENT)
-  notifyTimeoutSwept(event: PlayTimeoutSweptEvent): void {
+  @OnEvent(PLAY_GAME_SWEPT_EVENT)
+  notifyGameSwept(event: PlayGameSweptEvent): void {
     this.timers.clearGame(event.gameId);
     this.server.to(roomOf(event.gameId)).emit(WS_EVENTS.ended, event.ended);
   }
@@ -551,6 +551,10 @@ export class PlayGateway implements OnGatewayConnection, OnGatewayDisconnect {
     games.set(gameId, side);
 
     await this.clocks.setPresence(gameId, side);
+    // Qaytdi — "ketgan" izi ham o'chiriladi, aks holda boshqa nodedagi
+    // supurgich uni hamon uzilgan deb hisoblab, o'yinni ABANDONED
+    // qilib yuborardi.
+    await this.clocks.clearGone(gameId, side);
     if (this.timers.clearGrace(gameId, side)) {
       // Grace ichida qaytdi (docs/07 §8.2) — o'yin davom etadi, soat esa
       // baribir yurgan (§3.8). Room'dagi qolganlarga xabar.
@@ -580,6 +584,10 @@ export class PlayGateway implements OnGatewayConnection, OnGatewayDisconnect {
       return; // o'yin allaqachon tugagan — grace shart emas
     }
     await this.clocks.clearPresence(gameId, side);
+    // Ketgan PAYTNI yozamiz: mahalliy grace taymeri instansiya bilan
+    // yo'qolsa, boshqa nodedagi supurgich qarorni shu izdan davom
+    // ettiradi (play.service.sweepAbandonedGames).
+    await this.clocks.markGone(gameId, side, Date.now());
 
     const graceMs = graceMsFor(game.timeCategory, this.graceOverrideMs);
     this.server

@@ -1,4 +1,5 @@
 import { Inject, Injectable, Logger } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import { Interval } from '@nestjs/schedule';
 
@@ -20,15 +21,17 @@ import {
   STARTING_FEN,
 } from '../../core/chess/rules';
 import { BusinessRuleError, ConflictError, NotFoundError } from '../../core/errors/domain.error';
+import type { AppConfig } from '../../config/configuration';
 import { MetricsService } from '../../shared/metrics/metrics.service';
 import { PLAYER_PORT, type PlayerPort, type PlayerSummary } from '../player/player.port';
 import { RATING_PORT, type RatingPort } from '../rating/rating.port';
 import { ClockStore } from './clock.store';
+import { graceMsFor } from './game-timers';
 import { PlayRepository, type FinishGameInput } from './play.repository';
 import { assertTimeCategoryMatches } from './time-control.guard';
 import {
   PLAY_GAME_FINISHED_EVENT,
-  PLAY_TIMEOUT_SWEPT_EVENT,
+  PLAY_GAME_SWEPT_EVENT,
   type ClaimTimeoutResult,
   type ClockPayload,
   type ClockTypeValue,
@@ -43,7 +46,7 @@ import {
   type OnlineGameStatusValue,
   type PlayerPayload,
   type PlayGameFinishedEvent,
-  type PlayTimeoutSweptEvent,
+  type PlayGameSweptEvent,
   type TimeCategoryValue,
 } from './play.types';
 
@@ -116,12 +119,26 @@ const FLAG_SWEEP_IDLE_MS = 10_000;
 /** Bitta supurishda ko'riladigan o'yinlar chegarasi — skan arzon qolsin. */
 const FLAG_SWEEP_LIMIT = 200;
 
+/** Grace supurgichi oralig'i — uzilishlar kam, tez-tez qarash shart emas. */
+const GRACE_SWEEP_INTERVAL_MS = 15_000;
+
+/**
+ * Supurgich mahalliy taymerdan KEYIN qadam tashlashi uchun zaxira.
+ * Ikkalasi bir vaqtda ishlasa natija baribir bitta (idempotent), lekin
+ * odatiy holatda qarorni mahalliy taymer chiqargani ma'qul — u tezroq.
+ */
+const GRACE_SWEEP_SLACK_MS = 5_000;
+
 @Injectable()
 export class PlayService {
   private readonly logger = new Logger(PlayService.name);
 
   /** Supurish ustma-ust ketmasin (sekin DB'da navbat yig'ilardi). */
   private sweepingFlags = false;
+  private sweepingGrace = false;
+
+  /** PLAY_DISCONNECT_GRACE_MS override (test/ops) — gateway bilan BIR XIL manba. */
+  private readonly graceOverrideMs: number | null;
 
   constructor(
     private readonly repo: PlayRepository,
@@ -130,7 +147,10 @@ export class PlayService {
     @Inject(RATING_PORT) private readonly ratings: RatingPort,
     private readonly events: EventEmitter2,
     private readonly metrics: MetricsService,
-  ) {}
+    config: ConfigService<AppConfig, true>,
+  ) {
+    this.graceOverrideMs = config.get('play', { infer: true }).disconnectGraceMsOverride;
+  }
 
   // --- Kuzatuvchanlik (docs/15-observability.md §3.3 O'YIN) ---------------------
 
@@ -198,10 +218,10 @@ export class PlayService {
         const result = await this.checkFlag(gameId);
         if (result.kind === 'ended') {
           this.logger.log(`Supurgich vaqt tugaganini e'lon qildi: ${gameId}`);
-          this.events.emit(PLAY_TIMEOUT_SWEPT_EVENT, {
+          this.events.emit(PLAY_GAME_SWEPT_EVENT, {
             gameId,
             ended: result.ended,
-          } satisfies PlayTimeoutSweptEvent);
+          } satisfies PlayGameSweptEvent);
         }
       }
     } catch (err) {
@@ -209,6 +229,76 @@ export class PlayService {
       this.logger.warn(`Flag supurgichi yiqildi: ${String(err)}`);
     } finally {
       this.sweepingFlags = false;
+    }
+  }
+
+  /**
+   * GRACE SUPURGICHI — diskonnekt qarorining ko'p instansli tarmog'i.
+   *
+   * ═══════════════════════════════════════════════════════════════════════
+   *  Grace taymeri socket ushlab turgan instansiyada yashaydi. O'sha
+   *  instansiya o'lsa taymer yo'qoladi va uzilib ketgan o'yin ABANDONED
+   *  bo'lmay OSILIB qoladi — vaqt tugashidan farqli o'laroq bu yerda
+   *  reaktiv yo'l ham yo'q (raqib "tashlab ketdi" deb da'vo qila
+   *  olmaydi).
+   *
+   *  Iz Redis'da: `game:gone:{gameId}:{side}` — ketgan payt (gateway
+   *  `onPlayerSocketGone` da qo'yadi, qaytishda o'chiradi). Supurgich
+   *  shu izdan grace muddati o'tganini ko'radi va qarorni davom
+   *  ettiradi. `abandonAfterDisconnect` idempotent, ya'ni mahalliy
+   *  taymer ham, supurgich ham ishlab ketsa natija bitta.
+   *
+   *  "Hali ham yo'qmi?" savoliga PRESENCE markeri javob beradi (Redis),
+   *  in-memory registr emas — shuning uchun qaror boshqa nodedan ham
+   *  to'g'ri chiqadi.
+   * ═══════════════════════════════════════════════════════════════════════
+   */
+  @Interval(GRACE_SWEEP_INTERVAL_MS)
+  async sweepAbandonedGames(): Promise<void> {
+    if (this.sweepingGrace) {
+      return;
+    }
+    this.sweepingGrace = true;
+    try {
+      const now = Date.now();
+      for (const gone of await this.clocks.listGone()) {
+        const game = await this.repo.findGame(gone.gameId);
+        if (game?.status !== 'ACTIVE') {
+          // O'yin tugagan — iz keraksiz.
+          await this.clocks.clearGone(gone.gameId, gone.side);
+          continue;
+        }
+        const graceMs = graceMsFor(game.timeCategory, this.graceOverrideMs);
+        if (now - gone.atMs < graceMs + GRACE_SWEEP_SLACK_MS) {
+          // Grace hali tugamagan (yoki mahalliy taymer endi ishlaydi) —
+          // supurgich ATAYLAB kechroq qadam tashlaydi.
+          continue;
+        }
+        if (await this.clocks.isPresent(gone.gameId, gone.side)) {
+          // Qaytgan, lekin iz qolib ketgan — tozalaymiz.
+          await this.clocks.clearGone(gone.gameId, gone.side);
+          continue;
+        }
+        const other: ClockSide = gone.side === 'w' ? 'b' : 'w';
+        const opponentConnected = await this.clocks.isPresent(gone.gameId, other);
+        const ended = await this.abandonAfterDisconnect(
+          gone.gameId,
+          gone.side,
+          opponentConnected,
+        );
+        await this.clocks.clearGone(gone.gameId, gone.side);
+        if (ended !== null) {
+          this.logger.log(`Supurgich tashlab ketilgan o'yinni tugatdi: ${gone.gameId}`);
+          this.events.emit(PLAY_GAME_SWEPT_EVENT, {
+            gameId: gone.gameId,
+            ended,
+          } satisfies PlayGameSweptEvent);
+        }
+      }
+    } catch (err) {
+      this.logger.warn(`Grace supurgichi yiqildi: ${String(err)}`);
+    } finally {
+      this.sweepingGrace = false;
     }
   }
 
