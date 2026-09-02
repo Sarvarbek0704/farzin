@@ -27,47 +27,68 @@ normallashtiradi), shuning uchun chegara bilan solishtirish to'g'ri.
 
 ## Natija (2026-09-02)
 
-Stockfish 18 · tahlil chuqurligi 12 · chegara 0.60 · 60 ply · har
-daraja uchun 3 o'yin:
+Stockfish 18 · tahlil chuqurligi 12 · chegara 0.60. **Ikki yurgizish**
+qasddan keltiriladi — ular bir-biriga mos kelmadi va bu faktning o'zi
+xulosaning bir qismi.
 
-| Dvigatel yordami | O'yin | O'rtacha skor | Chegaradan oshgan |
+**A yurgizish** — 60 ply, 3 o'yin/daraja:
+
+| Dvigatel yordami | Skorlangan o'yin | O'rtacha skor | Chegaradan oshgan |
 |---|---|---|---|
-| 100% | 3 | 0.687 | **2/3** |
+| 100% | 3 | 0.687 | 2/3 |
 | 50% | 3 | 0.593 | 1/3 |
 | 25% | 3 | 0.455 | 0/3 |
 | 0% (nazorat) | 1 | 0.033 | 0/1 |
 
+**B yurgizish** — 80 ply, 5 o'yin/daraja:
+
+| Dvigatel yordami | Skorlangan o'yin | O'rtacha skor | Chegaradan oshgan |
+|---|---|---|---|
+| 100% | 4 | 0.697 | 3/4 |
+| 50% | 5 | **0.742** | 5/5 |
+| 25% | 3 | 0.296 | 1/3 |
+| 0% (nazorat) | 5 | 0.149 | 0/5 |
+
 ## Buni qanday o'qish kerak
 
-**1. Detektor 0.6 chegarasida SEZUVCHAN EMAS.**
+**1. Eng muhim natija: 100% dvigatel yordami HAR DOIM ham
+belgilanmaydi.**
 
-Har yurishini dvigateldan olgan o'yinchi 60 ply'lik o'yinda uchtadan
-faqat ikkitasida belgilanadi. Ya'ni **eng qo'pol chit ham uchdan bir
-holatda o'tib ketadi**. 25% yordam esa umuman ko'rinmaydi.
+Ikkala yurgizishda ham har yurishini dvigateldan olgan o'yinchi
+chegaradan o'tib ketdi (A: 1/3, B: 1/4). Alohida o'yin skorlari:
+0.513, 0.587 — chegaradan past. Ya'ni **eng qo'pol chit ham
+sezilmasligi mumkin**.
 
-Bu chegarani pasaytirish kerak degani EMAS — pasaytirish yolg'on-pozitiv
-darajasini oshiradi va u hali o'lchanmagan. Bu shuni anglatadiki,
-**0.6 raqami dalilsiz tanlangan** va uni o'zgartirish uchun ikkinchi
-raqam (yolg'on-pozitiv) kerak.
+**2. Skor o'yindan o'yinga JUDA tarqoq — darajalarni ajratib
+bo'lmaydi.**
 
-**2. Nazorat qatori — halol odam EMAS.**
+B yurgizishda 50% yordam 100% dan YUQORI skor oldi (0.742 va 0.697).
+Bu "yarim yordam ko'proq shubhali" degani emas — bu **namuna kichik va
+dispersiya katta** degani. n = 3–5 da darajalar orasidagi farqni
+o'lchab bo'lmaydi.
+
+Shu sababli quyidagi xulosa **qilinmaydi**: "chegarani X ga tushirish
+kerak". Buning uchun kattaroq namuna VA yolg'on-pozitiv narxi kerak.
+
+**3. Qilinadigan xulosa:** `0.6` raqami dalilsiz tanlangan va shunday
+bo'lib qolmoqda. Endi hech bo'lmasa buni **o'lchov bilan aytish**
+mumkin — ilgari faqat taxmin qilinardi.
+
+**4. Nazorat qatori — halol odam EMAS.**
 
 0% qatori zaif dvigatel (depth 1). U detektor hamma narsani
-belgilamasligini ko'rsatadi, xolos. Uni yolg'on-pozitiv darajasi deb
-o'qish **xato** bo'ladi.
+belgilamasligini ko'rsatadi, xolos; yolg'on-pozitiv darajasi deb
+o'qish **xato**. B yurgizishda nazorat o'yinlari 0.328 va 0.416 gacha
+chiqdi — ya'ni u nolga yaqin ham emas.
 
-Diqqatga sazovor: uchta nazorat o'yinidan ikkitasi umuman **skor
-bermadi**. Sabab — zaif o'yinda pozitsiya tez "hal bo'ladi"
+**5. Skor umuman chiqmaydigan o'yinlar bor.**
+
+Bir qancha o'yin `skor=yo'q` berdi. Sabab: pozitsiya tez "hal bo'ladi"
 (|eval| > 500 cp) va bunday pozitsiyalar `docs/08 §2.1` bo'yicha
-chiqarib tashlanadi; qolgan namuna `ENGINE_MIN_SAMPLE = 20` dan kam
-bo'lib qoladi. Ya'ni detektor bir tomonlama yutuqli o'yinlarda umuman
-xulosa chiqarmaydi — bu to'g'ri xatti-harakat, lekin uni bilish kerak.
-
-**3. Namuna KICHIK.**
-
-Har darajada 3 o'yin. Bu — yo'nalishni ko'rsatuvchi ishora, aniq
-o'lchov emas. Xulosa ("0.6 da sezuvchanlik past") ishonchli, aniq
-foizlar esa yo'q.
+chiqariladi; qolgan namuna `ENGINE_MIN_SAMPLE = 20` dan kam bo'ladi.
+Bir tomonlama yutuqli o'yinlarda detektor **xulosa chiqarmaydi** — bu
+to'g'ri xatti-harakat, lekin uni bilish kerak: qisqa, tez yutilgan
+o'yinda chit qilgan odam umuman tekshirilmaydi.
 
 ## Hali o'lchanmagani — YOLG'ON-POZITIV DARAJASI
 

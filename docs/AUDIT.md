@@ -775,9 +775,22 @@ Amaldagi yagona ishlaydigan yo'l — `MANUAL` (naqd). U to'liq ishlaydi
 > tekshirildi: worker logi "fairplay worker ishga tushdi
 > (engine: UCI engine)" — ya'ni korrelyatsiya yo'li endi FAOL.
 >
-> **OCHIQ QOLDI:** kalibrlash — yolg'on-pozitiv darajasi va sezuvchanlik
-> o'lchovi. Ular ma'lum TOZA va ma'lum CHIT o'yinlar to'plamini talab
-> qiladi; bunday ma'lumot loyihada yo'q va uni to'qib bo'lmaydi.
+> **Sezuvchanlik O'LCHANDI (2026-09-02, `55567a9`):**
+> `src/tools/fairplay-calibration.ts` Stockfish bilan dvigatel o'ynagan
+> o'yinlar generatsiya qiladi (ular ta'rifi bo'yicha "chit", to'qilgan
+> emas) va ularni PRODUCTION kod yo'li bilan baholaydi.
+>
+> Natija ochiq bo'ldi: **100% dvigatel yordami ham har doim
+> belgilanmaydi** (ikki yurgizishda 1/3 va 1/4 o'tib ketdi; alohida
+> skorlar 0.513, 0.587 — chegaradan past). Skor o'yindan o'yinga juda
+> tarqoq: n=3–5 da yordam darajalarini ajratib bo'lmaydi. Ya'ni
+> `0.6` dalilsiz tanlangan raqam ekani endi TAXMIN emas, O'LCHOV.
+> To'liq natija va o'qish qoidalari: `docs/fairplay-calibration.md`.
+>
+> **OCHIQ QOLDI:** yolg'on-pozitiv darajasi. U haqiqiy odamlar
+> o'ynagan, chit bo'lmagani ishonchli bilingan o'yinlarni talab qiladi;
+> bunday ma'lumot loyihada yo'q va uni to'qib bo'lmaydi. Eng qiyin
+> holat — KUCHLI odam: u dvigatelga tabiiy ravishda yuqori mos keladi.
 
 ```
 * ENGINE GATING: STOCKFISH_PATH yo'q → ANALYSIS_ENGINE = null →
@@ -936,7 +949,7 @@ Tartib — ta'sir/xarajat nisbati bo'yicha. Hajm: **S** ≈ 1 kun, **M** ≈ 2�
 | 18  | Swiss golden test to'plami (5 real turnir)        | **L**         | ❌ **BAJARILMADI**                                                       |
 | 19  | **Frontend** — Next.js ilovasi                    | **L** (oylar) | 🟡 `33620a9` + `4959077` — ommaviy qism va hakam konsoli ✅; taxta/fair-play UI YO'Q |
 | 20  | Click/Payme sandbox integratsiyasi                | **L**         | ❌ **BAJARILMADI**                                                       |
-| 21  | Stockfish worker image + fair-play kalibratsiyasi | **L**         | 🟡 worker image ✅ (`526510f`); **kalibratsiya YO'Q**                    |
+| 21  | Stockfish worker image + fair-play kalibratsiyasi | **L**         | 🟡 worker image ✅ (`526510f`); sezuvchanlik ✅ o'lchandi (`55567a9`); **yolg'on-pozitiv YO'Q** |
 
 #### Nega 17–21 bajarilmadi — halol sabablar
 
@@ -949,14 +962,14 @@ bo'lmagan narsa kerak** bo'lgan bandlar:
 | 18  | Chess-Results/Swiss-Manager real turnir dump'lari kerak (tashqi ma'lumot) **va** har farqni FIDE hakami bilan tekshirish. Ma'lumotni to'qib bo'lmaydi — golden test'ning butun mohiyati real natijada                                   |
 | 19  | **Qisman bajarildi.** Ikki bo'lak (ommaviy o'qish + hakam konsoli) qurildi va jonli tekshirildi. Qolgani: onlayn o'yin taxtasi — `docs/README.md` dagi **chessground GPL-3.0** savoli hali yuristda va u bloklovchi deb belgilangan; fair-play paneli va to'lov UI esa mos backend bo'laklari tayyor bo'lmaguncha mazmunsiz |
 | 20  | Click/Payme **sandbox merchant kredensiallari** kerak (docs.click.uz ro'yxati). Imzo formulasi provayder hujjatidan olinadi — `click.provider.ts:17-38` buni aniq yozadi: "Imzo formulasi BU YERDA O'YLAB TOPILMAYDI"                   |
-| 21  | Kalibratsiya ma'lum TOZA va ma'lum CHIT o'yinlar to'plamini talab qiladi. Bunday ma'lumot yo'q; to'qilgan to'plamdagi "yolg'on-pozitiv darajasi" — soxta raqam, va docs/08 bo'yicha bu odam karyerasiga tegadigan soha                  |
+| 21  | Sezuvchanlik qismi BAJARILDI (dvigatel o'yinlarini generatsiya qilish mumkin). Qolgani — yolg'on-pozitiv: u ma'lum TOZA odam o'yinlarini talab qiladi. To'qilgan to'plamdagi raqam soxta bo'lardi, docs/08 bo'yicha esa bu odam karyerasiga tegadigan soha |
 
 ### Yangi qo'shilgan bandlar (audit davomida topilgan)
 
 | #   | Ish                                                                                        | Hajm  | Nima ochadi                                                               |
 | --- | ------------------------------------------------------------------------------------------ | ----- | ------------------------------------------------------------------------- |
-| 22  | O'yin taymerlarini multi-instance qilish: `ownerNodeId` affinity + forward (docs/07 §10.3) | **L** | JIDDIY-6 ning qolgan yarmi; Faza 5 DoD "pod o'ldirilsa o'yin yo'qolmaydi" |
-| 23  | Image slimming: `pnpm deploy --prod` bilan yassi `node_modules`                            | **S** | K-13; DoD 250 MB chegarasi                                                |
+| ~~22~~ ✅ | O'yin taymerlari multi-instance (`379b7a1` + `d603fd0`) — affinity O'RNIGA supurgich | **L→M** | JIDDIY-6 yopildi; Faza 5 DoD "pod o'ldirilsa o'yin yo'qolmaydi" bajarildi va integratsiya testi bilan tasdiqlandi |
+| 23  | Image slimming: `pnpm deploy --prod` bilan yassi `node_modules`                            | **S** | K-13; DoD 250 MB. **O'lchandi 2026-09-02: worker image 1.05 GB** — chegaradan 4× katta |
 | ~~24~~ ✅ | `docs/runbooks/` — 10 ta alert uchun runbook (`edf040d`)                               | **M** | K-14; docs/15 §6.5 4-qoidasi                                              |
 | ~~25~~ ✅ | Grafana datasource + "Turnir kuni" paneli (`edf040d`)                                  | **S** | Faza 1 DoD "birinchi dashboard" (JIDDIY-3 dan qolgan)                     |
 
