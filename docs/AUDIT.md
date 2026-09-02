@@ -1,7 +1,7 @@
 <!-- AUDIT-SUMMARY
 loyiha: farzin
 sana: 2026-09-02
-tayyorlik: 80
+tayyorlik: 82
 holat: ishlaydi
 tz_bandlari: 32/87
 build: ok
@@ -34,7 +34,7 @@ va `web/` da Next.js frontend (13 route).
 **Kod sifati bu portfeldagi eng yuqori darajalardan biri** — `strict` TypeScript
 toza o'tadi, lint toza, arxitektura chegaralari CI vositasi bilan majburlanadi,
 va kodning o'zi o'z cheklovlarini halol hujjatlaydi.
-Testlar: **51 to'plam — 551 unit + 111 integration, hammasi yashil**
+Testlar: **51 to'plam — 551 unit + 113 integration, hammasi yashil**
 (auditdan keyin +6 to'plam, +63 test).
 
 **Auditda eng katta muammo deploy qilib bo'lmasligi edi** — `docker build`
@@ -570,11 +570,18 @@ hisoblaydi — `recomputeStandings` da o'sha natijani ishlatish.
 > ishlatiladi). Jonli tekshirildi: 350 so'rov → 300×200 + 50×429, Redis'da
 > `hits = 350`.
 >
-> **OCHIQ QOLDI:** o'yin taymerlari. Ular `ownerNodeId` affinity va
-> instance'lararo forward mexanizmini talab qiladi (docs/07 §10.3) — bu
-> yangi dizayn, `setTimeout` ni ko'chirish emas, ya'ni reja bahosidan
-> (M) kattaroq. Yumshatuvchi omil: proaktiv flag yo'qolsa ham reaktiv
-> `game:claim_timeout` ishlaydi.
+> **Tuzatildi (2026-09-02, `379b7a1`):** flag supurgichi. Proaktiv
+> taymer o'z instansiyasi bilan yo'qolsa ham vaqt tugashi e'lon
+> qilinadi: `sweepExpiredFlags()` har nodeda 10s da bir qimirlamay
+> qolgan faol o'yinlarni tekshiradi. Qulfsiz — `checkFlag` idempotent.
+> Integratsiya testi instansiya o'limini taqlid qiladi va NAZORAT
+> tasdig'i bilan boshlanadi (supurishdan oldin o'yin ACTIVE).
+>
+> **OCHIQ QOLDI:** grace (diskonnekt) taymeri va `ownerNodeId`
+> affinity/forward mexanizmi (docs/07 §10.3). Bu yangi dizayn,
+> `setTimeout` ni ko'chirish emas — reja bahosidan (M) kattaroq.
+> Yumshatuvchi omil: eng og'ir oqibat (vaqti tugagan o'yin osilib
+> qolishi) endi yopilgan.
 
 Uchta holat bitta process xotirasida yashaydi:
 
