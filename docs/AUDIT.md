@@ -1,7 +1,7 @@
 <!-- AUDIT-SUMMARY
 loyiha: farzin
-sana: 2026-09-01
-tayyorlik: 79
+sana: 2026-09-02
+tayyorlik: 80
 holat: ishlaydi
 tz_bandlari: 32/87
 build: ok
@@ -10,7 +10,7 @@ lint: ok
 test: 51
 kritik: 0
 jiddiy: 4
-kichik: 12
+kichik: 13
 -->
 
 # Farzin — loyiha holati auditi
@@ -683,11 +683,11 @@ darhol ko'rsatadi.
   komponent testlari (fair-play qaror formasi qorovullari, navbat
   holatlari, taxta qulfi). Vitest ikki loyihaga bo'lingan: `logic`
   (node) va `component` (jsdom).
-  Tartib testlari HAQIQIY brauzerda (Playwright + chromium, 9 test):
-  gorizontal surilish, nishon o'lchami, taxta geometriyasi.
-  **Oqim E2E'si hali yo'q** — to'liq oqim jonli smoke-test bilan
-  tekshirilgan (queued → matched → push → yurish; anonim tomoshabinga
-  jonli event).
+  Playwright + chromium: **12 test** — tartib (gorizontal surilish,
+  nishon o'lchami, taxta geometriyasi) va **OQIM** (ikki haqiqiy
+  brauzer: navbat → juftlik → push → o'yin; anonim tomoshabin jonli
+  ko'radi, boshqara olmaydi). Oqim testi yozilishi bilan **haqiqiy
+  xatoni ochdi** — quyida K-20.
 
 ---
 
@@ -827,6 +827,7 @@ qila olmaydi; SUPER_ADMIN rolini berish uchun bazaga qo'lda `INSERT` kerak
 | K-17 ✅ | `pnpm prune --prod` prune'dan keyin `prepare` (husky) ni qayta chaqirib build'ni yiqitardi                  | `Dockerfile:42`                                | **TUZATILDI 2026-09-01 (`526510f`)** — `--ignore-scripts`. KRITIK-1 ning IKKINCHI to'sig'i edi                                                                                                                                                                                                                                                           |
 | K-18 ✅ | **WS gateway anonim tomoshabinni RAD ETADI, REST esa qo'llaydi** | `play.gateway.ts:167-172` | `GET /play/games/:id` `@Public` va `viewerRole: 'spectator'` qaytaradi, ya'ni dizayn anonim tomoshabinni nazarda tutadi. Lekin `handleConnection` tokenni SHARTSIZ talab qiladi va tokensiz socket'ni `token_expired` bilan uzadi. Natijada anonim ko'ruvchi jonli yangilanish OLA OLMAYDI. Jonli tekshiruvda aniqlandi (2026-09-01). **TUZATILDI 2026-09-01 (`fc665f1`)** — tokensiz ulanish qabul qilinadi, `userId` o'rnatilmaydi va shaxsiy xonaga qo'shilmaydi; amal handler'lari `not_a_player` beradi. Yaroqsiz token AVVALGIDEK rad etiladi. Jonli tekshirildi: anonim socketga `move_made` yetdi, yurish/taslim urinishlari rad, o'yin ACTIVE qoldi |
 | K-19 ✅ | **`timeCategory` reyting hovuzini tanlaydi, lekin vaqt bilan solishtirilmaydi** | `matchmaking.service.ts:161`, `matchmaking-join.dto.ts:12-24` | DTO `timeCategory` ni faqat ro'yxatdan (`BULLET\|BLITZ\|RAPID\|CLASSICAL`) tekshiradi, `baseTimeSeconds` bilan MOSLIGINI tekshirmaydi. Ayni shu qiymat bilan `getCurrentRating(playerId, 'ONLINE', timeCategory)` chaqiriladi, ya'ni u reyting hovuzini tanlaydi. Natija: klient 30 daqiqalik o'yinni `BULLET` deb yuborib, bullet reytingini o'ynab olishi mumkin — docs/06 §5 kategoriyalarni ataylab ajratganiga zid. Frontend o'z tomonidan kategoriyani vaqtdan hisoblaydi (`web/lib/time-control.ts`), lekin bu **klient tomonidagi qoida** — API'ni to'g'ridan-to'g'ri chaqirgan odamni to'xtatmaydi. Tuzatish: DTO/servisda kategoriyani `base + 60×inc` dan hisoblab, kelgan qiymat bilan solishtirish (mos kelmasa 422) yoki umuman klientdan qabul qilmay, serverda hisoblash. **TUZATILDI 2026-09-01 (`a3eaf72`)** — `src/core/clock/time-category.ts` (sof funksiya, docs/06 §5 ONLINE chegaralari) + `time-control.guard.ts` ikkala kirish nuqtasida (matchmaking join va chaqiruv). Mos kelmasa 422 `TIME_CATEGORY_MISMATCH`, kutilgan qiymat aytiladi. Jonli tekshirildi: 1800s+BULLET → 422, 60s+CLASSICAL → 422. Frontend chegaralari ham serverga keltirildi (avval OTB dagi 60 daqiqani ishlatardi) |
+| K-20 ✅ | **Navbatda `matchmaking:matched` yo'qolsa foydalanuvchi muzlab qolardi** | `web/app/oyin/page.tsx` | Event BIR MARTA yuboriladi va qayta o'ynatilmaydi. Sahifa socketni effektda ochadi, ya'ni tugma ulanish tugagunicha bosilishi mumkin — brauzer trace'i buni ko'rsatdi (`A bosdi` → `ws ochildi`). Shu oraliqda juftlik tuzilsa xabar butunlay yo'qoladi: odam "Navbatdan chiqish" ekranida qoladi, raqibining soati esa ishlaydi. Ikki brauzerli E2E yozilgach BARQAROR yiqildi. **TUZATILDI 2026-09-02 (`4df871c`)** — presetlar socket ulanmaguncha o'chiq, va har `connect` da `my/games` tekshirilib, navbatga turishdan oldin bo'lmagan yangi o'yin topilsa unga o'tiladi |
 
 ### ✅ Yaxshi bajarilgan joylar (qisqacha)
 
