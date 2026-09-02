@@ -1,7 +1,7 @@
 <!-- AUDIT-SUMMARY
 loyiha: farzin
 sana: 2026-09-01
-tayyorlik: 77
+tayyorlik: 79
 holat: ishlaydi
 tz_bandlari: 32/87
 build: ok
@@ -672,15 +672,22 @@ darhol ko'rsatadi.
 - ~~Til almashtirgich~~ ✅ QO'SHILDI (`e904635`) — to'rt til, lug'at
   to'liqligi 124 test bilan majburlangan. Qolgan cheklov: cookie
   asosida, ya'ni SEO uchun URL prefiksli lokalizatsiya kerak bo'ladi.
-- **Mobil ko'rinish** — jadvallar `overflow-x` bilan surilади, lekin
-  maketlardagi mobil layout alohida ishlanmagan.
+- ~~**Mobil ko'rinish** — jadvallar `overflow-x` bilan suriladi, lekin
+  maketlardagi mobil layout alohida ishlanmagan.~~ ✅ QILINDI (`32976bc`):
+  720px chegarasi, taxta `aspect-ratio: 1/1` bilan joy zaxiralaydi
+  (§4.3 CLS qoidasi) va mobilda full-bleed, tugmalar WCAG 2.5.8
+  (24×24) chegarasiga chiqarildi, sarlavha paneli kontentni qirqmaydi.
+  **Da'volar o'lchangan** — Playwright + chromium, 360px va 1280px.
 - Frontend testlari (`93774f8`, `e904635`, `850e0de`, `6be3462`):
   **189 test** — sof mantiq (formatlash, lug'at, vaqt nazorati) va
   komponent testlari (fair-play qaror formasi qorovullari, navbat
   holatlari, taxta qulfi). Vitest ikki loyihaga bo'lingan: `logic`
   (node) va `component` (jsdom).
-  **E2E hali yo'q** — to'liq oqim jonli smoke-test bilan tekshirilgan
-  (queued → matched → push → yurish; anonim tomoshabinga jonli event).
+  Tartib testlari HAQIQIY brauzerda (Playwright + chromium, 9 test):
+  gorizontal surilish, nishon o'lchami, taxta geometriyasi.
+  **Oqim E2E'si hali yo'q** — to'liq oqim jonli smoke-test bilan
+  tekshirilgan (queued → matched → push → yurish; anonim tomoshabinga
+  jonli event).
 
 ---
 
