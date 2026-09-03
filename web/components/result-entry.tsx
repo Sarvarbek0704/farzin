@@ -2,6 +2,8 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 
+import { PairingWhy, type PlayerFacts } from './pairing-why';
+
 /**
  * NATIJA KIRITISH — hakamning asosiy vositasi (dizayn brifi §6.12).
  *
@@ -35,6 +37,13 @@ export interface PairingRow {
   whiteName: string;
   blackName: string | null;
   result: string;
+  /**
+   * Juftlashtirish faktlari — "nega bu juftlik?" paneli uchun
+   * (brif §5.13). Jadval ma'lumoti yo'q bo'lsa (birinchi tur)
+   * berilmaydi va panel ko'rsatilmaydi.
+   */
+  whiteFacts?: PlayerFacts;
+  blackFacts?: PlayerFacts;
 }
 
 /** Uchta asosiy natija — qolganlari (forfeit) kamdan-kam, ular menyuda. */
@@ -195,7 +204,12 @@ export function ResultEntry({
                     }
                   }}
                 >
-                  <td className="num tabular">{p.boardNumber}</td>
+                  <td className="num tabular">
+                    {p.boardNumber}
+                    {p.whiteFacts !== undefined && p.blackFacts !== undefined && (
+                      <PairingWhy white={p.whiteFacts} black={p.blackFacts} />
+                    )}
+                  </td>
                   <td>{p.whiteName}</td>
                   <td>{p.blackName ?? <span className="muted">— (bye)</span>}</td>
                   <td>

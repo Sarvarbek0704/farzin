@@ -2,7 +2,7 @@
 
 import { use, useCallback, useEffect, useState } from 'react';
 
-import type { Registration, Section, Tournament, TournamentStatus } from '@/lib/api';
+import type { Registration, Section, Standing, Tournament, TournamentStatus } from '@/lib/api';
 import { ResultEntry } from '@/components/result-entry';
 import { readJson, useAuth } from '@/lib/auth';
 import {
@@ -142,6 +142,14 @@ function SectionManager({
   const { authFetch } = useAuth();
   const [rounds, setRounds] = useState<Round[]>([]);
   const [registrations, setRegistrations] = useState<Registration[]>([]);
+  /**
+   * Jadval — "nega bu juftlik?" paneli uchun (brif §5.13).
+   *
+   * ⚠️  OCHIQ turda jadval juftlashtirish paytidagi holatni ko'rsatadi,
+   *     chunki natijalar hali kiritilmagan. Aynan shu payt hakamdan
+   *     "nega?" deb so'raladi, ya'ni bu to'g'ri ma'lumot.
+   */
+  const [standings, setStandings] = useState<Standing[]>([]);
   const [openRound, setOpenRound] = useState<Round | null>(null);
   const [busy, setBusy] = useState(false);
 
@@ -151,8 +159,28 @@ function SectionManager({
       const regs = await readJson<Registration[]>(
         await authFetch(`/api/v1/sections/${section.id}/registrations`),
       );
+      // Jadval bo'lmasligi NORMAL (birinchi turgacha) — panel shunda
+      // ko'rsatilmaydi, xato emas.
+      const table = await readJson<Standing[]>(
+        await authFetch(`/api/v1/sections/${section.id}/standings`),
+      ).catch(() => [] as Standing[]);
       setRounds(r);
       setRegistrations(regs);
+      setStandings(table);
+
+      // Jadval — "nega bu juftlik?" paneli uchun (ochko, rang, float).
+      // Birinchi turgacha u BO'SH bo'ladi va panel ko'rsatilmaydi:
+      // hali tekshiradigan tarix yo'q.
+      try {
+        setStandings(
+          await readJson<Standing[]>(
+            await authFetch(`/api/v1/sections/${section.id}/standings`),
+          ),
+        );
+      } catch {
+        // Jadval yo'qligi turnirni boshqarishga to'sqinlik qilmaydi.
+        setStandings([]);
+      }
     } catch (e) {
       onError(e instanceof Error ? e.message : 'Xato');
     }
@@ -161,6 +189,27 @@ function SectionManager({
   useEffect(() => {
     void load();
   }, [load]);
+
+  /** Juftlashtirish faktlari — jadvaldan; yo'q bo'lsa undefined. */
+  const factsOf = useCallback(
+    (registrationId: string | null) => {
+      if (registrationId === null) {
+        return undefined;
+      }
+      const row = standings.find((x) => x.registrationId === registrationId);
+      const reg = registrations.find((r) => r.id === registrationId);
+      if (row === undefined || reg === undefined) {
+        return undefined;
+      }
+      return {
+        name: fullName(reg.firstName, reg.lastName),
+        points: row.points,
+        colorHistory: row.colorHistory,
+        floatHistory: row.floatHistory,
+      };
+    },
+    [standings, registrations],
+  );
 
   const nameOf = useCallback(
     (registrationId: string | null): string => {
@@ -294,13 +343,19 @@ function SectionManager({
         <ResultEntry
           pairings={[...openRound.pairings]
             .sort((a, b) => a.boardNumber - b.boardNumber)
-            .map((p) => ({
-              id: p.id,
-              boardNumber: p.boardNumber,
-              whiteName: nameOf(p.whiteRegistrationId),
-              blackName: p.blackRegistrationId === null ? null : nameOf(p.blackRegistrationId),
-              result: p.result,
-            }))}
+            .map((p) => {
+              const wf = factsOf(p.whiteRegistrationId);
+              const bf = factsOf(p.blackRegistrationId);
+              return {
+                id: p.id,
+                boardNumber: p.boardNumber,
+                whiteName: nameOf(p.whiteRegistrationId),
+                blackName: p.blackRegistrationId === null ? null : nameOf(p.blackRegistrationId),
+                result: p.result,
+                ...(wf === undefined ? {} : { whiteFacts: wf }),
+                ...(bf === undefined ? {} : { blackFacts: bf }),
+              };
+            })}
           onSet={setResult}
           disabled={openRound.status === 'COMPLETED'}
         />

@@ -1545,3 +1545,116 @@ kbd {
   letter-spacing: 0.04em;
   text-transform: uppercase;
 }
+
+/* --- Juftlik ma'lumotlari popover'i (brif §5.13) ------------------------ */
+
+.why-wrap {
+  position: relative;
+  display: inline-flex;
+  margin-left: 8px;
+}
+
+.why-button {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  border: var(--hairline-width) solid var(--hairline);
+  background: transparent;
+  color: var(--ink-secondary);
+  font: inherit;
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1;
+  cursor: pointer;
+  transition: color 110ms ease, border-color 110ms ease;
+}
+
+.why-button:hover,
+.why-button[aria-expanded='true'] {
+  color: var(--accent);
+  border-color: var(--accent);
+}
+
+.why-pop {
+  /* PORTAL orqali body ga chiziladi — koordinatalar viewport bo'yicha. */
+  position: fixed;
+  z-index: 60;
+  width: min(380px, calc(100vw - 32px));
+  /* Mono meros olmasin: panel .tabular katakdan chiqarilgan. */
+  font-family: var(--font-inter), system-ui, sans-serif;
+  padding: 16px;
+  border-radius: var(--radius-card);
+  border: var(--hairline-width) solid var(--hairline);
+  background: var(--surface);
+  box-shadow: var(--shadow-2);
+  text-align: left;
+}
+
+.why-lead {
+  margin: 0 0 12px;
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.why-table {
+  font-size: 13px;
+}
+
+.why-table th,
+.why-table td {
+  padding: 6px 8px;
+  border-bottom: var(--hairline-width) solid var(--hairline);
+  text-transform: none;
+  letter-spacing: 0;
+  font-size: 13px;
+  background: none;
+}
+
+.why-table thead th {
+  color: var(--ink-secondary);
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.why-table tbody th {
+  color: var(--ink-secondary);
+  font-weight: 500;
+  text-align: left;
+  white-space: nowrap;
+}
+
+.why-note {
+  margin: 12px 0 0;
+  font-size: 12px;
+  line-height: 1.55;
+  color: var(--ink-secondary);
+}
+
+/* Rang tarixi — O/Q kvadratchalar. */
+.color-run {
+  display: inline-flex;
+  gap: 3px;
+}
+
+.cr {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  border-radius: 3px;
+  font-size: 11px;
+  font-weight: 700;
+  border: var(--hairline-width) solid var(--hairline);
+}
+
+.cr-w {
+  background: var(--sq-light);
+  color: #21262b;
+}
+
+.cr-b {
+  background: var(--sq-dark);
+  color: #f7f3e6;
+}
