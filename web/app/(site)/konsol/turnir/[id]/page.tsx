@@ -3,6 +3,7 @@
 import { use, useCallback, useEffect, useState } from 'react';
 
 import type { Registration, Section, Tournament, TournamentStatus } from '@/lib/api';
+import { ResultEntry } from '@/components/result-entry';
 import { readJson, useAuth } from '@/lib/auth';
 import {
   PAIRING_SYSTEM_LABEL,
@@ -27,16 +28,6 @@ interface Pairing {
   blackRegistrationId: string | null;
   result: string;
 }
-
-/** Hakam kiritishi mumkin bo'lgan natijalar (bye qatorlari bundan tashqari). */
-const RESULTS = [
-  { value: 'WHITE_WIN', label: '1 - 0' },
-  { value: 'DRAW', label: '½ - ½' },
-  { value: 'BLACK_WIN', label: '0 - 1' },
-  { value: 'WHITE_WIN_FORFEIT', label: '+ / -' },
-  { value: 'BLACK_WIN_FORFEIT', label: '- / +' },
-  { value: 'DOUBLE_FORFEIT', label: '- / -' },
-] as const;
 
 /** Holat o'tishlari — tournament-status.machine.ts bilan mos. */
 const NEXT_STATUS: Partial<Record<TournamentStatus, TournamentStatus[]>> = {
@@ -114,8 +105,7 @@ export default function ManageTournamentPage({ params }: { params: Promise<{ id:
           <button
             key={next}
             type="button"
-            className="badge"
-            style={{ cursor: 'pointer', background: 'transparent' }}
+            className="btn"
             onClick={() => void changeStatus(next)}
           >
             → {statusView(next).label}
@@ -260,15 +250,14 @@ function SectionManager({
           type="button"
           onClick={() => void generateRound()}
           disabled={busy}
-          className="badge"
-          style={{ cursor: 'pointer', background: 'transparent' }}
+          className="btn"
         >
           {busy ? 'Generatsiya…' : 'Keyingi turni generatsiya qilish'}
         </button>
 
         {/* PDF — offline degradatsiya (docs/11 §12.4). Yangi oynada. */}
         <a
-          className="badge"
+          className="btn"
           href={`/api/v1/sections/${section.id}/export/standings/pdf`}
           target="_blank"
           rel="noreferrer"
@@ -276,7 +265,7 @@ function SectionManager({
           Jadval PDF
         </a>
         <a
-          className="badge"
+          className="btn"
           href={`/api/v1/sections/${section.id}/export/trf`}
           target="_blank"
           rel="noreferrer"
@@ -302,63 +291,25 @@ function SectionManager({
       )}
 
       {openRound?.pairings !== undefined && (
-        <div className="table-wrap">
-          <table>
-            <thead>
-              <tr>
-                <th className="num">Taxta</th>
-                <th>Oq</th>
-                <th>Qora</th>
-                <th>Natija</th>
-              </tr>
-            </thead>
-            <tbody>
-              {[...openRound.pairings]
-                .sort((a, b) => a.boardNumber - b.boardNumber)
-                .map((p) => (
-                  <tr key={p.id}>
-                    <td className="num tabular">{p.boardNumber}</td>
-                    <td>{nameOf(p.whiteRegistrationId)}</td>
-                    <td>{nameOf(p.blackRegistrationId)}</td>
-                    <td>
-                      {p.blackRegistrationId === null ? (
-                        <span className="muted small">{p.result}</span>
-                      ) : (
-                        <select
-                          value={RESULTS.some((r) => r.value === p.result) ? p.result : ''}
-                          onChange={(e) => void setResult(p.id, e.target.value)}
-                          style={{
-                            background: 'var(--bg)',
-                            color: 'var(--ink)',
-                            border: '1px solid var(--hairline)',
-                            borderRadius: 6,
-                            padding: '4px 6px',
-                            font: 'inherit',
-                            fontSize: 13,
-                          }}
-                        >
-                          <option value="" disabled>
-                            —
-                          </option>
-                          {RESULTS.map((r) => (
-                            <option key={r.value} value={r.value}>
-                              {r.label}
-                            </option>
-                          ))}
-                        </select>
-                      )}
-                    </td>
-                  </tr>
-                ))}
-            </tbody>
-          </table>
-        </div>
+        <ResultEntry
+          pairings={[...openRound.pairings]
+            .sort((a, b) => a.boardNumber - b.boardNumber)
+            .map((p) => ({
+              id: p.id,
+              boardNumber: p.boardNumber,
+              whiteName: nameOf(p.whiteRegistrationId),
+              blackName: p.blackRegistrationId === null ? null : nameOf(p.blackRegistrationId),
+              result: p.result,
+            }))}
+          onSet={setResult}
+          disabled={openRound.status === 'COMPLETED'}
+        />
       )}
 
       {openRound !== null && (
         <div style={{ display: 'flex', gap: 8, marginTop: 10, flexWrap: 'wrap' }}>
           <a
-            className="badge"
+            className="btn"
             href={`/api/v1/sections/${section.id}/export/pairings/${String(openRound.number)}/pdf`}
             target="_blank"
             rel="noreferrer"
@@ -369,8 +320,7 @@ function SectionManager({
             <button
               type="button"
               onClick={() => void completeRound(openRound.id)}
-              className="badge"
-              style={{ cursor: 'pointer', background: 'transparent' }}
+              className="btn"
             >
               Turni yopish
             </button>

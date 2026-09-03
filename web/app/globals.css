@@ -1417,3 +1417,75 @@ tbody tr:hover {
   font-size: 14px;
   font-weight: 500;
 }
+
+/* --- Natija kiritish (hakam konsoli) ----------------------------------- */
+
+kbd {
+  display: inline-block;
+  padding: 1px 6px;
+  border: var(--hairline-width) solid var(--hairline);
+  border-bottom-width: 2px;
+  border-radius: 5px;
+  background: var(--elevated);
+  font-family: var(--font-mono), ui-monospace, monospace;
+  font-size: 11px;
+  line-height: 1.6;
+  color: var(--ink);
+}
+
+/* Faol qator — hakam qayerda turganini BIR QARASHDA ko'rsin. */
+.row-active > td {
+  background: color-mix(in srgb, var(--accent) 12%, transparent);
+  box-shadow: inset 3px 0 0 var(--accent);
+}
+
+.row-active:focus-visible {
+  outline: none;
+}
+
+.result-pick {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.result-pick button {
+  min-width: 40px;
+  min-height: 34px;
+  border: var(--hairline-width) solid var(--hairline);
+  border-radius: 7px;
+  background: transparent;
+  color: var(--ink);
+  font: inherit;
+  font-size: 15px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color 110ms ease, border-color 110ms ease, color 110ms ease;
+}
+
+.result-pick button:hover:not(:disabled) {
+  background: var(--elevated);
+}
+
+.result-pick button[aria-pressed='true'] {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--accent-ink);
+}
+
+.result-pick button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.result-rare {
+  min-height: 34px;
+  border: var(--hairline-width) solid var(--hairline);
+  border-radius: 7px;
+  background: transparent;
+  color: var(--ink-secondary);
+  font: inherit;
+  font-size: 13px;
+  padding: 0 6px;
+  cursor: pointer;
+}
