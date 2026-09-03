@@ -1277,3 +1277,81 @@ tbody tr:hover {
   font-weight: 400;
   color: var(--ink-secondary);
 }
+
+/* --- Tab navigatsiyasi (havolali) -------------------------------------- */
+/*
+ * Reyting kategoriyalari. Havola, tugma emas: tanlov URL'da qoladi va
+ * sahifa SERVER komponenti bo'lib qolaveradi (ulashish mumkin).
+ */
+.tabs {
+  display: flex;
+  gap: 4px;
+  flex-wrap: wrap;
+  padding: 4px;
+  border: var(--hairline-width) solid var(--hairline);
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--elevated) 50%, transparent);
+}
+
+.tabs a {
+  padding: 8px 14px;
+  border-radius: 7px;
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--ink-secondary);
+  white-space: nowrap;
+}
+
+.tabs a:hover {
+  color: var(--ink);
+  filter: none;
+  background: color-mix(in srgb, var(--ink) 6%, transparent);
+}
+
+.tabs a[aria-current='page'] {
+  background: var(--surface);
+  color: var(--ink);
+  font-weight: 600;
+  box-shadow: var(--shadow-1);
+}
+
+/* --- Reyting nishonlari (profil) --------------------------------------- */
+/*
+ * Uch reyting HECH QACHON aralashmaydi (brif §5.6) — shuning uchun
+ * har biri o'z kartochkasida, kategoriya nomi bilan.
+ */
+.rating-badges {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(170px, 1fr));
+  gap: 12px;
+  margin-top: 26px;
+}
+
+.rating-badge {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 14px 16px;
+  border: var(--hairline-width) solid var(--hairline);
+  border-radius: var(--radius-card);
+  background: var(--surface);
+}
+
+.rating-badge-label {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--ink-secondary);
+}
+
+.rating-badge-value {
+  font-size: 28px;
+  font-weight: 600;
+  line-height: 1.1;
+}
+
+.rating-badge-rd {
+  font-size: 12px;
+  color: var(--ink-secondary);
+}

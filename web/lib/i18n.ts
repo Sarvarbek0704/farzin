@@ -477,6 +477,44 @@ const DICTIONARY = {
     ru: 'Живые турниры',
     en: 'Live tournaments',
   },
+
+  'ratings.tabOtbClassical': {
+    'uz-Latn': 'OTB klassik',
+    'uz-Cyrl': 'OTB классик',
+    ru: 'OTB классика',
+    en: 'OTB classical',
+  },
+  'ratings.tabOtbRapid': {
+    'uz-Latn': 'OTB rapid',
+    'uz-Cyrl': 'OTB рапид',
+    ru: 'OTB рапид',
+    en: 'OTB rapid',
+  },
+  'ratings.tabOtbBlitz': {
+    'uz-Latn': 'OTB blits',
+    'uz-Cyrl': 'OTB блиц',
+    ru: 'OTB блиц',
+    en: 'OTB blitz',
+  },
+  'ratings.tabOnlineBlitz': {
+    'uz-Latn': 'Onlayn blits',
+    'uz-Cyrl': 'Онлайн блиц',
+    ru: 'Онлайн блиц',
+    en: 'Online blitz',
+  },
+  'ratings.tabOnlineBullet': {
+    'uz-Latn': 'Onlayn bullet',
+    'uz-Cyrl': 'Онлайн буллет',
+    ru: 'Онлайн пуля',
+    en: 'Online bullet',
+  },
+  'ratings.separate': {
+    'uz-Latn': "Har kategoriya ALOHIDA reyting: OTB va onlayn qo'shilmaydi (docs/06 §5).",
+    'uz-Cyrl': 'Ҳар категория АЛОҲИДА рейтинг: OTB ва онлайн қўшилмайди (docs/06 §5).',
+    ru: 'Каждая категория — отдельный рейтинг: OTB и онлайн не смешиваются (docs/06 §5).',
+    en: 'Each category is a separate rating: OTB and online are never mixed (docs/06 §5).',
+  },
+  'table.deviation': { 'uz-Latn': 'RD', 'uz-Cyrl': 'RD', ru: 'RD', en: 'RD' },
 } as const satisfies Record<string, Record<Locale, string>>;
 
 export type MessageKey = keyof typeof DICTIONARY;

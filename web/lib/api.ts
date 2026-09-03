@@ -205,7 +205,13 @@ export interface RatingHistoryRow {
   ratingAfter: number;
   deviationAfter: number;
   gamesInPeriod: number;
-  computedAt: string;
+  /**
+   * ⚠️  Backend maydoni `createdAt` — `computedAt` EMAS. Ilgari bu
+   *     yerda `computedAt` yozilgan edi va u javobda umuman yo'q:
+   *     sana ustuni HAR DOIM "—" ko'rsatardi, saralash esa ishlamasdi.
+   *     Jonli tekshiruvda ushlandi.
+   */
+  createdAt: string;
 }
 
 export const getPlayer = (id: string): Promise<Player> => get<Player>(`/api/v1/players/${id}`);
