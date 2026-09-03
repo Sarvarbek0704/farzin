@@ -1,6 +1,8 @@
 import Link from 'next/link';
 
-import { listTournaments, type Tournament } from '@/lib/api';
+import { listRatings, listTournaments, type RatingRow, type Tournament } from '@/lib/api';
+import { StaticBoard } from '@/components/static-board';
+import { TitleTag } from '@/components/ui';
 import { formatDateRange, statusView } from '@/lib/format';
 import { getTranslator } from '@/lib/i18n.server';
 
@@ -13,19 +15,22 @@ import { getTranslator } from '@/lib/i18n.server';
  */
 export default async function HomePage() {
   const t = await getTranslator();
-  let live: Tournament[] = [];
-  let failed = false;
+  // Ikkala blok MUSTAQIL yuklanadi: biri yiqilsa ikkinchisi qoladi.
+  // `allSettled` — backend qismi ishlamasa ham sahifa ochiladi.
+  const [tournamentsResult, ratingsResult] = await Promise.allSettled([
+    listTournaments(),
+    listRatings({ environment: 'OTB', timeCategory: 'CLASSICAL' }),
+  ]);
 
-  try {
-    const page = await listTournaments();
-    live = page.items
-      .filter((x) => x.status === 'IN_PROGRESS' || x.status === 'REGISTRATION_OPEN')
-      .slice(0, 4);
-  } catch {
-    // Backend yotgan bo'lsa ham bosh sahifa ochiladi — faqat jonli
-    // blok tushib qoladi.
-    failed = true;
-  }
+  const live: Tournament[] =
+    tournamentsResult.status === 'fulfilled'
+      ? tournamentsResult.value.items
+          .filter((x) => x.status === 'IN_PROGRESS' || x.status === 'REGISTRATION_OPEN')
+          .slice(0, 3)
+      : [];
+
+  const topRated: RatingRow[] =
+    ratingsResult.status === 'fulfilled' ? ratingsResult.value.items.slice(0, 5) : [];
 
   return (
     <>
@@ -47,24 +52,34 @@ export default async function HomePage() {
               {t('hero.calendar')}
             </Link>
           </div>
+
+          {/*
+            Milliy g'urur — brif §2: "soberly, like a federation, not a
+            fan site". Shuning uchun bitta jim qator, banner emas.
+          */}
+          <p className="pride">{t('hero.pride')}</p>
         </div>
 
-        {/* Taxta — brend belgisi sifatida (jonli o'yin emas, motiv). */}
-        <div className="hero-board" aria-hidden="true">
-          <div className="board-frame" style={{ maxWidth: 420, marginLeft: 'auto' }} />
+        {/*
+          Taxta — brend belgisi (brif §6.1 "one beautiful board").
+          Server komponenti: HTML kelishi bilanoq joyida, gidratatsiya
+          kutilmaydi.
+        */}
+        <div className="hero-board">
+          <StaticBoard className="hero-board-frame" />
         </div>
       </section>
 
       {/* ── Hozir ─────────────────────────────────────────────────── */}
       <section style={{ marginBottom: 64 }}>
         <div className="spread" style={{ marginBottom: 18 }}>
-          <h2>{t('home.now')}</h2>
+          <h2>{t('home.liveNow')}</h2>
           <Link href="/turnirlar" className="btn btn-ghost">
             {t('hero.calendar')} →
           </Link>
         </div>
 
-        {failed || live.length === 0 ? (
+        {live.length === 0 ? (
           <div className="card empty">
             <span className="empty-glyph" aria-hidden="true">
               ♞
@@ -101,6 +116,37 @@ export default async function HomePage() {
           </div>
         )}
       </section>
+
+      {/* ── Reyting yetakchilari (brif §6.1 "top-ratings preview") ── */}
+      {topRated.length > 0 && (
+        <section style={{ marginBottom: 64 }}>
+          <div className="spread" style={{ marginBottom: 18 }}>
+            <h2>{t('home.topRatings')}</h2>
+            <Link href="/reyting" className="btn btn-ghost">
+              {t('home.allRatings')} →
+            </Link>
+          </div>
+
+          <div className="card" style={{ padding: 0, overflow: 'hidden' }}>
+            {topRated.map((row, i) => (
+              <Link key={row.playerId} href={`/oyinchi/${row.playerId}`} className="rank-row">
+                {/* Birinchi uchlik — oltin (brif: gilt for top 3, sparing). */}
+                <span className={i < 3 ? 'rank rank-medal tabular' : 'rank tabular'}>
+                  {i + 1}
+                </span>
+                <span className="rank-name">
+                  <TitleTag title={row.title} />
+                  {row.lastName ?? ''} {row.firstName ?? ''}
+                </span>
+                <span className="rank-rating tabular">
+                  {row.rating}
+                  <span className="rank-rd">±{row.deviation}</span>
+                </span>
+              </Link>
+            ))}
+          </div>
+        </section>
+      )}
 
       {/* ── Xizmatlar to'rtligi ───────────────────────────────────── */}
       <section style={{ marginBottom: 64 }}>
