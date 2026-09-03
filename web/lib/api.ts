@@ -254,6 +254,9 @@ export interface GameState {
    *     yurishning imkoni yo'q.
    */
   viewerRole: 'white' | 'black' | 'spectator';
+  /** Kim durang taklif qilgan — reconnect'da taklif YO'QOLMAYDI (docs/07 §8.1). */
+  drawOfferFrom: 'w' | 'b' | null;
+  winnerColor: 'WHITE' | 'BLACK' | null;
 }
 
 export const getGame = (id: string): Promise<GameState> =>

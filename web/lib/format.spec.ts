@@ -102,8 +102,10 @@ describe('formatTimeControl', () => {
     expect(formatTimeControl(5400, 30)).toBe('90+30');
   });
 
-  it('increment yo`q bo`lsa faqat daqiqa', () => {
-    expect(formatTimeControl(900, 0)).toBe('15');
+  it('increment nol bo`lsa ham +0 YOZILADI (brif §5.10)', () => {
+    // "15" tugallanmagan ma'lumot: o'yinchi 15+0 mi, 15+10 mi bilmaydi.
+    expect(formatTimeControl(900, 0)).toBe('15+0');
+    expect(formatTimeControl(300, 0)).toBe('5+0');
   });
 });
 

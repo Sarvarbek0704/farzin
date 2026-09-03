@@ -59,11 +59,17 @@ export function formatRating(rating: number, deviation: number): string {
 }
 
 /** Vaqt nazorati: `90+30`, increment yo'q bo'lsa faqat `90`. */
+/**
+ * Vaqt nazorati — HAR DOIM `daqiqa+increment` ko'rinishida.
+ *
+ * ⚠️  Increment nol bo'lsa ham `+0` YOZILADI. Bu shaxmat
+ *     konventsiyasi va dizayn brifi §5.10 aynan `5+0` ni ko'rsatadi.
+ *     Ilgari nol tashlab yuborilardi va chip "Blits 5" deb chiqardi —
+ *     o'yinchi uchun bu tugallanmagan ma'lumot: 5+0 mi, 5+3 mi?
+ */
 export function formatTimeControl(baseSeconds: number, incrementSeconds: number): string {
   const minutes = Math.round(baseSeconds / 60);
-  return incrementSeconds > 0
-    ? `${String(minutes)}+${String(incrementSeconds)}`
-    : String(minutes);
+  return `${String(minutes)}+${String(incrementSeconds)}`;
 }
 
 export const TIME_CATEGORY_LABEL: Record<string, string> = {

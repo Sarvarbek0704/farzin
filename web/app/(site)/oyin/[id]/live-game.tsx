@@ -9,6 +9,31 @@ import type { GameState } from '@/lib/api';
 /** Gateway ack konverti — play.types.ts `Ack<T>` bilan bir xil. */
 type Ack<T> = { ok: true; data: T } | { ok: false; error: { code: string; message: string } };
 
+/** `game:ended` yuki (play.types.ts GameEndedPayload). */
+interface GameEnded {
+  status: string;
+  winnerColor: 'WHITE' | 'BLACK' | null;
+  finalFen?: string;
+}
+
+/**
+ * Natija SABABI — brif §5.12: banner har doim NEGA tugaganini aytadi.
+ * "O'yin tugadi" yolg'iz o'zi foydalanuvchiga hech narsa bermaydi.
+ */
+const REASON: Record<string, string> = {
+  CHECKMATE: 'Mot',
+  RESIGNATION: 'Taslim',
+  TIMEOUT: 'Vaqt tugadi',
+  TIMEOUT_VS_INSUFFICIENT_MATERIAL: 'Vaqt tugadi — material yetarli emas',
+  DRAW_AGREED: 'Kelishuv bilan durang',
+  STALEMATE: 'Pat',
+  THREEFOLD_REPETITION: 'Uch marta takror',
+  FIFTY_MOVE_RULE: '50 yurish qoidasi',
+  INSUFFICIENT_MATERIAL: 'Material yetarli emas',
+  ABANDONED: 'Tashlab ketildi',
+  ABORTED: 'Bekor qilindi',
+};
+
 /**
  * Jonli o'yin — Socket.IO orqali.
  *
@@ -51,6 +76,12 @@ export function LiveGame({ initial, token }: Props) {
   const [game, setGame] = useState<GameState>(initial);
   const [connection, setConnection] = useState<Connection>('connecting');
   const [notice, setNotice] = useState<string | null>(null);
+  /** Kim durang taklif qilgan ('w'/'b') — null = taklif yo'q. */
+  const [drawFrom, setDrawFrom] = useState<'w' | 'b' | null>(initial.drawOfferFrom);
+  /** Yakuniy natija — server e'lon qilganda to'ldiriladi. */
+  const [ended, setEnded] = useState<GameEnded | null>(null);
+  /** Taxta yo'nalishini QO'LDA aylantirish (brif §5.1). */
+  const [flipped, setFlipped] = useState(false);
   const socketRef = useRef<Socket | null>(null);
 
   useEffect(() => {
@@ -87,6 +118,7 @@ export function LiveGame({ initial, token }: Props) {
       socket.emit('game:join', { gameId: initial.gameId }, (ack: Ack<GameState>) => {
         if (ack.ok) {
           setGame(ack.data);
+          setDrawFrom(ack.data.drawOfferFrom);
         } else {
           setNotice(ack.error.message);
         }
@@ -107,6 +139,9 @@ export function LiveGame({ initial, token }: Props) {
         clock: payload.clock,
       }));
       setNotice(null);
+      // Yurish qilindi — osilgan durang taklifi kuchini yo'qotadi
+      // (server ham shunday hisoblaydi).
+      setDrawFrom(null);
     });
 
     // Soat — SERVER qiymati bilan qayta moslash (§3.7).
@@ -114,8 +149,17 @@ export function LiveGame({ initial, token }: Props) {
       setGame((prev) => ({ ...prev, clock }));
     });
 
-    socket.on('game:ended', (payload: { status: string }) => {
-      setGame((prev) => ({ ...prev, status: payload.status }));
+    socket.on('game:ended', (payload: GameEnded) => {
+      setGame((prev) => ({ ...prev, status: payload.status, fen: payload.finalFen ?? prev.fen }));
+      setEnded(payload);
+      // O'yin tugadi — osilib qolgan taklif ham ketadi.
+      setDrawFrom(null);
+      setNotice(null);
+    });
+
+    // Durang taklifi — brif §6.4: "Raqib durang taklif qildi" + qabul/rad.
+    socket.on('game:draw_offered', (payload: { from: 'w' | 'b' }) => {
+      setDrawFrom(payload.from);
     });
 
     socket.on('game:error', (payload: { code: string; message: string; resyncFen?: string }) => {
@@ -173,10 +217,17 @@ export function LiveGame({ initial, token }: Props) {
   // bo'lishi mumkin. `viewerRole` SSR'da doim 'spectator', haqiqiy
   // qiymat `game:join` ack'i bilan keladi.
   const isPlayer = game.viewerRole !== 'spectator';
+  const mySide: 'w' | 'b' | null =
+    game.viewerRole === 'white' ? 'w' : game.viewerRole === 'black' ? 'b' : null;
   // Ulanish yopiq bo'lsa taxta ham QULFLANADI: yurish socket orqali
   // ketadi, ya'ni uzilgan holda sudrash faqat aldardi.
   const canMove = isPlayer && active && connection === 'open';
-  const orientation = game.viewerRole === 'black' ? 'black' : 'white';
+  const baseOrientation = game.viewerRole === 'black' ? 'black' : 'white';
+  const orientation: 'white' | 'black' = flipped
+    ? baseOrientation === 'white'
+      ? 'black'
+      : 'white'
+    : baseOrientation;
   // Yuqorida RAQIB, pastda O'ZIM (tomoshabin uchun: yuqorida qora).
   const topIsBlack = orientation === 'white';
   const whiteName = `${game.white.lastName} ${game.white.firstName}`;
@@ -195,6 +246,59 @@ export function LiveGame({ initial, token }: Props) {
       </div>
 
       <div className="stack" style={{ gap: 12, minWidth: 0 }}>
+        {/*
+          NATIJA BANNERI (brif §5.12) — sabab bilan. G'olib o'yinchining
+          nuqtai nazaridan yoziladi: tomoshabin uchun neytral.
+        */}
+        {ended !== null && (
+          <div className={resultClass(ended, game.viewerRole)} role="status">
+            <strong className="result-headline">{resultHeadline(ended, game.viewerRole)}</strong>
+            <span className="result-reason">{REASON[ended.status] ?? ended.status}</span>
+          </div>
+        )}
+
+        {/*
+          DURANG TAKLIFI — faqat RAQIB taklif qilganda va faqat
+          o'yinchiga. O'z taklifingni "qabul qilish" bema'nilik.
+        */}
+        {drawFrom !== null && isPlayer && active && drawFrom !== mySide && (
+          <div className="offer" role="alert">
+            <span>Raqib durang taklif qildi</span>
+            <div className="row" style={{ gap: 8 }}>
+              <button
+                type="button"
+                className="btn btn-primary"
+                onClick={() =>
+                  socketRef.current?.emit('game:draw_accept', { gameId: game.gameId })
+                }
+              >
+                Qabul qilish
+              </button>
+              {/*
+                RAD ETISH — serverda alohida event YO'Q (docs/07 §7.2).
+                Taklif yurish qilinganda kuchini yo'qotadi, shuning uchun
+                bu tugma faqat bannerni yopadi va buni ochiq aytamiz.
+              */}
+              <button
+                type="button"
+                className="btn"
+                onClick={() => {
+                  setDrawFrom(null);
+                }}
+                title="Taklif yurish qilinganda o'z-o'zidan bekor bo'ladi"
+              >
+                Yopish
+              </button>
+            </div>
+          </div>
+        )}
+
+        {drawFrom !== null && drawFrom === mySide && active && (
+          <p className="muted small" role="status" style={{ margin: 0 }}>
+            Durang taklifi yuborildi — raqib javobini kutmoqda.
+          </p>
+        )}
+
         {notice !== null && (
           <p role="status" className="small" style={{ color: 'var(--amber)', margin: 0 }}>
             {notice}
@@ -233,11 +337,26 @@ export function LiveGame({ initial, token }: Props) {
           active={game.clock.running === (topIsBlack ? 'w' : 'b')}
         />
 
+        <div className="row" style={{ gap: 8 }}>
+          {/* Taxtani aylantirish — brif §5.1, tomoshabinga ham kerak. */}
+          <button
+            type="button"
+            className="btn"
+            aria-pressed={flipped}
+            onClick={() => {
+              setFlipped((f) => !f);
+            }}
+          >
+            Taxtani aylantirish
+          </button>
+        </div>
+
         {isPlayer && active && (
           <div className="row" style={{ gap: 8 }}>
             <button
               type="button"
               className="btn"
+              disabled={drawFrom === mySide}
               onClick={() => socketRef.current?.emit('game:draw_offer', { gameId: game.gameId })}
             >
               Durang taklif qilish
@@ -295,4 +414,29 @@ function ConnectionBadge({ state }: { state: Connection }) {
       ● {text}
     </p>
   );
+}
+
+/** Banner sarlavhasi — ko'ruvchi nuqtai nazaridan. */
+function resultHeadline(ended: GameEnded, role: string): string {
+  if (ended.winnerColor === null) {
+    return 'Durang';
+  }
+  if (role === 'spectator') {
+    return ended.winnerColor === 'WHITE' ? 'Oq yutdi' : 'Qora yutdi';
+  }
+  const iWon =
+    (role === 'white' && ended.winnerColor === 'WHITE') ||
+    (role === 'black' && ended.winnerColor === 'BLACK');
+  return iWon ? 'Siz yutdingiz' : 'Siz yutqazdingiz';
+}
+
+/** Rang: g'alaba emerald, mag'lubiyat burgundy, durang neytral. */
+function resultClass(ended: GameEnded, role: string): string {
+  if (ended.winnerColor === null || role === 'spectator') {
+    return 'result result-neutral';
+  }
+  const iWon =
+    (role === 'white' && ended.winnerColor === 'WHITE') ||
+    (role === 'black' && ended.winnerColor === 'BLACK');
+  return iWon ? 'result result-win' : 'result result-loss';
 }

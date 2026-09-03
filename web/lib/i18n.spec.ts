@@ -48,15 +48,36 @@ describe('lug`at to`liqligi', () => {
   });
 });
 
+/**
+ * TEXNIK QISQARTMALAR — tarjima qilinMAYDI.
+ *
+ * Dizayn brifi §8: "Notation is sacred" — SAN/UCI/FEN hech qachon
+ * tarjima qilinmaydi. `RD` (Rating Deviation) shu oilada: u Glicko-2
+ * ning rasmiy belgisi va uni "РД" qilish o'quvchini chalg'itardi.
+ *
+ * Ro'yxat ATAYLAB qisqa va har qo'shimcha yozuv izoh talab qiladi:
+ * bu — istisno, yumshatish emas.
+ */
+const TECHNICAL_KEYS = new Set(['table.deviation']);
+
 describe('tarjima sifati', () => {
   it('kirill tillari HAQIQATAN kirill harflarida', () => {
     // Nusxa-ko'chirishda lotin matni kirill katagiga tushib qolishi —
     // eng ko'p uchraydigan xato. Kamida bitta kirill harfi bo'lsin.
     const cyrillic = /[Ѐ-ӿ]/;
     for (const key of MESSAGE_KEYS) {
+      if (TECHNICAL_KEYS.has(key)) {
+        continue;
+      }
       expect(cyrillic.test(translate('uz-Cyrl', key)), `uz-Cyrl: ${key}`).toBe(true);
       expect(cyrillic.test(translate('ru', key)), `ru: ${key}`).toBe(true);
     }
+  });
+
+  it('texnik qisqartmalar ro`yxati KICHIK qoladi', () => {
+    // Ro'yxat o'sib ketsa — bu tarjima qilinmagan matn yashiringan
+    // degani. Chegara ataylab past.
+    expect(TECHNICAL_KEYS.size).toBeLessThanOrEqual(3);
   });
 
   it('inglizcha matnda kirill YO`Q', () => {

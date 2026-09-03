@@ -85,6 +85,8 @@ const BASE: GameState = {
   black: { playerId: 'b', firstName: 'Qora', lastName: 'O`yinchi', title: null, rating: 1500 },
   isRated: true,
   viewerRole: 'spectator',
+  drawOfferFrom: null,
+  winnerColor: null,
 };
 
 async function renderGame(token: string | null | undefined, ack: unknown = null) {
@@ -236,6 +238,122 @@ describe('LiveGame', () => {
 
       expect(screen.getByText('1:01')).toBeInTheDocument();
       expect(screen.getByText('0:05')).toBeInTheDocument();
+    });
+  });
+
+  describe('durang taklifi (brif §6.4)', () => {
+    it('RAQIB taklif qilsa qabul/yopish ko`rinadi', async () => {
+      await renderGame('tok-1', { ok: true, data: { ...BASE, viewerRole: 'white' } });
+      await connect();
+
+      await act(async () => {
+        listeners.get('game:draw_offered')?.({ from: 'b' });
+      });
+
+      expect(screen.getByText(/Raqib durang taklif qildi/)).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: /Qabul qilish/ })).toBeInTheDocument();
+    });
+
+    it('O`Z taklifim qabul tugmasini KO`RSATMAYDI', async () => {
+      await renderGame('tok-1', { ok: true, data: { ...BASE, viewerRole: 'white' } });
+      await connect();
+
+      await act(async () => {
+        listeners.get('game:draw_offered')?.({ from: 'w' });
+      });
+
+      expect(screen.queryByRole('button', { name: /Qabul qilish/ })).toBeNull();
+      expect(screen.getByText(/raqib javobini kutmoqda/i)).toBeInTheDocument();
+    });
+
+    it('yurish qilinsa taklif KUCHINI YO`QOTADI', async () => {
+      await renderGame('tok-1', { ok: true, data: { ...BASE, viewerRole: 'white' } });
+      await connect();
+      await act(async () => {
+        listeners.get('game:draw_offered')?.({ from: 'b' });
+      });
+      expect(screen.getByText(/Raqib durang taklif qildi/)).toBeInTheDocument();
+
+      await act(async () => {
+        listeners.get('game:move_made')?.({
+          fen: 'yangi',
+          san: 'e4',
+          clock: { whiteMs: 1, blackMs: 1, running: 'b' },
+        });
+      });
+      expect(screen.queryByText(/Raqib durang taklif qildi/)).toBeNull();
+    });
+
+    it('reconnect`da taklif YO`QOLMAYDI (ack`dan tiklanadi)', async () => {
+      await renderGame('tok-1', {
+        ok: true,
+        data: { ...BASE, viewerRole: 'white', drawOfferFrom: 'b' },
+      });
+      await connect();
+      expect(screen.getByText(/Raqib durang taklif qildi/)).toBeInTheDocument();
+    });
+  });
+
+  describe('natija banneri (brif §5.12)', () => {
+    it('SABAB bilan ko`rsatiladi', async () => {
+      await renderGame('tok-1', { ok: true, data: { ...BASE, viewerRole: 'white' } });
+      await connect();
+
+      await act(async () => {
+        listeners.get('game:ended')?.({ status: 'CHECKMATE', winnerColor: 'WHITE' });
+      });
+
+      expect(screen.getByText('Siz yutdingiz')).toBeInTheDocument();
+      expect(screen.getByText('Mot')).toBeInTheDocument();
+    });
+
+    it('mag`lubiyat ham o`z nuqtai nazaridan', async () => {
+      await renderGame('tok-1', { ok: true, data: { ...BASE, viewerRole: 'black' } });
+      await connect();
+
+      await act(async () => {
+        listeners.get('game:ended')?.({ status: 'RESIGNATION', winnerColor: 'WHITE' });
+      });
+
+      expect(screen.getByText('Siz yutqazdingiz')).toBeInTheDocument();
+      expect(screen.getByText('Taslim')).toBeInTheDocument();
+    });
+
+    it('tomoshabinga NEYTRAL: "Oq yutdi"', async () => {
+      await renderGame(null, { ok: true, data: BASE });
+      await connect();
+
+      await act(async () => {
+        listeners.get('game:ended')?.({ status: 'TIMEOUT', winnerColor: 'WHITE' });
+      });
+
+      expect(screen.getByText('Oq yutdi')).toBeInTheDocument();
+      expect(screen.getByText('Vaqt tugadi')).toBeInTheDocument();
+    });
+
+    it('durang — g`olib yo`q', async () => {
+      await renderGame('tok-1', { ok: true, data: { ...BASE, viewerRole: 'white' } });
+      await connect();
+
+      await act(async () => {
+        listeners.get('game:ended')?.({ status: 'DRAW_AGREED', winnerColor: null });
+      });
+
+      expect(screen.getByText('Durang')).toBeInTheDocument();
+      expect(screen.getByText('Kelishuv bilan durang')).toBeInTheDocument();
+    });
+  });
+
+  describe('taxtani aylantirish (brif §5.1)', () => {
+    it('tomoshabin ham aylantira oladi', async () => {
+      await renderGame(null, { ok: true, data: BASE });
+      await connect();
+      expect(board()).toHaveAttribute('data-orientation', 'white');
+
+      await act(async () => {
+        screen.getByRole('button', { name: /Taxtani aylantirish/ }).click();
+      });
+      expect(board()).toHaveAttribute('data-orientation', 'black');
     });
   });
 
