@@ -12,6 +12,18 @@ export interface PlayerSummary {
   lastName: string;
   title: string | null;
   fideId: string | null;
+  /**
+   * Profil bog'langan hisob — bog'lanmagan bo'lsa `null`.
+   *
+   * Kerak bo'ladi, chunki WebSocket xonalari FOYDALANUVCHI bo'yicha
+   * nomlanadi (`user:{userId}`), o'yin esa O'YINCHI bo'yicha. Xabar
+   * yuborish uchun bu ko'prik shart — masalan do'stona chaqiriqda
+   * raqibga "sizga o'yin ochildi" deb aytish.
+   *
+   * Turnir arxivida o'yinchi bor, lekin hisobi yo'q bo'lishi mumkin —
+   * shuning uchun `null` bo'lishi ODATIY hol, xato emas.
+   */
+  userId: string | null;
 }
 
 export interface PlayerPort {

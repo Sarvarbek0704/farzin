@@ -21,23 +21,30 @@ export class PlayerService implements PlayerPort {
   ) {}
 
   /** Ommaviy ro'yxat — cursor pagination (docs/04-api-spec.md §3). */
-  async listPublic(first: number | undefined, after: string | undefined): Promise<Page<PlayerRow>> {
+  async listPublic(
+    first: number | undefined,
+    after: string | undefined,
+    search?: string,
+  ): Promise<Page<PublicPlayer>> {
     const pageSize = Math.min(Math.max(first ?? DEFAULT_PAGE_SIZE, 1), MAX_PAGE_SIZE);
     const afterId = after !== undefined ? decodeCursor(after) : null;
-    const rows = await this.players.listPublic(pageSize, afterId);
-    return toPage(rows, pageSize);
+    // Bo'sh/probel qidiruv — filtrsiz ro'yxat (DTO minLength'ni tekshiradi,
+    // bu yerda faqat probel qirqiladi).
+    const trimmed = search?.trim() ?? '';
+    const rows = await this.players.listPublic(pageSize, afterId, trimmed === '' ? null : trimmed);
+    return toPage(rows.map(toPublic), pageSize);
   }
 
   /**
    * Bitta profil. Yopiq profil ham, mavjud bo'lmagan ham — 404.
    * Farq bildirilmaydi (ma'lumot sizdirmaslik). docs/04-api-spec.md §2.4
    */
-  async getPublicById(id: string): Promise<PlayerRow> {
+  async getPublicById(id: string): Promise<PublicPlayer> {
     const player = await this.players.findById(id);
     if (!player?.isPublic) {
       throw new NotFoundError('Player', id);
     }
-    return player;
+    return toPublic(player);
   }
 
   /** O'z profili — yopiq bo'lsa ham ko'rinadi. */
@@ -80,9 +87,18 @@ export class PlayerService implements PlayerPort {
     return player === null ? null : toSummary(player);
   }
 
+  /**
+   * BITTA so'rov — har ID uchun alohida emas.
+   *
+   * Ilgari bu yer `Promise.all(ids.map(findById))` edi: 200 do'stli
+   * ro'yxat 200 ta SQL so'roviga aylanardi. Chaqiruvchi buni ko'rmaydi,
+   * shuning uchun N+1 shu yerda, port ortida yopiladi.
+   */
   async findManyByIds(ids: readonly string[]): Promise<PlayerSummary[]> {
-    const found = await Promise.all(ids.map((id) => this.players.findById(id)));
-    return found.filter((p): p is PlayerRow => p !== null).map(toSummary);
+    if (ids.length === 0) {
+      return [];
+    }
+    return (await this.players.findManyByIds(ids)).map(toSummary);
   }
 
   async findSummaryByUserId(userId: string): Promise<(PlayerSummary & { userId: string }) | null> {
@@ -94,6 +110,29 @@ export class PlayerService implements PlayerPort {
   }
 }
 
+/**
+ * Ommaviy javob — `userId` SIZ.
+ *
+ * ═══════════════════════════════════════════════════════════════════════════
+ *  NEGA userId OLIB TASHLANADI
+ *
+ *  `userId` — hisobning ichki identifikatori va JWT'dagi `sub`.
+ *  Ommaviy ro'yxat uni qaytarganda har kim istalgan o'yinchining
+ *  hisob ID'sini yig'ib olardi. O'g'irlanadigan sir emas, lekin
+ *  ommaviy sirtda unga EHTIYOJ ham yo'q: hamma tashqi murojaat
+ *  `playerId` bilan boradi.
+ *
+ *  Jonli tekshiruvda ko'rindi: `GET /players?q=...` javobida `userId`
+ *  turgan edi.
+ * ═══════════════════════════════════════════════════════════════════════════
+ */
+export type PublicPlayer = Omit<PlayerRow, 'userId'>;
+
+function toPublic(player: PlayerRow): PublicPlayer {
+  const { userId: _userId, ...rest } = player;
+  return rest;
+}
+
 function toSummary(player: PlayerRow): PlayerSummary {
   return {
     id: player.id,
@@ -101,5 +140,6 @@ function toSummary(player: PlayerRow): PlayerSummary {
     lastName: player.lastName,
     title: player.title,
     fideId: player.fideId,
+    userId: player.userId,
   };
 }

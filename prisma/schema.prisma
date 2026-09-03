@@ -405,25 +405,74 @@ model Player {
   federation Federation? @relation(fields: [federationId], references: [id], onDelete: SetNull)
   region     Region?     @relation(fields: [regionId], references: [id], onDelete: SetNull)
 
-  clubMemberships ClubMembership[]
-  registrations   Registration[]
-  ratings         PlayerRating[]
-  ratingHistory   RatingHistory[]
-  fideRatings     FideRatingSnapshot[]
-  whiteGames      OnlineGame[]         @relation("WhitePlayer")
-  blackGames      OnlineGame[]         @relation("BlackPlayer")
-  puzzleAttempts  PuzzleAttempt[]
-  parentLinks     ParentLink[]
-  student         Student?
-  coach           Coach?
-  fairPlayCases   FairPlayCase[]
-  appeals         Appeal[]
+  clubMemberships     ClubMembership[]
+  registrations       Registration[]
+  ratings             PlayerRating[]
+  ratingHistory       RatingHistory[]
+  fideRatings         FideRatingSnapshot[]
+  whiteGames          OnlineGame[]         @relation("WhitePlayer")
+  blackGames          OnlineGame[]         @relation("BlackPlayer")
+  puzzleAttempts      PuzzleAttempt[]
+  parentLinks         ParentLink[]
+  student             Student?
+  coach               Coach?
+  fairPlayCases       FairPlayCase[]
+  appeals             Appeal[]
+  friendshipsSent     Friendship[]         @relation("FriendshipRequester")
+  friendshipsReceived Friendship[]         @relation("FriendshipAddressee")
 
   @@index([lastName, firstName])
   @@index([federationId])
   @@index([regionId])
   @@index([fideId])
   @@map("players")
+}
+
+/// Do'stlik holati.
+///
+/// DECLINED yo'q: rad etilgan so'rov QATORI O'CHIRILADI — "rad etildi"
+/// deb saqlash ikki tomonga ham foyda bermaydi va so'rovchiga
+/// "meni rad etishdi" degan signal berardi. Ta'qibga qarshi vosita
+/// BLOCKED (u so'rovni butunlay to'sadi).
+enum FriendshipStatus {
+  PENDING
+  ACCEPTED
+  BLOCKED
+}
+
+/// Do'stlik — IKKI o'yinchi orasidagi BITTA qator.
+///
+/// Yo'nalish saqlanadi (kim so'ragan), chunki PENDING holatda uni
+/// faqat ADDRESSEE qabul qila oladi. ACCEPTED bo'lgach yo'nalish
+/// ahamiyatsiz: ikkalasi ham do'st.
+///
+/// TAKRORLANISHGA QARSHI: oddiy @@unique([requesterId, addresseeId])
+/// YETARLI EMAS — A→B va B→A ikkita qator bo'lib qolardi. Shuning
+/// uchun migratsiyada tartiblangan juftlik bo'yicha FUNKSIONAL
+/// unikal indeks bor (LEAST/GREATEST) — u Prisma sxemasida
+/// ifodalanmaydi va SQL bilan qo'shiladi.
+model Friendship {
+  id String @id @default(uuid(7)) @db.Uuid
+
+  requesterId String @map("requester_id") @db.Uuid
+  addresseeId String @map("addressee_id") @db.Uuid
+
+  status FriendshipStatus @default(PENDING)
+
+  /// Kim bloklagan — BLOCKED holatida majburiy. Blokni faqat SHU
+  /// o'yinchi ocha oladi.
+  blockedById String? @map("blocked_by_id") @db.Uuid
+
+  createdAt  DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt  DateTime  @updatedAt @map("updated_at") @db.Timestamptz(3)
+  acceptedAt DateTime? @map("accepted_at") @db.Timestamptz(3)
+
+  requester Player @relation("FriendshipRequester", fields: [requesterId], references: [id], onDelete: Cascade)
+  addressee Player @relation("FriendshipAddressee", fields: [addresseeId], references: [id], onDelete: Cascade)
+
+  @@index([requesterId, status])
+  @@index([addresseeId, status])
+  @@map("friendships")
 }
 
 // ============================================================================

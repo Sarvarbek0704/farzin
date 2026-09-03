@@ -38,12 +38,17 @@ export class PlayerRepository {
   constructor(private readonly prisma: PrismaService) {}
 
   /** Ommaviy ro'yxat: faqat isPublic, soft-delete'lar ko'rinmaydi. */
-  async listPublic(first: number, afterId: string | null): Promise<PlayerRow[]> {
+  async listPublic(
+    first: number,
+    afterId: string | null,
+    search: string | null = null,
+  ): Promise<PlayerRow[]> {
     const rows = await this.prisma.player.findMany({
       where: {
         deletedAt: null,
         isPublic: true,
         ...(afterId !== null && { id: { gt: afterId } }),
+        ...(search !== null && { OR: nameMatch(search) }),
       },
       orderBy: { id: 'asc' },
       take: first + 1,
@@ -54,6 +59,21 @@ export class PlayerRepository {
   async findById(id: string): Promise<PlayerRow | null> {
     const row = await this.prisma.player.findFirst({ where: { id, deletedAt: null } });
     return row === null ? null : toRow(row);
+  }
+
+  /**
+   * Ko'p ID — BITTA so'rov.
+   *
+   * `isPublic` bu yerda TEKSHIRILMAYDI: bu ichki port yo'li va uni
+   * chaqiruvchi (do'stlar ro'yxati, turnir jadvali) allaqachon
+   * "bu odamlarni ko'rish huquqim bor" degan kontekstda ishlaydi.
+   * Ommaviy ro'yxat esa `listPublic` orqali boradi.
+   */
+  async findManyByIds(ids: readonly string[]): Promise<PlayerRow[]> {
+    const rows = await this.prisma.player.findMany({
+      where: { id: { in: [...ids] }, deletedAt: null },
+    });
+    return rows.map(toRow);
   }
 
   async findByUserId(userId: string): Promise<PlayerRow | null> {
@@ -92,6 +112,33 @@ export class PlayerRepository {
     const row = await this.prisma.player.update({ where: { id }, data });
     return toRow(row);
   }
+}
+
+/**
+ * Ism bo'yicha qidiruv shartlari.
+ *
+ * ═══════════════════════════════════════════════════════════════════════════
+ *  NEGA `contains`, `startsWith` EMAS
+ *
+ *  O'zbek ismlari ro'yxatda turlicha yoziladi: "Sodiqov Sarvarbek" ham,
+ *  "Sarvarbek Sodiqov" ham. Foydalanuvchi familiyani ham, ismni ham
+ *  birinchi yozishi mumkin, shuning uchun ikkala maydon ham qidiriladi.
+ *
+ *  KIRIL yozuvi alohida maydonda (`fullNameCyrl`) — u ham qidiriladi:
+ *  aks holda kirilcha yozadigan foydalanuvchi hech kimni topolmasdi.
+ *
+ *  ⚠️  Bu `LIKE '%...%'` ga aylanadi va indeksdan foydalanmaydi. Hozirgi
+ *      o'lchamda (o'n minglab o'yinchi) bu yetarli; katta o'lchamda
+ *      pg_trgm GIN indeksi kerak bo'ladi.
+ * ═══════════════════════════════════════════════════════════════════════════
+ */
+function nameMatch(search: string): Prisma.PlayerWhereInput[] {
+  const mode = 'insensitive' as const;
+  return [
+    { firstName: { contains: search, mode } },
+    { lastName: { contains: search, mode } },
+    { fullNameCyrl: { contains: search, mode } },
+  ];
 }
 
 function toRow(player: Player): PlayerRow {

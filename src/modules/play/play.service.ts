@@ -32,6 +32,7 @@ import { assertTimeCategoryMatches } from './time-control.guard';
 import {
   PLAY_GAME_FINISHED_EVENT,
   PLAY_GAME_SWEPT_EVENT,
+  PLAY_MATCHED_EVENT,
   type ClaimTimeoutResult,
   type ClockPayload,
   type ClockTypeValue,
@@ -47,6 +48,7 @@ import {
   type PlayerPayload,
   type PlayGameFinishedEvent,
   type PlayGameSweptEvent,
+  type PlayMatchedEvent,
   type TimeCategoryValue,
 } from './play.types';
 
@@ -281,11 +283,7 @@ export class PlayService {
         }
         const other: ClockSide = gone.side === 'w' ? 'b' : 'w';
         const opponentConnected = await this.clocks.isPresent(gone.gameId, other);
-        const ended = await this.abandonAfterDisconnect(
-          gone.gameId,
-          gone.side,
-          opponentConnected,
-        );
+        const ended = await this.abandonAfterDisconnect(gone.gameId, gone.side, opponentConnected);
         await this.clocks.clearGone(gone.gameId, gone.side);
         if (ended !== null) {
           this.logger.log(`Supurgich tashlab ketilgan o'yinni tugatdi: ${gone.gameId}`);
@@ -347,6 +345,26 @@ export class PlayService {
       incrementSeconds: input.incrementSeconds,
       isRated: false,
     });
+
+    // ⚠️  RAQIBGA XABAR BERISH — busiz chaqiriq YARIM ishlaydi.
+    //
+    //     Chaqiriq o'yinni DARHOL yaratadi va soat ishlay boshlaydi.
+    //     Raqib esa hech narsa bilmasdi: uning ekranida o'yin faqat
+    //     sahifani yangilagandan keyin "Faol o'yinlarim" ro'yxatida
+    //     paydo bo'lardi — vaqti esa o'sha paytgacha ketaverardi.
+    //
+    //     Matchmaking bilan BIR XIL hodisa yuboriladi: frontend uchun
+    //     bu ikkalasi ham "o'yin boshlandi" degani va bitta tinglovchi
+    //     yetarli.
+    if (opponent.userId !== null) {
+      const event: PlayMatchedEvent = {
+        gameId: game.id,
+        whiteUserId: actorUserId,
+        blackUserId: opponent.userId,
+      };
+      this.events.emit(PLAY_MATCHED_EVENT, event);
+    }
+
     return await this.getGameView(game.id, actorUserId);
   }
 

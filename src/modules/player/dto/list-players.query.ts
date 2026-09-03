@@ -1,6 +1,6 @@
 import { ApiPropertyOptional } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
-import { IsInt, IsOptional, IsString, Max, Min } from 'class-validator';
+import { IsInt, IsOptional, IsString, Max, MaxLength, Min, MinLength } from 'class-validator';
 
 import { MAX_PAGE_SIZE } from '../../../shared/pagination/cursor';
 
@@ -18,4 +18,18 @@ export class ListPlayersQuery {
   @IsOptional()
   @IsString()
   after?: string;
+
+  /**
+   * Ism bo'yicha qidiruv.
+   *
+   * MINIMAL 2 BELGI: bitta harf butun jadvalni qaytarardi va bu
+   * ro'yxatni "hamma o'yinchilarni yuklab olish" vositasiga
+   * aylantirardi.
+   */
+  @ApiPropertyOptional({ minLength: 2, maxLength: 60, description: 'Ism/familiya (kirilcha ham)' })
+  @IsOptional()
+  @IsString()
+  @MinLength(2)
+  @MaxLength(60)
+  q?: string;
 }

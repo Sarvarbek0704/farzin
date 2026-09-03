@@ -15,6 +15,7 @@ import { AdminModule } from './modules/admin/admin.module';
 import { ArbiterModule } from './modules/arbiter/arbiter.module';
 import { BillingModule } from './modules/billing/billing.module';
 import { FairplayModule } from './modules/fairplay/fairplay.module';
+import { FriendModule } from './modules/friend/friend.module';
 import { HealthModule } from './modules/health/health.module';
 import { IdentityModule } from './modules/identity/identity.module';
 import { NotificationModule } from './modules/notification/notification.module';
@@ -158,6 +159,7 @@ import { REDIS, RedisModule } from './shared/redis/redis.module';
     BillingModule,
     PlayModule,
     FairplayModule,
+    FriendModule,
     NotificationModule,
 
     //

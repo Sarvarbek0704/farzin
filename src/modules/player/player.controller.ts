@@ -9,7 +9,7 @@ import { type Actor, CurrentActor } from '../identity/rbac.port';
 import { ListPlayersQuery } from './dto/list-players.query';
 import { UpdatePlayerDto } from './dto/update-player.dto';
 import type { PlayerRow } from './player.repository';
-import { PlayerService } from './player.service';
+import { PlayerService, type PublicPlayer } from './player.service';
 
 @ApiTags('players')
 @Controller('players')
@@ -18,9 +18,9 @@ export class PlayerController {
 
   @Public()
   @Get()
-  @ApiOperation({ summary: "Ommaviy o'yinchilar ro'yxati (cursor pagination)" })
-  list(@Query() query: ListPlayersQuery): Promise<Page<PlayerRow>> {
-    return this.playerService.listPublic(query.first, query.after);
+  @ApiOperation({ summary: "Ommaviy o'yinchilar ro'yxati (cursor pagination, ism qidiruvi)" })
+  list(@Query() query: ListPlayersQuery): Promise<Page<PublicPlayer>> {
+    return this.playerService.listPublic(query.first, query.after, query.q);
   }
 
   @Get('me')
@@ -41,7 +41,7 @@ export class PlayerController {
   @Get(':id')
   @ApiOperation({ summary: 'Ommaviy profil' })
   @ApiResponse({ status: 404, description: 'Topilmadi YOKI yopiq — farq bildirilmaydi' })
-  getById(@Param('id', ParseUUIDPipe) id: string): Promise<PlayerRow> {
+  getById(@Param('id', ParseUUIDPipe) id: string): Promise<PublicPlayer> {
     return this.playerService.getPublicById(id);
   }
 }
