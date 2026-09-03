@@ -70,7 +70,21 @@ interface Props {
   token: string | null | undefined;
 }
 
-type Connection = 'connecting' | 'open' | 'closed' | 'error';
+/**
+ * ULANISH HOLATLARI — dizayn brifi §5.11 dagi ro'yxat.
+ *
+ * Brif buni alohida ta'kidlaydi: "Silent disconnect is the worst UX —
+ * make it visible". Shuning uchun holat HECH QACHON yashirilmaydi va
+ * har biri boshqacha ATALADI: "uzildi" bilan "qayta ulanmoqda" —
+ * o'yinchi uchun butunlay boshqa vaziyat.
+ *
+ *  connecting   — birinchi ulanish
+ *  open         — ulangan, taxta jonli
+ *  syncing      — ulangan, lekin snapshot kelmagan: taxta QULFLANGAN
+ *  reconnecting — uzildi, socket.io qayta urinmoqda
+ *  offline      — urinishlar tugadi yoki ulanib bo'lmadi
+ */
+type Connection = 'connecting' | 'open' | 'syncing' | 'reconnecting' | 'offline';
 
 export function LiveGame({ initial, token }: Props) {
   const [game, setGame] = useState<GameState>(initial);
@@ -109,7 +123,9 @@ export function LiveGame({ initial, token }: Props) {
     socketRef.current = socket;
 
     socket.on('connect', () => {
-      setConnection('open');
+      // Ulandik, lekin holat hali kelmagan — taxta QULF (brif §5.11
+      // "Sinxronlanmoqda: board locked, moves refused").
+      setConnection('syncing');
       // ⚠️  `game:join` javobi ACK orqali keladi, `game:state` EVENT
       //     sifatida EMAS (play.gateway.ts onJoin). Bu jonli tekshiruvda
       //     aniqlandi: event tinglash bilan hech narsa kelmasdi.
@@ -119,16 +135,28 @@ export function LiveGame({ initial, token }: Props) {
         if (ack.ok) {
           setGame(ack.data);
           setDrawFrom(ack.data.drawOfferFrom);
+          // Snapshot keldi — endi taxta ishonchli, qulf ochiladi.
+          setConnection('open');
         } else {
           setNotice(ack.error.message);
         }
       });
     });
     socket.on('disconnect', () => {
-      setConnection('closed');
+      // socket.io O'ZI qayta urinadi — darhol "aloqa yo'q" deyish
+      // yolg'on bo'lardi va o'yinchini keraksiz vahimaga solardi.
+      setConnection('reconnecting');
     });
+
+    // Qayta urinishlar tugadi — endi haqiqatan aloqa yo'q.
+    socket.io.on('reconnect_failed', () => {
+      setConnection('offline');
+    });
+
     socket.on('connect_error', () => {
-      setConnection('error');
+      // Birinchi urinish yiqilsa — aloqa yo'q; keyingilarida socket.io
+      // qayta urinayotgan bo'ladi.
+      setConnection((prev) => (prev === 'connecting' ? 'offline' : 'reconnecting'));
     });
 
     socket.on('game:move_made', (payload: { fen: string; san: string; clock: GameState['clock'] }) => {
@@ -212,6 +240,15 @@ export function LiveGame({ initial, token }: Props) {
   );
 
   const active = game.status === 'ACTIVE';
+  /**
+   * SHOH — oxirgi yurish SAN'idan aniqlanadi (`+` shoh, `#` mat).
+   *
+   * Nega chess.js emas: shaxmat qoidalari kutubxonasi klient bundle'ига
+   * ~100 KB qo'shadi, holbuki bizga bitta bit kerak. SAN — server
+   * bergan RASMIY notatsiya (docs/07), ya'ni bu taxmin emas.
+   */
+  const lastSan = game.moves[game.moves.length - 1] ?? '';
+  const inCheck = active && lastSan.endsWith('+');
   // Yurish huquqi token BORLIGIDAN emas, server bergan ROLDAN kelib
   // chiqadi: kirgan foydalanuvchi ham begona o'yinning tomoshabini
   // bo'lishi mumkin. `viewerRole` SSR'da doim 'spectator', haqiqiy
@@ -296,6 +333,13 @@ export function LiveGame({ initial, token }: Props) {
         {drawFrom !== null && drawFrom === mySide && active && (
           <p className="muted small" role="status" style={{ margin: 0 }}>
             Durang taklifi yuborildi — raqib javobini kutmoqda.
+          </p>
+        )}
+
+        {/* SHOH — brif §6.4 alohida holat sifatida talab qiladi. */}
+        {inCheck && (
+          <p className="check-flag" role="status">
+            Shoh
           </p>
         )}
 
@@ -402,16 +446,18 @@ function PlayerPod({ label, ms, active }: { label: string; ms: number; active: b
  * Uzilgan holatda taxta eskirgan bo'ladi va o'yinchi buni BILISHI kerak.
  */
 function ConnectionBadge({ state }: { state: Connection }) {
-  const view: Record<Connection, { text: string; color: string }> = {
-    connecting: { text: 'Ulanmoqda…', color: 'var(--ink-secondary)' },
-    open: { text: 'Jonli', color: 'var(--emerald-bright)' },
-    closed: { text: 'Uzildi — ma`lumot eskirgan', color: 'var(--amber)' },
-    error: { text: 'Ulanib bo`lmadi', color: 'var(--burgundy)' },
+  const view: Record<Connection, { text: string; tone: string }> = {
+    connecting: { text: 'Ulanmoqda…', tone: 'idle' },
+    open: { text: 'Ulangan', tone: 'ok' },
+    syncing: { text: 'Sinxronlanmoqda — taxta qulflangan', tone: 'warn' },
+    reconnecting: { text: 'Qayta ulanmoqda… — ma`lumot eskirgan', tone: 'warn' },
+    offline: { text: 'Aloqa yo`q', tone: 'bad' },
   };
-  const { text, color } = view[state];
+  const { text, tone } = view[state];
   return (
-    <p className="small" style={{ color, marginTop: 8, marginBottom: 0 }}>
-      ● {text}
+    <p className="conn" data-tone={tone} role="status">
+      <span className="conn-dot" aria-hidden="true" />
+      {text}
     </p>
   );
 }

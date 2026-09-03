@@ -1489,3 +1489,59 @@ kbd {
   padding: 0 6px;
   cursor: pointer;
 }
+
+/* --- Ulanish holati (brif §5.11) --------------------------------------- */
+/*
+ * Holat HECH QACHON yashirilmaydi. Brif buni aniq aytadi: "silent
+ * disconnect is the worst UX — make it visible".
+ */
+.conn {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 10px 0 0;
+  font-size: 13px;
+  color: var(--ink-secondary);
+}
+
+.conn-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: currentColor;
+  flex: none;
+}
+
+.conn[data-tone='ok'] {
+  color: var(--accent);
+}
+
+.conn[data-tone='warn'] {
+  color: var(--amber);
+}
+
+.conn[data-tone='bad'] {
+  color: var(--burgundy);
+}
+
+/* --- Shoh ------------------------------------------------------------- */
+/*
+ * Rangga QO'SHIMCHA matn: rang yolg'iz o'zi ma'lumot tashimasligi
+ * kerak (WCAG 1.4.1 — brif §8 dagi "colourblind-safe" talabi).
+ */
+.check-flag {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  align-self: flex-start;
+  margin: 0;
+  padding: 6px 12px;
+  border-radius: 999px;
+  border: var(--hairline-width) solid color-mix(in srgb, var(--burgundy) 55%, transparent);
+  background: color-mix(in srgb, var(--burgundy) 12%, transparent);
+  color: var(--burgundy);
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}

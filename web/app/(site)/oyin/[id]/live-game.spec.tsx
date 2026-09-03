@@ -44,11 +44,15 @@ interface FakeSocket {
   on: (event: string, fn: (payload: unknown) => void) => void;
   emit: (event: string, payload: unknown, ack?: (v: unknown) => void) => void;
   disconnect: () => void;
+  /** Manager — socket.io`ning qayta ulanish hodisalari shu yerda. */
+  io: { on: (event: string, fn: (payload: unknown) => void) => void };
 }
 
 let ioOptions: Record<string, unknown> | null = null;
 let ioCalls = 0;
 const listeners = new Map<string, (payload: unknown) => void>();
+/** Manager darajasidagi tinglovchilar (`reconnect_failed` va h.k.). */
+const managerListeners = new Map<string, (payload: unknown) => void>();
 const emits: { event: string; payload: unknown }[] = [];
 let joinAck: unknown = null;
 
@@ -62,11 +66,18 @@ vi.mock('socket.io-client', () => ({
       },
       emit: (event, payload, ack) => {
         emits.push({ event, payload });
-        if (event === 'game:join' && ack !== undefined) {
+        // joinAck === null => server HALI javob bermagan (sinxronlanish
+        // holati). Haqiqiy serverda ack har doim to'liq snapshot bo'ladi.
+        if (event === 'game:join' && ack !== undefined && joinAck !== null) {
           ack(joinAck);
         }
       },
       disconnect: vi.fn(),
+      io: {
+        on: (event, fn) => {
+          managerListeners.set(event, fn);
+        },
+      },
     };
   },
 }));
@@ -111,6 +122,7 @@ describe('LiveGame', () => {
     ioCalls = 0;
     ioOptions = null;
     listeners.clear();
+    managerListeners.clear();
     emits.length = 0;
     joinAck = null;
   });
@@ -143,8 +155,84 @@ describe('LiveGame', () => {
       await renderGame('tok-1', { ok: true, data: { ...BASE, viewerRole: 'white' } });
       await connect();
       expect(emits[0]).toEqual({ event: 'game:join', payload: { gameId: 'game-1' } });
-      // Nishon "● Jonli" ko'rinishida — aniq moslik emas, regex.
-      expect(screen.getByText(/Jonli/)).toBeInTheDocument();
+      expect(screen.getByText(/Ulangan/)).toBeInTheDocument();
+    });
+  });
+
+  describe('ulanish holatlari (brif §5.11)', () => {
+    it('ulangach avval SINXRONLANMOQDA — taxta hali qulf', async () => {
+      // Ack BERILMAYDI: snapshot kelmagan holatni taqlid qilamiz.
+      await renderGame('tok-1', undefined);
+      await act(async () => {
+        listeners.get('connect')?.(undefined);
+      });
+
+      expect(screen.getByText(/Sinxronlanmoqda/)).toBeInTheDocument();
+      expect(board()).toHaveAttribute('data-draggable', 'no');
+    });
+
+    it('snapshot kelgach ULANGAN va taxta ochiladi', async () => {
+      await renderGame('tok-1', { ok: true, data: { ...BASE, viewerRole: 'white' } });
+      await connect();
+
+      expect(screen.getByText(/Ulangan/)).toBeInTheDocument();
+      expect(board()).toHaveAttribute('data-draggable', 'yes');
+    });
+
+    it('uzilganda darhol vahima ko‘tarilmaydi — «qayta ulanmoqda»', async () => {
+      await renderGame('tok-1', { ok: true, data: { ...BASE, viewerRole: 'white' } });
+      await connect();
+
+      await act(async () => {
+        listeners.get('disconnect')?.(undefined);
+      });
+
+      // socket.io o'zi qayta urinadi — «aloqa yo'q» deyish erta bo'lardi.
+      expect(screen.getByText(/Qayta ulanmoqda/)).toBeInTheDocument();
+      expect(screen.queryByText(/Aloqa yo/)).toBeNull();
+    });
+
+    it('urinishlar tugagach ALOQA UZILDI deb aytiladi', async () => {
+      await renderGame('tok-1', { ok: true, data: { ...BASE, viewerRole: 'white' } });
+      await connect();
+
+      await act(async () => {
+        listeners.get('disconnect')?.(undefined);
+      });
+      await act(async () => {
+        managerListeners.get('reconnect_failed')?.(undefined);
+      });
+
+      expect(screen.getByText(/Aloqa yo/)).toBeInTheDocument();
+    });
+  });
+
+  describe('shoh (brif §6.4)', () => {
+    it('SAN «+» bilan tugasa SHOH ko‘rsatiladi', async () => {
+      await renderGame('tok-1', {
+        ok: true,
+        data: { ...BASE, viewerRole: 'white', moves: ['e4', 'e5', 'Qh5+'] },
+      });
+      await connect();
+      expect(screen.getByText('Shoh')).toBeInTheDocument();
+    });
+
+    it('oddiy yurishda shoh YO‘Q', async () => {
+      await renderGame('tok-1', {
+        ok: true,
+        data: { ...BASE, viewerRole: 'white', moves: ['e4', 'e5'] },
+      });
+      await connect();
+      expect(screen.queryByText('Shoh')).toBeNull();
+    });
+
+    it('tugagan o‘yinda shoh ko‘rsatilmaydi — matni natija banneri aytadi', async () => {
+      await renderGame('tok-1', {
+        ok: true,
+        data: { ...BASE, viewerRole: 'white', status: 'CHECKMATE', moves: ['Qh7#'] },
+      });
+      await connect();
+      expect(screen.queryByText('Shoh')).toBeNull();
     });
   });
 
@@ -225,7 +313,7 @@ describe('LiveGame', () => {
       });
 
       expect(board()).toHaveAttribute('data-fen', 'server-fen');
-      expect(screen.getByRole('status')).toHaveTextContent('Noqonuniy yurish');
+      expect(screen.getByText('Noqonuniy yurish')).toBeInTheDocument();
     });
 
     it('soat SERVER qiymati bilan qayta moslanadi', async () => {
