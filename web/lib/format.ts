@@ -111,6 +111,20 @@ export function statusView(status: TournamentStatus): StatusView {
   }
 }
 
+/**
+ * Ismning bosh harflari — avatar o'rniga (rasm hali yo'q).
+ *
+ * Tartib "Familiya Ism" bilan BIR XIL: ro'yxatda ism qanday
+ * ko'rinsa, doiradagi harflar ham shunday o'qiladi.
+ */
+export function initials(first: string | null, last: string | null): string {
+  const a = (last ?? '').trim().charAt(0);
+  const b = (first ?? '').trim().charAt(0);
+  const text = `${a}${b}`.toUpperCase();
+  // Ikkalasi ham bo'sh — savol belgisi, bo'sh doira emas.
+  return text === '' ? '?' : text;
+}
+
 /** "Familiya Ism" — bo'sh maydonlar xavfsiz. */
 export function fullName(first: string | null, last: string | null): string {
   const parts = [last, first].filter((p): p is string => p !== null && p.trim() !== '');

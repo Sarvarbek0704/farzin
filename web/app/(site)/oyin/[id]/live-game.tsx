@@ -118,6 +118,26 @@ export function LiveGame({ initial, token }: Props) {
     const base = process.env.NEXT_PUBLIC_WS_URL ?? 'http://localhost:3000';
     const socket = io(`${base}/play`, {
       transports: ['websocket'],
+      /*
+       * ⚠️  `forceNew` MAJBURIY — bu ALOHIDA ulanish.
+       *
+       *     socket.io-client bir xil namespace uchun soketni QAYTA
+       *     ISHLATADI: `io(url)` ikkinchi marta chaqirilsa AYNI
+       *     obyektni qaytaradi. Qobiqdagi soket (lib/play-socket.tsx)
+       *     ham `/play` da, ya'ni multipleks bilan ikkalasi bitta
+       *     obyektga aylanardi va bu ekranni buzardi:
+       *
+       *      - `connect` hodisasi CHIQMAYDI (soket allaqachon ulangan),
+       *        demak `game:join` yuborilmaydi va taxta abadiy
+       *        "Sinxronlanmoqda" holatida qoladi;
+       *      - bu yerdagi tozalash `disconnect()` qobiqning soketini
+       *        ham o'ldirardi.
+       *
+       *     E2E testda aynan shu ko'rindi ("Jonli" ko'rsatkichi
+       *     chiqmadi). Ikkinchi ulanish arzon: u faqat o'yin ekrani
+       *     ochiq turganda yashaydi.
+       */
+      forceNew: true,
       ...(token === null ? {} : { auth: { token } }),
     });
     socketRef.current = socket;
@@ -159,18 +179,21 @@ export function LiveGame({ initial, token }: Props) {
       setConnection((prev) => (prev === 'connecting' ? 'offline' : 'reconnecting'));
     });
 
-    socket.on('game:move_made', (payload: { fen: string; san: string; clock: GameState['clock'] }) => {
-      setGame((prev) => ({
-        ...prev,
-        fen: payload.fen,
-        moves: [...prev.moves, payload.san],
-        clock: payload.clock,
-      }));
-      setNotice(null);
-      // Yurish qilindi — osilgan durang taklifi kuchini yo'qotadi
-      // (server ham shunday hisoblaydi).
-      setDrawFrom(null);
-    });
+    socket.on(
+      'game:move_made',
+      (payload: { fen: string; san: string; clock: GameState['clock'] }) => {
+        setGame((prev) => ({
+          ...prev,
+          fen: payload.fen,
+          moves: [...prev.moves, payload.san],
+          clock: payload.clock,
+        }));
+        setNotice(null);
+        // Yurish qilindi — osilgan durang taklifi kuchini yo'qotadi
+        // (server ham shunday hisoblaydi).
+        setDrawFrom(null);
+      },
+    );
 
     // Soat — SERVER qiymati bilan qayta moslash (§3.7).
     socket.on('game:clock_update', (clock: GameState['clock']) => {
@@ -225,15 +248,11 @@ export function LiveGame({ initial, token }: Props) {
       }
       // Kontrakt: {gameId, from, to, promotion?} — docs/07 §7.2.
       // Server UCI'ga o'zi yig'adi (play.gateway.ts moveIntent).
-      socket.emit(
-        'game:move',
-        { gameId: game.gameId, from, to },
-        (ack: Ack<{ ply: number }>) => {
-          if (!ack.ok) {
-            setNotice(ack.error.message);
-          }
-        },
-      );
+      socket.emit('game:move', { gameId: game.gameId, from, to }, (ack: Ack<{ ply: number }>) => {
+        if (!ack.ok) {
+          setNotice(ack.error.message);
+        }
+      });
       return false;
     },
     [game.gameId],
@@ -305,9 +324,7 @@ export function LiveGame({ initial, token }: Props) {
               <button
                 type="button"
                 className="btn btn-primary"
-                onClick={() =>
-                  socketRef.current?.emit('game:draw_accept', { gameId: game.gameId })
-                }
+                onClick={() => socketRef.current?.emit('game:draw_accept', { gameId: game.gameId })}
               >
                 Qabul qilish
               </button>

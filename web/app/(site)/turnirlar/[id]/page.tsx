@@ -18,6 +18,7 @@ import {
   formatSom,
   formatTimeControl,
   fullName,
+  initials,
   statusView,
 } from '@/lib/format';
 import { BackLink, Card, EmptyState, PageHeader, TitleTag } from '@/components/ui';
@@ -73,7 +74,9 @@ export default async function TournamentPage({ params }: { params: Promise<{ id:
             {formatDateRange(tournament.startDate, tournament.endDate)}
           </span>
           {tournament.venueName !== null && <span className="badge">{tournament.venueName}</span>}
-          <span className={formatSom(tournament.entryFeeAmount) === 'Bepul' ? 'badge' : 'badge tabular'}>
+          <span
+            className={formatSom(tournament.entryFeeAmount) === 'Bepul' ? 'badge' : 'badge tabular'}
+          >
             {formatSom(tournament.entryFeeAmount)}
           </span>
           {tournament.isNationallyRated && <span className="badge">Milliy reyting</span>}
@@ -110,9 +113,10 @@ function SectionBlock({ view }: { view: SectionView }) {
 
   // Tie-break ustunlari — seksiyada AMALDA ishlatilganlari bo'yicha.
   // Barcha 10 kalitni ko'rsatish jadvalni o'qib bo'lmaydigan qiladi.
-  const tieBreakKeys = [
-    ...new Set(ordered.flatMap((s) => Object.keys(s.tieBreakValues))),
-  ].slice(0, 4);
+  const tieBreakKeys = [...new Set(ordered.flatMap((s) => Object.keys(s.tieBreakValues)))].slice(
+    0,
+    4,
+  );
 
   return (
     <section style={{ marginBottom: 32 }}>
@@ -139,16 +143,39 @@ function SectionBlock({ view }: { view: SectionView }) {
           <EmptyState title="Ishtirokchilar hali ro`yxatdan o`tmagan" />
         ) : (
           <Card>
-            <h3 style={{ marginBottom: 10 }}>Ishtirokchilar ({registrations.length})</h3>
-            <ul style={{ margin: 0, paddingLeft: 18 }}>
+            <h3 style={{ marginBottom: 12 }}>Ishtirokchilar ({registrations.length})</h3>
+            {/*
+             * Nuqtali ro'yxat EMAS, kartochkalar to'ri.
+             *
+             * Ishtirokchilar ro'yxati uzun bo'ladi (50-200 odam) va
+             * bitta ustunli nuqtali ro'yxat sahifani cho'zib yuboradi.
+             * To'r ekran kengligiga moslashadi; bosh harflar esa
+             * ro'yxatni ko'z bilan skanerlashni osonlashtiradi —
+             * do'stlar ro'yxatidagi bilan AYNI naqsh.
+             */}
+            <ul className="person-list person-grid">
               {registrations.map((r) => (
-                <li key={r.id}>
-                  <TitleTag title={r.title} />
-                  <Link href={`/oyinchi/${r.playerId}`}>{fullName(r.firstName, r.lastName)}</Link>
+                <li key={r.id} className="person-item">
+                  <div className="person-row">
+                    <span className="avatar" aria-hidden="true">
+                      {initials(r.firstName, r.lastName)}
+                    </span>
+                    <span className="person-name">
+                      <TitleTag title={r.title} />
+                      <Link href={`/oyinchi/${r.playerId}`}>
+                        {fullName(r.firstName, r.lastName)}
+                      </Link>
+                      {r.fideId !== null && (
+                        <span className="muted small tabular" style={{ display: 'block' }}>
+                          FIDE {r.fideId}
+                        </span>
+                      )}
+                    </span>
+                  </div>
                 </li>
               ))}
             </ul>
-            <p className="muted small" style={{ marginBottom: 0, marginTop: 12 }}>
+            <p className="muted small" style={{ marginBottom: 0, marginTop: 14 }}>
               Jadval birinchi tur yakunlangach paydo bo`ladi.
             </p>
           </Card>

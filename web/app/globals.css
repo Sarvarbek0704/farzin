@@ -123,7 +123,11 @@ body {
   flex-direction: column;
   background: var(--bg);
   color: var(--ink);
-  font-family: var(--font-inter), system-ui, -apple-system, sans-serif;
+  font-family:
+    var(--font-inter),
+    system-ui,
+    -apple-system,
+    sans-serif;
   font-size: 16px;
   line-height: 1.6;
   -webkit-font-smoothing: antialiased;
@@ -364,8 +368,12 @@ p {
   height: 20px;
   border-radius: 5px;
   flex: none;
-  background:
-    conic-gradient(var(--sq-dark) 25%, var(--sq-light) 0 50%, var(--sq-dark) 0 75%, var(--sq-light) 0);
+  background: conic-gradient(
+    var(--sq-dark) 25%,
+    var(--sq-light) 0 50%,
+    var(--sq-dark) 0 75%,
+    var(--sq-light) 0
+  );
 }
 
 .site-nav {
@@ -479,7 +487,10 @@ p {
   line-height: 1.2;
   cursor: pointer;
   text-decoration: none;
-  transition: background-color 120ms ease, border-color 120ms ease, color 120ms ease;
+  transition:
+    background-color 120ms ease,
+    border-color 120ms ease,
+    color 120ms ease;
   white-space: nowrap;
 }
 
@@ -552,7 +563,10 @@ a.card,
 .card-link {
   display: block;
   color: inherit;
-  transition: border-color 140ms ease, transform 140ms ease, box-shadow 140ms ease;
+  transition:
+    border-color 140ms ease,
+    transform 140ms ease,
+    box-shadow 140ms ease;
 }
 
 a.card:hover,
@@ -737,7 +751,9 @@ tbody tr:hover {
   border-radius: 999px;
   cursor: pointer;
   line-height: 1.4;
-  transition: background-color 120ms ease, color 120ms ease;
+  transition:
+    background-color 120ms ease,
+    color 120ms ease;
 }
 
 .seg button:hover {
@@ -762,8 +778,12 @@ tbody tr:hover {
   aspect-ratio: 1 / 1;
   border-radius: var(--radius-board);
   overflow: hidden;
-  background:
-    conic-gradient(var(--sq-dark) 25%, var(--sq-light) 0 50%, var(--sq-dark) 0 75%, var(--sq-light) 0)
+  background: conic-gradient(
+      var(--sq-dark) 25%,
+      var(--sq-light) 0 50%,
+      var(--sq-dark) 0 75%,
+      var(--sq-light) 0
+    )
     0 0 / 25% 25%;
   box-shadow: var(--shadow-2);
 }
@@ -772,11 +792,7 @@ tbody tr:hover {
 .board-rule {
   height: 6px;
   border-radius: 3px;
-  background-image: linear-gradient(
-    90deg,
-    var(--sq-light) 0 12.5%,
-    var(--sq-dark) 12.5% 25%
-  );
+  background-image: linear-gradient(90deg, var(--sq-light) 0 12.5%, var(--sq-dark) 12.5% 25%);
   background-size: 48px 100%;
   opacity: 0.85;
 }
@@ -795,9 +811,8 @@ tbody tr:hover {
   position: absolute;
   inset: 0;
   pointer-events: none;
-  background:
-    conic-gradient(var(--ink) 25%, transparent 0 50%, var(--ink) 0 75%, transparent 0)
-    0 0 / 28px 28px;
+  background: conic-gradient(var(--ink) 25%, transparent 0 50%, var(--ink) 0 75%, transparent 0) 0
+    0 / 28px 28px;
   opacity: 0.035;
   -webkit-mask-image: linear-gradient(115deg, transparent 55%, black 100%);
   mask-image: linear-gradient(115deg, transparent 55%, black 100%);
@@ -1031,7 +1046,9 @@ tbody tr:hover {
   background: transparent;
   color: var(--ink-secondary);
   cursor: pointer;
-  transition: color 120ms ease, background-color 120ms ease;
+  transition:
+    color 120ms ease,
+    background-color 120ms ease;
 }
 
 .field-action:hover {
@@ -1081,7 +1098,9 @@ tbody tr:hover {
   padding: 9px 12px;
   border-radius: 7px;
   cursor: pointer;
-  transition: background-color 120ms ease, color 120ms ease;
+  transition:
+    background-color 120ms ease,
+    color 120ms ease;
 }
 
 .auth-tabs button:hover {
@@ -1460,7 +1479,10 @@ kbd {
   font-size: 15px;
   font-weight: 600;
   cursor: pointer;
-  transition: background-color 110ms ease, border-color 110ms ease, color 110ms ease;
+  transition:
+    background-color 110ms ease,
+    border-color 110ms ease,
+    color 110ms ease;
 }
 
 .result-pick button:hover:not(:disabled) {
@@ -1566,7 +1588,9 @@ kbd {
   font-weight: 700;
   line-height: 1;
   cursor: pointer;
-  transition: color 110ms ease, border-color 110ms ease;
+  transition:
+    color 110ms ease,
+    border-color 110ms ease;
 }
 
 .why-button:hover,
@@ -1657,4 +1681,173 @@ kbd {
 .cr-b {
   background: var(--sq-dark);
   color: #f7f3e6;
+}
+
+/* ═══════════════════ DO'STLAR: ODAMLAR RO'YXATI ═════════════════════════ */
+/*
+ * Odam qatori — jadval EMAS.
+ *
+ * Jadval ustunlari (ism | holat | amallar) telefonda yonma-yon
+ * sig'maydi va gorizontal siljish paydo bo'lardi. Bu ro'yxatda esa
+ * qator o'zi bukiladi: amallar ism ostiga tushadi.
+ */
+
+.person-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.person-item {
+  border: var(--hairline-width) solid var(--hairline);
+  border-radius: var(--radius-card);
+  background: var(--surface);
+  padding: 12px 14px;
+}
+
+.person-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.person-name {
+  font-weight: 500;
+  /* Uzun ismlar amallarni chetga surib yubormasin. */
+  min-width: 0;
+  flex: 1 1 12ch;
+}
+
+.person-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-left: auto;
+}
+
+/* Bosh harflar — rasm o'rniga. Doira ichida, mono emas: ism matni. */
+.avatar {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  flex: 0 0 34px;
+  border-radius: 50%;
+  background: color-mix(in srgb, var(--accent) 16%, transparent);
+  border: var(--hairline-width) solid color-mix(in srgb, var(--accent) 34%, transparent);
+  color: var(--ink);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  user-select: none;
+}
+
+/* --- Tugmali tab (tabs konteyneri ichida) ------------------------------- */
+/*
+ * `.tabs a` havola uchun; bu yerda tanlov URL'ga chiqmaydi (shaxsiy
+ * ro'yxat, ulashish ma'nosi yo'q), shuning uchun tugma.
+ */
+.tab-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 8px 14px;
+  border: none;
+  border-radius: 7px;
+  background: transparent;
+  font: inherit;
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--ink-secondary);
+  cursor: pointer;
+  white-space: nowrap;
+  /* WCAG 2.5.8 — 24×24 dan kichik nishon bo'lmasin. */
+  min-height: 36px;
+  transition:
+    background-color 120ms ease,
+    color 120ms ease;
+}
+
+.tab-btn:hover {
+  color: var(--ink);
+  background: color-mix(in srgb, var(--ink) 6%, transparent);
+}
+
+.tab-btn[aria-selected='true'] {
+  background: var(--surface);
+  color: var(--ink);
+  font-weight: 600;
+  box-shadow: var(--shadow-1);
+}
+
+/* Son nishoni. Rang YOLG'IZ signal emas — son o'zi ham ma'no beradi
+   (WCAG 1.4.1). */
+.count-pill {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 20px;
+  height: 20px;
+  padding: 0 6px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--ink) 12%, transparent);
+  color: var(--ink-secondary);
+  font-size: 12px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.count-pill-alert {
+  background: var(--accent);
+  color: var(--accent-ink);
+}
+
+/* Bo'lim sarlavhasi ro'yxat ustida — h2 dan kichikroq va tinchroq. */
+.section-title {
+  font-family: var(--font-inter), system-ui, sans-serif;
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--ink-secondary);
+  margin: 0 0 10px;
+}
+
+/* --- Chaqiriq paneli (qator ostida ochiladi) ---------------------------- */
+
+.challenge-panel {
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: var(--hairline-width) solid var(--hairline);
+}
+
+.challenge-presets {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(104px, 1fr));
+  gap: 8px;
+}
+
+.challenge-presets .btn {
+  flex-direction: column;
+  gap: 2px;
+  height: auto;
+  padding: 10px 8px;
+}
+
+/*
+ * Odamlar TO'RI — uzun ro'yxatlar uchun (turnir ishtirokchilari).
+ *
+ * Bitta ustunli ro'yxat 200 kishilik turnirni sahifa bo'yi cho'zib
+ * yuborardi. To'r ekran kengligiga qarab ustun soni tanlaydi.
+ */
+.person-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  gap: 8px;
 }

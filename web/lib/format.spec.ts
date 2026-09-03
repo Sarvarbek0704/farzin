@@ -7,6 +7,7 @@ import {
   formatSom,
   formatTimeControl,
   fullName,
+  initials,
   statusView,
 } from './format';
 
@@ -48,9 +49,7 @@ describe('formatSom', () => {
   it('katta summa — Number aniqligidan tashqarida ham to`g`ri', () => {
     // ADR-0006 ning sababi: `Number` 2^53 dan katta butun sonni
     // yo'qotadi. BigInt bilan hisoblanadi.
-    expect(formatSom('9007199254740993000')).toBe(
-      "90 071 992 547 409 930 so'm",
-    );
+    expect(formatSom('9007199254740993000')).toBe("90 071 992 547 409 930 so'm");
   });
 
   it('null → "Bepul" (nol EMAS)', () => {
@@ -131,5 +130,26 @@ describe('fullName', () => {
 
   it('ikkalasi ham yo`q bo`lsa ham YIQILMAYDI', () => {
     expect(fullName(null, null)).toBe('Noma`lum');
+  });
+});
+
+describe('initials', () => {
+  it('familiya + ism bosh harflari — ko`rsatish tartibida', () => {
+    expect(initials('Nodirbek', 'Abdusattorov')).toBe('AN');
+  });
+
+  it('bitta maydon bo`lsa bitta harf', () => {
+    expect(initials(null, 'Abdusattorov')).toBe('A');
+    expect(initials('Nodirbek', null)).toBe('N');
+  });
+
+  it('ikkalasi ham bo`sh — savol belgisi, BO`SH doira emas', () => {
+    // Bo'sh doira "yuklanmoqda" degan taassurot berardi.
+    expect(initials(null, null)).toBe('?');
+    expect(initials('   ', '')).toBe('?');
+  });
+
+  it('doim BOSH harf', () => {
+    expect(initials('javokhir', 'sindarov')).toBe('SJ');
   });
 });

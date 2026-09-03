@@ -59,7 +59,9 @@ async function clearQueue(email: string): Promise<void> {
 async function signIn(page: Page, email: string): Promise<void> {
   await page.goto('/konsol/kirish');
   await page.getByLabel(/Email/i).fill(email);
-  await page.getByLabel(/Parol/i).fill(PASSWORD);
+  // exact MAJBURIY: ko`rsatish/yashirish tugmasining aria-label`i ham
+  // "Parol" bilan boshlanadi va regexp ikkalasini tutib olardi.
+  await page.getByLabel('Parol', { exact: true }).fill(PASSWORD);
   await page.getByRole('button', { name: /Kirish/ }).click();
   // Kirish muvaffaqiyatli bo'lsa konsolga o'tadi.
   await expect(page).toHaveURL(/\/konsol$/, { timeout: 15_000 });

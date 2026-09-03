@@ -151,6 +151,16 @@ describe('LiveGame', () => {
       expect(ioOptions?.transports).toEqual(['websocket']);
     });
 
+    it('ALOHIDA ulanish — qobiqdagi soket bilan MULTIPLEKS QILINMAYDI', async () => {
+      // socket.io-client bir xil namespace uchun soketni qayta
+      // ishlatadi. Qobiqdagi soket (lib/play-socket.tsx) ham `/play`
+      // da: `forceNew` bo'lmasa ikkalasi bitta obyektga aylanadi,
+      // `connect` chiqmaydi va taxta abadiy "Sinxronlanmoqda" da
+      // qoladi. E2E aynan shuni ushlagan.
+      await renderGame('tok-1');
+      expect(ioOptions?.forceNew).toBe(true);
+    });
+
     it('ulangach `game:join` YUBORILADI va javob ACK orqali keladi', async () => {
       await renderGame('tok-1', { ok: true, data: { ...BASE, viewerRole: 'white' } });
       await connect();

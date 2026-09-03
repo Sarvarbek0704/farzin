@@ -28,18 +28,49 @@ vi.mock('next/navigation', () => ({
   useRouter: () => ({ push }),
 }));
 
-// Socket faqat `matchmaking:matched` push'ini kutadi; testda uni
-// qo'lda chaqirish uchun tinglovchini saqlab qo'yamiz.
-const handlers = new Map<string, (payload: unknown) => void>();
-const disconnect = vi.fn();
-vi.mock('socket.io-client', () => ({
-  io: () => ({
-    on: (event: string, fn: (payload: unknown) => void) => {
-      handlers.set(event, fn);
-    },
-    disconnect,
-  }),
-}));
+/*
+ * SOKET — SAHIFANIKI EMAS, QOBIQNIKI.
+ *
+ * `matchmaking:matched` endi `lib/play-socket.tsx` da tinglanadi
+ * (do'stona chaqiriqda o'yinchi bu sahifada bo'lmasligi mumkin), va
+ * uning O'Z testi bor: lib/play-socket.spec.tsx.
+ *
+ * Bu yerda sahifaga faqat ikki narsa kerak: ulanish HOLATI (presetlar
+ * shunga qarab ochiladi) va "qayta ulandik" SIGNALI (o'tkazib
+ * yuborilgan juftlikni tiklash). Ikkalasi ham quyidagi soxta do'kon
+ * orqali boshqariladi.
+ */
+const socketStore = {
+  connected: false,
+  /** `useSyncExternalStore` tinglovchilari — qayta chizish uchun. */
+  subscribers: new Set<() => void>(),
+  /** Sahifaning "ulandik" ishlovchilari. */
+  onConnect: new Set<() => void>(),
+};
+
+function subscribeStore(callback: () => void): () => void {
+  socketStore.subscribers.add(callback);
+  return () => socketStore.subscribers.delete(callback);
+}
+
+function subscribeConnected(callback: () => void): () => void {
+  socketStore.onConnect.add(callback);
+  return () => socketStore.onConnect.delete(callback);
+}
+
+vi.mock('@/lib/play-socket', async () => {
+  const { useSyncExternalStore } = await import('react');
+  return {
+    usePlaySocket: () => ({
+      connected: useSyncExternalStore(
+        subscribeStore,
+        () => socketStore.connected,
+        () => socketStore.connected,
+      ),
+      subscribeConnected,
+    }),
+  };
+});
 
 /** `my/games` qatori namunasi. */
 const GAME_ROW = {
@@ -64,22 +95,26 @@ async function renderPage(options: { connect?: boolean } = {}) {
   await act(async () => {
     render(<Page />);
   });
-  // Haqiqiy socket ulangach `connect` chiqaradi; presetlar shundan
-  // keyin ochiladi. Testlar buni ATAYLAB qo'lda chaqiradi — ulanish
+  // Haqiqiy soket ulangach signal beradi; presetlar shundan keyin
+  // ochiladi. Testlar buni ATAYLAB qo'lda chaqiradi — ulanish
   // bo'lmagan holat ham tekshiriladigan xulq.
   if (options.connect !== false) {
-    await fire('connect', undefined);
+    await fire('connect');
   }
 }
 
-/** Socket eventini chaqirish. */
-async function fire(event: string, payload: unknown): Promise<void> {
-  const handler = handlers.get(event);
-  if (handler === undefined) {
-    throw new Error(`"${event}" tinglovchisi ro'yxatdan o'tmagan`);
-  }
+/** Ulanish/uzilishni taqlid qilish. */
+async function fire(event: 'connect' | 'disconnect'): Promise<void> {
   await act(async () => {
-    handler(payload);
+    socketStore.connected = event === 'connect';
+    for (const callback of socketStore.subscribers) {
+      callback();
+    }
+    if (event === 'connect') {
+      for (const callback of socketStore.onConnect) {
+        callback();
+      }
+    }
   });
 }
 
@@ -87,7 +122,9 @@ describe('navbat sahifasi', () => {
   beforeEach(() => {
     authFetch.mockReset();
     push.mockReset();
-    handlers.clear();
+    socketStore.connected = false;
+    socketStore.onConnect.clear();
+    socketStore.subscribers.clear();
     token = 'test-token';
     authFetch.mockResolvedValue(jsonResponse([]));
   });
@@ -216,11 +253,11 @@ describe('navbat sahifasi', () => {
       expect(push).not.toHaveBeenCalled();
 
       // Uzilish paytida server juftlashtirdi va push yo'qoldi.
-      await fire('disconnect', undefined);
+      await fire('disconnect');
       authFetch.mockResolvedValue(
         jsonResponse([{ ...GAME_ROW, id: 'game-yangi', status: 'ACTIVE' }]),
       );
-      await fire('connect', undefined);
+      await fire('connect');
 
       expect(push).toHaveBeenCalledWith('/oyin/game-yangi');
     });
@@ -238,7 +275,7 @@ describe('navbat sahifasi', () => {
 
       // Qayta ulanishda o'sha ESKI o'yin qaytadi — bu juftlik EMAS.
       authFetch.mockResolvedValue(jsonResponse([{ ...GAME_ROW, id: 'game-eski' }]));
-      await fire('connect', undefined);
+      await fire('connect');
 
       expect(push).not.toHaveBeenCalled();
     });
@@ -248,7 +285,7 @@ describe('navbat sahifasi', () => {
       await renderPage();
       await screen.findByRole('link', { name: /Davom ettirish/ });
 
-      await fire('connect', undefined);
+      await fire('connect');
       expect(push).not.toHaveBeenCalled();
     });
 
@@ -266,17 +303,5 @@ describe('navbat sahifasi', () => {
       // Foydalanuvchi SERVERDA navbatda — UI ham shuni ko'rsatishi kerak.
       expect(await screen.findByRole('button', { name: /Navbatdan chiqish/ })).toBeInTheDocument();
     });
-  });
-
-  it('navbatda turganda PUSH kelsa ham o`yinga o`tiladi', async () => {
-    await renderPage();
-    await screen.findByText(/Faol o.yin yo.q/);
-
-    const onMatched = handlers.get('matchmaking:matched');
-    expect(onMatched).toBeDefined();
-    await act(async () => {
-      onMatched?.({ gameId: 'game-push' });
-    });
-    expect(push).toHaveBeenCalledWith('/oyin/game-push');
   });
 });

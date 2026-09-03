@@ -3,11 +3,11 @@
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { io, type Socket } from 'socket.io-client';
 
 import { Card, EmptyState, PageHeader } from '@/components/ui';
 import { readJson, useAuth } from '@/lib/auth';
 import { formatTimeControl } from '@/lib/format';
+import { usePlaySocket } from '@/lib/play-socket';
 import {
   CATEGORY_LABEL,
   PRESETS,
@@ -52,6 +52,14 @@ import {
  *   2. Bo'shliq baribir ochilsa (uzilish) — har ulanishda `my/games`
  *      tekshiriladi va navbatga turishdan OLDIN bo'lmagan yangi o'yin
  *      topilsa unga o'tiladi (`recoverMissedMatch`).
+ *
+ * ───────────────────────────────────────────────────────────────────────────
+ *  SOKETNING O'ZI ENDI BU YERDA EMAS
+ *
+ *  U ilova qobig'ida (`lib/play-socket.tsx`): do'stona chaqiriqda
+ *  o'yinni BOSHQA odam ochadi va chaqirilgan o'yinchi bu sahifada
+ *  turmagan bo'lishi mumkin. Bu sahifa endi soketdan faqat ikki
+ *  narsani oladi: ulanish holati va "qayta ulandik" signali.
  * ═══════════════════════════════════════════════════════════════════════════
  */
 
@@ -74,10 +82,11 @@ export default function PlayPage() {
   const { accessToken, authFetch } = useAuth();
   const router = useRouter();
 
+  const { connected: socketReady, subscribeConnected } = usePlaySocket();
+
   const [games, setGames] = useState<GameRow[] | null>(null);
   const [queue, setQueue] = useState<QueueState>({ kind: 'idle' });
   const [error, setError] = useState<string | null>(null);
-  const [socketReady, setSocketReady] = useState(false);
 
   // Effekt ichidan O'QILADIGAN, lekin uni QAYTA ISHGA TUSHIRMAYDIGAN
   // qiymatlar. State bo'lsa socket har navbat o'zgarishida uzilib
@@ -134,43 +143,17 @@ export default function PlayPage() {
     }
   }, [goToGame, loadGames]);
 
-  // Juftlik topilganini KUTUVCHI socket. Navbatga turmasdan ham ochiq
-  // turadi: o'yin boshqa qurilmada yoki chaqiruv orqali boshlansa ham
-  // shu event keladi.
+  // Ulanish (yoki QAYTA ulanish) — o'tkazib yuborilgan juftlikni
+  // tekshirish nuqtasi. `matchmaking:matched` ning O'ZI qobiqda
+  // tinglanadi va u yerdan o'yinga o'tiladi.
   useEffect(() => {
-    if (accessToken === undefined || accessToken === null) {
-      return;
-    }
-    const base = process.env.NEXT_PUBLIC_WS_URL ?? 'http://localhost:3000';
-    const socket: Socket = io(`${base}/play`, {
-      transports: ['websocket'],
-      auth: { token: accessToken },
-    });
-
-    socket.on('connect', () => {
-      setSocketReady(true);
-      // Ulanish (yoki QAYTA ulanish) — o'tkazib yuborilgan juftlikni
-      // tekshirish nuqtasi.
+    return subscribeConnected(() => {
       void recoverMissedMatch().catch(() => {
         // Tiklash urinishining muvaffaqiyatsizligi navbatni buzmaydi;
         // keyingi ulanishda yana urinib ko'riladi.
       });
     });
-
-    socket.on('disconnect', () => {
-      setSocketReady(false);
-    });
-
-    socket.on('matchmaking:matched', (payload: { gameId: string }) => {
-      // Navbat tugadi — darhol o'yinga o'tamiz. Bu yerda tasdiq
-      // so'ralmaydi: raqibning soati ALLAQACHON ishlayapti.
-      goToGame(payload.gameId);
-    });
-
-    return () => {
-      socket.disconnect();
-    };
-  }, [accessToken, goToGame, recoverMissedMatch]);
+  }, [subscribeConnected, recoverMissedMatch]);
 
   async function join(preset: TimeControlPreset): Promise<void> {
     setError(null);
@@ -239,8 +222,8 @@ export default function PlayPage() {
           </span>
           <p style={{ margin: 0, fontWeight: 500 }}>O&apos;ynash uchun kirish kerak</p>
           <p className="muted small" style={{ margin: '8px auto 18px', maxWidth: '48ch' }}>
-            Reyting va fair-play nazorati o&apos;yinchi kimligini bilishni talab qiladi.
-            Tomoshabin sifatida istalgan o&apos;yinni tokensiz ko&apos;rish mumkin.
+            Reyting va fair-play nazorati o&apos;yinchi kimligini bilishni talab qiladi. Tomoshabin
+            sifatida istalgan o&apos;yinni tokensiz ko&apos;rish mumkin.
           </p>
           <Link href="/konsol/kirish" className="btn btn-primary">
             Kirish →
@@ -286,9 +269,9 @@ export default function PlayPage() {
               </span>
             </div>
             <p className="muted small" style={{ margin: 0, maxWidth: '58ch' }}>
-              Raqib qidirilmoqda. Qidiruv oralig&apos;i vaqt o&apos;tishi bilan kengayadi
-              (±200 dan ±500 reytinggacha) — aynan mos raqib topilmasa, biroz farqli
-              raqib beriladi. Juftlik topilishi bilan o&apos;yinga o&apos;tiladi.
+              Raqib qidirilmoqda. Qidiruv oralig&apos;i vaqt o&apos;tishi bilan kengayadi (±200 dan
+              ±500 reytinggacha) — aynan mos raqib topilmasa, biroz farqli raqib beriladi. Juftlik
+              topilishi bilan o&apos;yinga o&apos;tiladi.
             </p>
             <button type="button" className="btn" onClick={() => void leave()}>
               Navbatdan chiqish
@@ -337,7 +320,7 @@ export default function PlayPage() {
         <p className="muted">Yuklanmoqda…</p>
       ) : games.length === 0 ? (
         <EmptyState
-          title="Faol o&apos;yin yo&apos;q"
+          title="Faol o'yin yo'q"
           hint="Yuqoridagi vaqt nazoratlaridan birini tanlab navbatga turing."
         />
       ) : (
