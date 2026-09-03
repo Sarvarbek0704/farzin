@@ -1,7 +1,7 @@
 <!-- AUDIT-SUMMARY
 loyiha: farzin
 sana: 2026-09-02
-tayyorlik: 85
+tayyorlik: 87
 holat: ishlaydi
 tz_bandlari: 32/87
 build: ok
@@ -189,8 +189,8 @@ Belgilar: ✅ bajarilgan · 🟡 qisman · ❌ yo'q
 | Farqlar qo'lda tekshirilgan va izohlangan                       | ❌    | Solishtirish umuman o'tkazilmagan                                                                |
 | Property testlar 1000+ run                                      | ✅    | `swiss-dutch.engine.property.spec.ts:268` — `numRuns: 1000`                                      |
 | `pairing_criteria_violations_total` = 0 (shadow mode, 3 turnir) | 🟡    | Metrika 0; **shadow mode infratuzilmasi yo'q**, real turnir yo'q                                 |
-| 100 o'yinchida p95 < 10 s                                       | 🟡    | O'lchov yo'q. 11 o'yinchida 0–3 ms (juda tez), lekin 100/500 sinalmagan                          |
-| 500 o'yinchida tugaydi, vaqt hujjatlangan                       | ❌    | O'lchanmagan                                                                                     |
+| 100 o'yinchida p95 < 10 s                                       | ✅    | **O'LCHANDI 2026-09-03** (`docs/pairing-benchmark.md`): p95 = 55 ms — ~180× zaxira                |
+| 500 o'yinchida tugaydi, vaqt hujjatlangan                       | ✅    | **O'LCHANDI**: tugaydi; p95 = 13 s, eng og'ir tur — **2-tur** (oxirgisi emas). Hujjatlangan       |
 | FIDE hakami tasdig'i                                            | ❌    | Yo'q                                                                                             |
 | Mutation testing > 75%                                          | ❌    | Stryker o'rnatilmagan                                                                            |
 | **Qo'shimcha:** juftlikni qo'lda o'zgartirish (Ish doirasi)     | ❌    | Endpoint yo'q — faqat `PATCH /pairings/{id}/result` (natija, juftlik emas)                       |
