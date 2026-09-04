@@ -85,8 +85,8 @@ docker builder prune -f     # faqat QURISH keshi; image/konteyner/volume TEGILMA
 > Xotira: 1.2 GB bo'sh + 2.2 GB swap — stack sig'adi, lekin zaxira kam.
 >
 > **Compose fayli o'sha serverda tekshirilgan** (`config --services`):
-> default'da `postgres · migrate · redis · app · web`, `--profile
-fairplay` bilan `worker` ham qo'shiladi. Sir berilmasa compose
+> default'da `postgres · migrate · redis · app · web`; `fairplay`
+> profili bilan `worker` ham qo'shiladi. Sir berilmasa compose
 > **ataylab yiqiladi** (`required variable REDIS_PASSWORD is missing`) —
 > jimgina bo'sh parol bilan ko'tarilmaydi.
 
@@ -134,8 +134,8 @@ docker compose -f docker-compose.prod.yml --env-file .env.prod up -d
 ```
 
 Tartib avtomatik: `postgres` + `redis` sog'lom bo'ladi → `migrate`
-ishlaydi va **tugaydi** → `app` va `worker` ko'tariladi → `app` sog'lom
-bo'lgach `web`.
+ishlaydi va **tugaydi** → `app` ko'tariladi → `app` sog'lom bo'lgach
+`web`.
 
 **Migratsiya alohida xizmat** — u app entrypoint'ida bo'lsa, ko'p
 replikada ikki konteyner bir vaqtda migratsiya qilishga urinardi.
