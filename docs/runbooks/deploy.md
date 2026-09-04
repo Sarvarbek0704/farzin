@@ -15,7 +15,7 @@ oldin ikki narsa tekshiriladi: **port bo'shmi** va **disk yetarlimi**.
 
 ```bash
 # Portlar band emasmi (.env.prod dagi qiymatlar bilan solishtiring)
-ss -tlnp | grep -E ':(3100|3101)\b' || echo "bo'sh ✓"
+ss -tlnp | grep -E ':(3110|3111)\b' || echo "bo'sh ✓"
 
 # Nom to'qnashuvi bo'lmasin
 docker ps -a --format '{{.Names}}' | grep '^farzin-' || echo "toza ✓"
@@ -96,8 +96,8 @@ Ikki manzil kerak:
 
 | Domen           | Ichki manzil     | Nima     |
 | --------------- | ---------------- | -------- |
-| `farzin.uz`     | `127.0.0.1:3101` | frontend |
-| `api.farzin.uz` | `127.0.0.1:3100` | API      |
+| `farzin.uz`     | `127.0.0.1:3111` | frontend |
+| `api.farzin.uz` | `127.0.0.1:3110` | API      |
 
 ⚠️ **WebSocket majburiy.** O'yin soati va jonli taxta `/socket.io` orqali
 ishlaydi. Proxy `Upgrade` va `Connection` sarlavhalarini o'tkazmasa,
@@ -107,7 +107,7 @@ Nginx uchun minimal blok:
 
 ```nginx
 location / {
-    proxy_pass http://127.0.0.1:3100;
+    proxy_pass http://127.0.0.1:3110;
     proxy_http_version 1.1;
     proxy_set_header Upgrade    $http_upgrade;   # ← WebSocket
     proxy_set_header Connection "upgrade";       # ← WebSocket
