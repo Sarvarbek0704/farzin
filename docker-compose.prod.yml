@@ -138,9 +138,28 @@ services:
         condition: service_completed_successfully
 
   # --- Worker: fair-play navbati (Stockfish shu image'da) --------------------
+  #
+  #  ⚠️  DEFAULT'DA KO'TARILMAYDI — `profiles: [fairplay]`.
+  #
+  #      Ikki sabab:
+  #       1. Image ~1 GB va Stockfish tahlil paytida CPU'ni to'liq yeydi.
+  #          Kichik serverda (yoki bitta serverda ko'p loyiha bo'lganda)
+  #          bu qolgan hamma narsani sekinlashtiradi;
+  #       2. Fair-play moduli hali to'liq emas — yolg'on-pozitiv darajasi
+  #          O'LCHANMAGAN (docs/fairplay-calibration.md). Ya'ni uni
+  #          birinchi kundan yoqishning shoshilinch sababi yo'q.
+  #
+  #      Worker'siz qolgan HAMMA narsa ishlaydi: tahlil ishlari navbatda
+  #      to'planib turadi va worker ko'tarilgach qayta ishlanadi.
+  #
+  #      Yoqish:
+  #        docker compose -f docker-compose.prod.yml --env-file .env.prod \
+  #          --profile fairplay up -d
+  #
   #  HTTP server ochmaydi (worker.ts: createApplicationContext) — port ham,
   #  healthcheck ham yo'q.
   worker:
+    profiles: ['fairplay']
     build:
       context: .
       target: worker

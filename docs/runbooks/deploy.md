@@ -8,10 +8,56 @@ emas, nima bo'layotganini tushunish uchun.
 
 ---
 
+## Deploy'dan oldin: QAROR TALAB QILADIGAN uchta narsa
+
+Kod tayyor, lekin quyidagilarni **odam hal qiladi** — ular server va
+biznes qarori, texnik emas.
+
+### 1. Domen
+
+`.env.prod` dagi uchta maydon shundan kelib chiqadi va **noto'g'ri
+bo'lsa jimgina buziladi**: email havolalari ishlamaydi, WebSocket
+ulanmaydi.
+
+**A variant — ikki domen** (runbook shu variantga yozilgan):
+
+```env
+APP_URL=https://farzin.uz
+PUBLIC_API_URL=https://api.farzin.uz
+CORS_ORIGINS=https://farzin.uz
+```
+
+**B variant — bitta domen, `/api` yo'li bilan:**
+
+```env
+APP_URL=https://farzin.uz
+PUBLIC_API_URL=https://farzin.uz
+CORS_ORIGINS=https://farzin.uz
+```
+
+B variantda nginx `/api/` va `/socket.io/` ni backendga, qolganini
+frontendga uzatadi (§3 dagi ikkinchi konfiguratsiya). B'ning afzalligi —
+bitta sertifikat va CORS umuman ishlamaydi (hammasi bir origin).
+
+### 2. SMTP
+
+`SMTP_HOST` bo'sh bo'lsa ilova **ishlaydi**, lekin tasdiqlash va parol
+tiklash xatlari **yuborilmaydi** — ya'ni yangi foydalanuvchi hisobini
+tasdiqlay olmaydi. Birinchi superadmin uchun bu to'siq emas (§4 da
+vosita bor), oddiy foydalanuvchilar uchun — to'siq.
+
+### 3. Fair-play worker'i
+
+Default'da **ko'tarilmaydi** (`profiles: [fairplay]`). Sabab —
+docker-compose.prod.yml dagi izoh. Yoqish kerak bo'lsa §2 ga qarang.
+
+---
+
 ## 0. Oldindan tekshirish
 
 Server bitta va unda **ko'p loyiha** ishlaydi. Shuning uchun deploy'dan
-oldin ikki narsa tekshiriladi: **port bo'shmi** va **disk yetarlimi**.
+oldin uch narsa tekshiriladi: **port bo'shmi**, **disk yetarlimi** va
+**xotira qolganmi**.
 
 ```bash
 # Portlar band emasmi (.env.prod dagi qiymatlar bilan solishtiring)
@@ -20,9 +66,29 @@ ss -tlnp | grep -E ':(3110|3111)\b' || echo "bo'sh ✓"
 # Nom to'qnashuvi bo'lmasin
 docker ps -a --format '{{.Names}}' | grep '^farzin-' || echo "toza ✓"
 
-# Disk (image'lar ~2 GB oladi)
+# Disk: image'lar ~3 GB, build esa vaqtincha yana shuncha oladi
 df -h / | tail -1
+
+# Xotira: stack ~700 MB oladi (postgres 150 + redis 30 + api 200 + web 150)
+free -m | head -2
 ```
+
+**Joy yetmasa** — build keshi odatda eng katta zaxira:
+
+```bash
+docker builder prune -f     # faqat QURISH keshi; image/konteyner/volume TEGILMAYDI
+```
+
+> **2026-09-04 holati:** shu buyruq bilan 29.41 GB bo'shatildi
+> (disk 84% → 48%, 40 GB bo'sh). 38 ta boshqa konteyner ishlashda
+> davom etdi. Portlar: 3110 va 3111 **bo'sh**, 3100 esa **band**.
+> Xotira: 1.2 GB bo'sh + 2.2 GB swap — stack sig'adi, lekin zaxira kam.
+>
+> **Compose fayli o'sha serverda tekshirilgan** (`config --services`):
+> default'da `postgres · migrate · redis · app · web`, `--profile
+fairplay` bilan `worker` ham qo'shiladi. Sir berilmasa compose
+> **ataylab yiqiladi** (`required variable REDIS_PASSWORD is missing`) —
+> jimgina bo'sh parol bilan ko'tarilmaydi.
 
 `farzin-*` konteynerlari allaqachon bo'lsa — bu **yangilanish**, 5-bo'limga
 o'ting.
@@ -82,8 +148,19 @@ docker ps --filter name=farzin- --format '{{.Names}}\t{{.Status}}'
 ```
 
 Kutilgan: `farzin-postgres`, `farzin-redis`, `farzin-app`,
-`farzin-worker`, `farzin-web` — hammasi `Up (healthy)`.
+`farzin-web` — hammasi `Up (healthy)`.
 `farzin-migrate` — `Exited (0)`, bu **to'g'ri**.
+
+`farzin-worker` ro'yxatda **yo'q** — u ataylab profil ortida. Fair-play
+tahlilini yoqish kerak bo'lsa:
+
+```bash
+docker compose -f docker-compose.prod.yml --env-file .env.prod \
+  --profile fairplay up -d
+```
+
+Worker'siz tahlil ishlari **yo'qolmaydi** — ular navbatda to'planib
+turadi va worker ko'tarilgach qayta ishlanadi (API faqat PRODUCER).
 
 ---
 
@@ -122,6 +199,51 @@ location / {
 
 `X-Forwarded-For` **kerak**: usiz rate limiting hamma so'rovni bitta IP
 deb ko'radi va bitta foydalanuvchi butun serverni bloklab qo'yishi mumkin.
+
+### B variant — BITTA domen
+
+Bitta `server` bloki, uchta `location`. **Tartib muhim**: aniqroq yo'llar
+oldin turadi, aks holda `/` hammasini o'ziga oladi.
+
+```nginx
+server {
+    server_name farzin.uz;
+
+    # WebSocket — ENG BIRINCHI. Socket.IO `/socket.io/` yo'lini
+    # ishlatadi va u API'ga borishi kerak, frontendga EMAS.
+    location /socket.io/ {
+        proxy_pass http://127.0.0.1:3110;
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade    $http_upgrade;
+        proxy_set_header Connection "upgrade";
+        proxy_set_header Host       $host;
+        proxy_read_timeout 3600s;
+    }
+
+    location /api/ {
+        proxy_pass http://127.0.0.1:3110;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For   $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
+
+    location / {
+        proxy_pass http://127.0.0.1:3111;
+        proxy_set_header Host $host;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
+}
+```
+
+⚠️ B variantda ham `PUBLIC_API_URL=https://farzin.uz` bo'ladi — brauzer
+soketi shu domenga ulanadi va nginx uni `/socket.io/` bo'yicha API'ga
+uzatadi.
+
+⚠️ Frontend konteyneri o'z ichida `/api/*` ni `FARZIN_API_URL` ga
+uzatadi (Next rewrite). Ya'ni B variantda so'rov ikki marta proksilanishi
+mumkin — bu ishlaydi, lekin nginx `/api/` ni to'g'ridan-to'g'ri backendga
+yuborgani tezroq va shu sababli yuqoridagi tartib tanlangan.
 
 ---
 
