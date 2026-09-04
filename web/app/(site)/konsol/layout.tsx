@@ -4,7 +4,7 @@ import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { useEffect, type ReactNode } from 'react';
 
-import { useAuth } from '@/lib/auth';
+import { isSuperAdmin, useAuth } from '@/lib/auth';
 
 /**
  * Hakam konsoli — himoyalangan bo'lim.
@@ -24,8 +24,20 @@ const TABS = [
   { href: '/konsol/fairplay', label: 'Fair-play' },
 ] as const;
 
+/**
+ * Ma'muriy bo'lim FAQAT superadminga ko'rinadi.
+ *
+ * ⚠️  Bu HIMOYA EMAS — server har `/admin/*` so'rovni o'zi tekshiradi
+ *     va huquqsiz aktorga 404 beradi. Yashirish shunchaki bosilganda
+ *     bo'sh ekranga olib boradigan havolani ko'rsatmaslik uchun.
+ */
+const ADMIN_TABS = [
+  { href: '/konsol/admin', label: "Ma'muriyat" },
+  { href: '/konsol/admin/audit', label: 'Audit' },
+] as const;
+
 function ConsoleShell({ children }: { children: ReactNode }) {
-  const { accessToken, logout } = useAuth();
+  const { accessToken, session, logout } = useAuth();
   const pathname = usePathname();
   const router = useRouter();
 
@@ -47,15 +59,26 @@ function ConsoleShell({ children }: { children: ReactNode }) {
     );
   }
 
+  // Rollar TOKENDA yo'q — ular `/auth/me` dan alohida keladi
+  // (lib/auth.tsx). Kelmaguncha ma'muriy tablar KO'RSATILMAYDI:
+  // paydo bo'lib yo'qoladigan havola sakrash effekti berardi.
+  const visibleTabs = isSuperAdmin(session) ? [...TABS, ...ADMIN_TABS] : TABS;
+
   return (
     <>
       <div className="subnav">
         <nav aria-label="Konsol" className="site-nav" style={{ marginLeft: -12 }}>
-          {TABS.map((tab) => {
+          {visibleTabs.map((tab) => {
             const active =
               tab.href === '/konsol'
                 ? pathname === '/konsol' || pathname.startsWith('/konsol/turnir')
-                : pathname.startsWith(tab.href);
+                : tab.href === '/konsol/admin'
+                  ? // "Audit" alohida tab — u faol bo'lganda "Ma'muriyat"
+                    // ham faol ko'rinmasligi kerak.
+                    pathname === '/konsol/admin' || pathname.startsWith('/konsol/admin/')
+                    ? !pathname.startsWith('/konsol/admin/audit')
+                    : false
+                  : pathname.startsWith(tab.href);
             return (
               <Link key={tab.href} href={tab.href} aria-current={active ? 'page' : undefined}>
                 {tab.label}

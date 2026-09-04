@@ -37,6 +37,12 @@ const REASON_REQUIRED: ReadonlySet<string> = new Set([
   'user.banned',
   'refund.requested',
   'admin.impersonate',
+  // Rol berish/olib tashlash va hisobni bloklash — imtiyozga tegadigan
+  // amallar. "Kim, kimga, NEGA" savolining uchinchi qismisiz bu yozuvlar
+  // keyinchalik tekshirib bo'lmaydigan bo'lardi (docs/10 §10.2).
+  'role.granted',
+  'role.revoked',
+  'user.status_changed',
   // Fair-play: qaror odam karyerasiga tegadi — asossiz yozuv RAD
   // (docs/08 §4, docs/14 Faza 6 "Majburiy sabab yozish").
   'fairplay.decision',

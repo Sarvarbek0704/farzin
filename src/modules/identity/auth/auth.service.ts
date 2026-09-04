@@ -5,6 +5,7 @@ import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
 import type { Redis } from 'ioredis';
 
+import { NotFoundError } from '../../../core/errors/domain.error';
 import { type AppConfig, NodeEnv } from '../../../config/configuration';
 import { SlidingWindowLimiter } from '../../../shared/rate-limit/sliding-window.limiter';
 import { REDIS } from '../../../shared/redis/redis.module';
@@ -45,6 +46,22 @@ export interface AuthTokens {
   expiresIn: number;
   refreshToken: string;
   refreshExpiresAt: Date;
+}
+
+/**
+ * `GET /auth/me` javobi — O'Z hisobi va HOZIRGI rollari.
+ *
+ * Parol hash'i, TOTP siri va zaxira kodlar BU YERDA YO'Q va hech
+ * qachon bo'lmasligi kerak: javob brauzerga ketadi.
+ */
+export interface CurrentUserResponse {
+  userId: string;
+  email: string | null;
+  status: string;
+  emailVerified: boolean;
+  totpEnabled: boolean;
+  locale: string;
+  roles: { role: string; scopeType: string | null; scopeId: string | null }[];
 }
 
 interface RequestMeta {
@@ -122,6 +139,36 @@ export class AuthService {
     @Inject(REDIS) private readonly redis: Redis,
     @Inject(TRANSACTIONAL_MAILER) private readonly mailer: TransactionalMailer,
   ) {}
+
+  /**
+   * O'z hisobi va rollari — UI qaysi bo'limlarni ko'rsatishini
+   * hal qilishi uchun (auth.controller.ts `me` izohiga qarang).
+   *
+   * Rollar `findActiveAssignments` orqali: MUDDATI O'TGANLARI
+   * chiqarib tashlanadi. Aks holda turnir tugagach ham "Hakam
+   * konsoli" ko'rinib turardi va bosilganda 404 berardi.
+   */
+  async describe(userId: string): Promise<CurrentUserResponse> {
+    const user = await this.users.findById(userId);
+    if (user === null) {
+      throw new NotFoundError('User', userId);
+    }
+    // O'chirilgan hisob — "topilmadi" bilan BIR XIL javob: token hali
+    // amal qilayotgan bo'lsa ham hisob yo'q deb ko'rsatiladi.
+    if (user.deletedAt !== null) {
+      throw new NotFoundError('User', userId);
+    }
+    const roles = await this.users.findActiveAssignments(userId);
+    return {
+      userId: user.id,
+      email: user.email,
+      status: user.status,
+      emailVerified: user.emailVerified,
+      totpEnabled: user.totpEnabled,
+      locale: user.locale,
+      roles,
+    };
+  }
 
   /**
    * Ro'yxatdan o'tish: User + Player + PLAYER roli — bir tranzaksiyada

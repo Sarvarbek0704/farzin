@@ -6,6 +6,9 @@ import { PassportModule } from '@nestjs/passport';
 import type { AppConfig } from '../../config/configuration';
 import { SlidingWindowLimiter } from '../../shared/rate-limit/sliding-window.limiter';
 import { NotificationModule } from '../notification/notification.module';
+import { UserAdminController } from './admin/user-admin.controller';
+import { UserAdminRepository } from './admin/user-admin.repository';
+import { UserAdminService } from './admin/user-admin.service';
 import { AuthController } from './auth/auth.controller';
 import { AuthService } from './auth/auth.service';
 import { JwtStrategy } from './auth/jwt.strategy';
@@ -50,7 +53,7 @@ import { UserRepository } from './user.repository';
     // qilmaydi (uning endpointlari own-only, notification.module.ts izohi).
     NotificationModule,
   ],
-  controllers: [AuthController, TotpController],
+  controllers: [AuthController, TotpController, UserAdminController],
   providers: [
     AuthService,
     AuthzService,
@@ -60,6 +63,8 @@ import { UserRepository } from './user.repository';
     RefreshTokenService,
     TotpService,
     UserRepository,
+    UserAdminRepository,
+    UserAdminService,
     JwtStrategy,
     SlidingWindowLimiter,
   ],

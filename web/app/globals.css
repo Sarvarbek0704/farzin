@@ -1851,3 +1851,93 @@ kbd {
   grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
   gap: 8px;
 }
+
+/* ═══════════════════ MA'MURIYAT ════════════════════════════════════════ */
+
+/*
+ * Xulosa kartochkalari — platforma holati bir qarashda.
+ *
+ * Raqamlar TABULAR: ustunda turganda ular bir-biriga tekislanadi va
+ * o'zgarish ko'zga tashlanadi.
+ */
+.stat-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  gap: 10px;
+  margin-top: 24px;
+}
+
+.stat {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 14px 16px;
+  border: var(--hairline-width) solid var(--hairline);
+  border-radius: var(--radius-card);
+  background: var(--surface);
+}
+
+.stat-value {
+  font-size: 26px;
+  font-weight: 600;
+  line-height: 1.1;
+  font-variant-numeric: tabular-nums;
+}
+
+.stat-label {
+  font-size: 12px;
+  color: var(--ink-secondary);
+}
+
+/* Filtrlar qatori — tor ekranda bukiladi. */
+.filter-row {
+  display: flex;
+  gap: 20px;
+  flex-wrap: wrap;
+  margin-top: 16px;
+}
+
+.filter-label {
+  display: block;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--ink-secondary);
+  margin-bottom: 6px;
+}
+
+/* --- Audit yozuvi ------------------------------------------------------- */
+
+.audit-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+/*
+ * Amal nomi MONO shriftda: u mashina identifikatori
+ * (`role.granted`), tarjima qilinadigan matn emas — shakli shuni
+ * aytib tursin.
+ */
+.audit-action {
+  font-family: var(--font-mono), ui-monospace, monospace;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--ink);
+}
+
+/*
+ * Sabab — yozuvning eng qimmatli qismi: "kim, kimga" ni tizim biladi,
+ * "NEGA" ni faqat odam yozadi. Shuning uchun u chetdan chiziq bilan
+ * ajratiladi.
+ */
+.audit-reason {
+  margin: 10px 0 0;
+  padding-left: 12px;
+  border-left: 2px solid color-mix(in srgb, var(--accent) 50%, transparent);
+  font-size: 14px;
+  color: var(--ink);
+}

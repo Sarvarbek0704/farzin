@@ -32,13 +32,42 @@ import {
  *  Path=/api/v1/auth) muammosiz yuboriladi.
  */
 
+/**
+ * `GET /auth/me` javobi.
+ *
+ * ROLLAR TOKENDA YO'Q va bu ATAYLAB (docs/10 §3.4): bekor qilingan rol
+ * 15 daqiqa amal qilib turmasligi kerak. Shu sababli ularni alohida
+ * so'rov bilan olamiz.
+ */
+export interface Session {
+  userId: string;
+  email: string | null;
+  status: string;
+  emailVerified: boolean;
+  totpEnabled: boolean;
+  locale: string;
+  roles: { role: string; scopeType: string | null; scopeId: string | null }[];
+}
+
 interface AuthState {
   /** `null` — kirilmagan. `undefined` — hali aniqlanmadi (yuklanmoqda). */
   accessToken: string | null | undefined;
+  /**
+   * Hisob va rollari. `undefined` — hali kelmadi, `null` — kirilmagan.
+   *
+   * ⚠️  BU HIMOYA EMAS — faqat NIMANI KO'RSATISH kerakligini aytadi.
+   *     Har endpoint baribir serverda tekshiriladi.
+   */
+  session: Session | null | undefined;
   login: (email: string, password: string) => Promise<void>;
   logout: () => Promise<void>;
   /** Avtorizatsiyalangan so'rov — 401 da bir marta refresh qilib qayta uradi. */
   authFetch: (path: string, init?: RequestInit) => Promise<Response>;
+}
+
+/** Global (scope'siz) SUPER_ADMIN — ma'muriy bo'limning sharti. */
+export function isSuperAdmin(session: Session | null | undefined): boolean {
+  return session?.roles.some((r) => r.role === 'SUPER_ADMIN' && r.scopeType === null) === true;
 }
 
 const AuthContext = createContext<AuthState | null>(null);
@@ -47,6 +76,7 @@ export class AuthError extends Error {}
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [accessToken, setAccessToken] = useState<string | null | undefined>(undefined);
+  const [session, setSession] = useState<Session | null | undefined>(undefined);
 
   // Ref — `authFetch` identifikatori o'zgarmasin (useEffect qayta
   // ishlamasin), lekin eng yangi tokenni ko'rsin.
@@ -82,6 +112,44 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
     });
   }, [refresh]);
+
+  /**
+   * Token o'zgarganda hisob ma'lumotini qayta olamiz.
+   *
+   * ═══════════════════════════════════════════════════════════════════════
+   *  NEGA `login` ICHIDA EMAS, EFFEKTDA
+   *
+   *  Sessiya uch yo'l bilan paydo bo'ladi: login, sahifa yangilangandan
+   *  keyingi refresh, va `authFetch` ichidagi jimgina refresh. Uchalasida
+   *  ham rollar kerak. Effekt tokenni kuzatgani uchun bu uchala yo'l ham
+   *  avtomatik qamraladi — `login` ichiga yozilsa qolgan ikkitasi
+   *  unutilardi.
+   * ═══════════════════════════════════════════════════════════════════════
+   */
+  useEffect(() => {
+    if (accessToken === undefined) {
+      return;
+    }
+    if (accessToken === null) {
+      setSession(null);
+      return;
+    }
+
+    let cancelled = false;
+    void fetch('/api/v1/auth/me', { headers: { Authorization: `Bearer ${accessToken}` } })
+      .then(async (res) => (res.ok ? ((await res.json()) as Session) : null))
+      .catch(() => null)
+      .then((next) => {
+        // Token shu orada almashgan bo'lsa, eskirgan javobni yozmaymiz.
+        if (!cancelled) {
+          setSession(next);
+        }
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [accessToken]);
 
   const login = useCallback(async (email: string, password: string): Promise<void> => {
     const res = await fetch('/api/v1/auth/login', {
@@ -144,8 +212,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   );
 
   const value = useMemo<AuthState>(
-    () => ({ accessToken, login, logout, authFetch }),
-    [accessToken, login, logout, authFetch],
+    () => ({ accessToken, session, login, logout, authFetch }),
+    [accessToken, session, login, logout, authFetch],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

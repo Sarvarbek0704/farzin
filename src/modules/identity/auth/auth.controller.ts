@@ -10,7 +10,7 @@ import { Public } from '../../../shared/auth/public.decorator';
 import { LoginDto } from './dto/login.dto';
 import { ChangePasswordDto, ForgotPasswordDto, ResetPasswordDto } from './dto/password.dto';
 import { RegisterDto } from './dto/register.dto';
-import { AuthService, type AuthTokens } from './auth.service';
+import { AuthService, type AuthTokens, type CurrentUserResponse } from './auth.service';
 
 /**
  * Refresh cookie nomi va yo'li. Path — faqat auth endpoint'lariga
@@ -102,6 +102,33 @@ export class AuthController {
     this.clearRefreshCookie(res);
   }
 
+  /**
+   * KIM MEN? — hisob va HOZIRGI rollari.
+   *
+   * ═══════════════════════════════════════════════════════════════════════
+   *  NEGA BU ENDPOINT KERAK
+   *
+   *  Rollar access token'ga ATAYLAB solinmagan (docs/10 §3.4): 15
+   *  daqiqalik token bekor qilingan hakamni 15 daqiqa hakamligicha
+   *  qoldirardi. Lekin oqibati shu — klient o'z huquqlarini
+   *  BILMAYDI va "Ma'muriyat" bo'limini ko'rsatish kerakmi degan
+   *  savolga javob berolmaydi.
+   *
+   *  Har ekranni ochib ko'rib, 404 kelsa yashirish ham mumkin edi,
+   *  lekin u sakraydigan UI beradi. Bu endpoint — bitta so'rov,
+   *  faqat O'Z ma'lumoti (boshqa hisobni ko'rsatmaydi).
+   * ═══════════════════════════════════════════════════════════════════════
+   *
+   *  ⚠️  BU HIMOYA EMAS. Har endpoint baribir serverda tekshiriladi;
+   *      bu javob faqat NIMANI KO'RSATISH kerakligini aytadi.
+   */
+  @Get('me')
+  @ApiBearerAuth('access-token')
+  @ApiOperation({ summary: "Hisobim va hozirgi rollarim (UI ko'rinishi uchun)" })
+  async me(@CurrentUser() user: AuthenticatedUser): Promise<CurrentUserResponse> {
+    return await this.auth.describe(user.userId);
+  }
+
   @Post('logout-all')
   @HttpCode(HttpStatus.NO_CONTENT)
   @ApiBearerAuth('access-token')
@@ -190,13 +217,6 @@ export class AuthController {
       this.meta(req),
     );
     this.clearRefreshCookie(res);
-  }
-
-  @Get('me')
-  @ApiBearerAuth('access-token')
-  @ApiOperation({ summary: 'Joriy foydalanuvchi (token tekshiruvi)' })
-  me(@CurrentUser() user: AuthenticatedUser): AuthenticatedUser {
-    return user;
   }
 
   // ---------------------------------------------------------------------
