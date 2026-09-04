@@ -29,13 +29,19 @@ kichik: 12
 Farzin — O'zbekiston shaxmati uchun NestJS asosidagi backend platformasi: turnir
 o'tkazish (FIDE Dutch Swiss juftlashtirish), Glicko-2 milliy reyting, onlayn o'yin
 (server-authoritative taymer), to'lov (double-entry ledger) va fair-play tahlili.
-33 000 qator TypeScript, 212 fayl, 59 REST endpoint, 42 Prisma modeli,
+236 TypeScript fayli, 88 REST endpoint, 43 Prisma modeli,
 va `web/` da Next.js frontend (13 route).
 **Kod sifati bu portfeldagi eng yuqori darajalardan biri** — `strict` TypeScript
 toza o'tadi, lint toza, arxitektura chegaralari CI vositasi bilan majburlanadi,
 va kodning o'zi o'z cheklovlarini halol hujjatlaydi.
-Testlar: **51 to'plam — 551 unit + 115 integration, hammasi yashil**
-(auditdan keyin +6 to'plam, +63 test).
+
+Testlar (2026-09-03 holati): **574 unit** (41 to'plam) + **integration**
+(12 to'plam) backend'da, **486 test** (11 to'plam) frontend'da, ustiga
+Playwright E2E oqimlari. Hammasi yashil.
+
+⚠️ Bu bo'limdagi raqamlar **qo'lda yangilanadi va eskirishga moyil** —
+jadval sonlari (§3 oxiri) endi buyruq bilan qayta hisoblanadi, chunki
+ular bir marta jadvallardan ajralib ketgan edi.
 
 **Auditda eng katta muammo deploy qilib bo'lmasligi edi** — `docker build`
 ikki joyda yiqilardi va ishlaydigan image umuman mavjud emasdi; CI esa
@@ -242,17 +248,17 @@ Belgilar: ✅ bajarilgan · 🟡 qisman · ❌ yo'q
 
 ### Faza 6 — Fair play (1/9)
 
-| Band                                                | Holat | Izoh                                                                 |
-| --------------------------------------------------- | ----- | -------------------------------------------------------------------- |
-| Toza o'yinlarda yolg'on pozitiv darajasi o'lchangan | ❌    | O'lchanmagan                                                         |
-| Chit o'yinlar aniqlanishi (sezuvchanlik)            | ❌    | O'lchanmagan                                                         |
-| Tahlil vaqti va CPU xarajati o'lchangan             | ❌    | O'lchanmagan; Stockfish binari yo'q, engine `null` bilan o'chirilgan |
-| Komissiya paneli real hakam bilan                   | ❌    | API bor, UI yo'q                                                     |
-| Har qaror audit'da, sabab bilan                     | ✅    | `fairplay.service.ts:226-231` — minimal uzunlikli asos majburiy      |
-| Apellyatsiya oqimi ishlaydi                         | 🟡    | Endpointlar va 18 ta integratsiya testi bor; UI va real sinov yo'q   |
-| Siyosat hujjati ommaviy e'lon qilingan              | ❌    | Yo'q                                                                 |
-| Avtomatik jazo yo'qligi kodda tasdiqlangan          | ✅    | `analysis.processor.ts:30-39` + `decideCase` faqat odam aktori bilan |
-| Yurist: huquqiy asos                                | ❌    | Yo'q                                                                 |
+| Band                                                | Holat | Izoh                                                                                                                                                                                                                                                                                                                                                                                                                                 |
+| --------------------------------------------------- | ----- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Toza o'yinlarda yolg'on pozitiv darajasi o'lchangan | ❌    | O'lchanmagan                                                                                                                                                                                                                                                                                                                                                                                                                         |
+| Chit o'yinlar aniqlanishi (sezuvchanlik)            | 🟡    | **O'LCHANDI 2026-09-02** (`docs/fairplay-calibration.md`, `src/tools/fairplay-calibration.ts`): Stockfish bilan generatsiya qilingan o'yinlar, ishlab chiqarish kod yo'li orqali. Natija xushxabar EMAS — **100% dvigatel yordami ham har doim belgilanmaydi** (A: 1/3, B: 1/4 chegaradan past), skor dispersiyasi katta va darajalarni ajratib bo'lmaydi. Namuna kichik (n = 3–5), shuning uchun chegara haqida xulosa CHIQARILMADI |
+| Tahlil vaqti va CPU xarajati o'lchangan             | ❌    | O'lchanmagan; Stockfish binari yo'q, engine `null` bilan o'chirilgan                                                                                                                                                                                                                                                                                                                                                                 |
+| Komissiya paneli real hakam bilan                   | ❌    | API bor, UI yo'q                                                                                                                                                                                                                                                                                                                                                                                                                     |
+| Har qaror audit'da, sabab bilan                     | ✅    | `fairplay.service.ts:226-231` — minimal uzunlikli asos majburiy                                                                                                                                                                                                                                                                                                                                                                      |
+| Apellyatsiya oqimi ishlaydi                         | 🟡    | Endpointlar va 18 ta integratsiya testi bor; UI va real sinov yo'q                                                                                                                                                                                                                                                                                                                                                                   |
+| Siyosat hujjati ommaviy e'lon qilingan              | ❌    | Yo'q                                                                                                                                                                                                                                                                                                                                                                                                                                 |
+| Avtomatik jazo yo'qligi kodda tasdiqlangan          | ✅    | `analysis.processor.ts:30-39` + `decideCase` faqat odam aktori bilan                                                                                                                                                                                                                                                                                                                                                                 |
+| Yurist: huquqiy asos                                | ❌    | Yo'q                                                                                                                                                                                                                                                                                                                                                                                                                                 |
 
 ### Faza 7–10 (0/22)
 
@@ -261,11 +267,27 @@ Prisma sxemasida `School`, `SchoolClass`, `Student`, `Puzzle`, `Coach`, `Lesson`
 modellari bor, lekin ularga tegishli birorta modul, servis yoki endpoint yo'q
 (`app.module.ts:158-161` da TODO sifatida qayd etilgan).
 
-**Audit paytida: 26 ✅ / 21 🟡 / 40 ❌ (87 banddan)**
-**Tuzatishdan keyin: 31 ✅ / 22 🟡 / 34 ❌**
+**Audit paytida (2026-09-01): 26 ✅ / 21 🟡 / 40 ❌ (87 banddan)**
+**Hozir (2026-09-03): 27 ✅ / 16 🟡 / 44 ❌**
 
-O'zgargan bandlar: Faza 0 da +4 (compose, log testi, image, — CI 🟡 ga),
-Faza 1 da +1 (PDF 🟡), Faza 4 da +1 (karta log testi).
+⚠️ Bu yerda ilgari "31 ✅ / 22 🟡 / 34 ❌" deb yozilgan edi va u
+**yuqoridagi jadvallar bilan mos kelmasdi** — qo'lda yangilangan, qayta
+sanalmagan. Hozirgi raqamlar jadvallardan HISOBLAB olindi:
+
+```bash
+# Faqat JADVAL katakchalari sanaladi — izoh matnidagi belgilar emas.
+awk '/^### Faza 0 — Poydevor/,/^## 4\./' docs/AUDIT.md \
+  | grep -oE "\| (✅|🟡|❌) +\|" | grep -oE "✅|🟡|❌" | sort | uniq -c
+```
+
+Natija: **27 ✅ / 16 🟡 / 24 ❌**. Undan 2 ta "**Qo'shimcha:**" qatori
+chiqariladi (ular DoD bandi emas) → 22 ❌, ya'ni jadvallarda 65 band.
+Faza 7–10 ning 22 bandi qo'shiladi → **27 / 16 / 44 = 87**.
+
+Auditdan beri o'zgargan bandlar: Faza 0 da compose, log testi va image;
+Faza 1 da PDF (🟡) va Prometheus/Grafana; Faza 2 da ikkala benchmark
+(100 va 500 o'yinchi); Faza 4 da karta log testi; Faza 6 da
+sezuvchanlik o'lchovi (🟡).
 
 ---
 
