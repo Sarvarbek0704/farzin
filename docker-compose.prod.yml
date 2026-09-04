@@ -1,0 +1,185 @@
+# =============================================================================
+#  FARZIN — PRODUCTION stack
+#
+#  Ishga tushirish:
+#      cp .env.prod.example .env.prod   # va to'ldiring
+#      docker compose -f docker-compose.prod.yml --env-file .env.prod up -d
+#
+#  To'liq yo'riqnoma: docs/runbooks/deploy.md
+#
+#  ═══════════════════════════════════════════════════════════════════════════
+#   `docker-compose.yml` DAN FARQI — VA NEGA ALOHIDA FAYL
+#
+#   Asosiy compose fayli sarlavhasida "LOKAL ISHLAB CHIQISH MUHITI" deb
+#   yozilgan va u shunday: parollar fayl ichida ochiq, mailpit bilan
+#   email tutib qolinadi, DB va Redis portlari tashqariga chiqarilgan.
+#   Uni prod'da ishlatish uchun "tuzatish" — eng oson unutiladigan
+#   qadam. Shuning uchun alohida fayl:
+#
+#     1. HECH QANDAY SIR fayl ichida yo'q — hammasi `.env.prod` dan,
+#        default'siz. O'zgaruvchi berilmasa compose YIQILADI
+#        (`${VAR:?xabar}`), jimgina bo'sh qiymat bilan ishlamaydi.
+#     2. Postgres va Redis portlari CHIQARILMAYDI. Ular faqat ichki
+#        tarmoqda. Bu ikki narsani beradi: baza internetdan ko'rinmaydi
+#        VA bitta serverdagi boshqa loyihalar bilan port urushi bo'lmaydi.
+#     3. mailpit/minio/jaeger YO'Q — prod'da haqiqiy SMTP va S3.
+#     4. `NODE_ENV=production` — Swagger UI o'chadi (main.ts), zaif
+#        JWT kaliti RAD ETILADI (configuration.ts).
+#     5. Frontend (`web`) ham shu stack'da — u alohida image.
+#
+#   ⚠️  BITTA SERVERDA KO'P LOYIHA: konteyner nomlari `farzin-*`,
+#       tarmoq nomi `farzin-net`, tashqi portlar esa `.env.prod` dan
+#       (`FARZIN_API_PORT`, `FARZIN_WEB_PORT`). Ular BAND BO'LMAGAN
+#       port bo'lishi kerak — deploy runbook'ida tekshirish bor.
+#  ═══════════════════════════════════════════════════════════════════════════
+# =============================================================================
+
+name: farzin
+
+networks:
+  farzin-net:
+    name: farzin-net
+
+volumes:
+  farzin_postgres_data:
+  farzin_redis_data:
+
+services:
+  postgres:
+    image: postgres:17-alpine
+    container_name: farzin-postgres
+    restart: unless-stopped
+    networks: [farzin-net]
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:?POSTGRES_USER kerak}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD kerak}
+      POSTGRES_DB: ${POSTGRES_DB:?POSTGRES_DB kerak}
+      # Determinizm: barcha muhitlarda bir xil collation, aks holda
+      # ORDER BY natijasi platformaga qarab farq qiladi.
+      POSTGRES_INITDB_ARGS: '--locale=C.UTF-8 --encoding=UTF8'
+      TZ: UTC
+    volumes:
+      - farzin_postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}']
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    command:
+      - postgres
+      - -c
+      - shared_preload_libraries=pg_stat_statements
+      - -c
+      - max_connections=${POSTGRES_MAX_CONNECTIONS:-100}
+
+  redis:
+    image: redis:7-alpine
+    container_name: farzin-redis
+    restart: unless-stopped
+    networks: [farzin-net]
+    volumes:
+      - farzin_redis_data:/data
+    # AOF yoqilgan — faol o'yin soati Redis'da yashaydi va u yo'qolsa
+    # o'yinlar qayta tiklanadi, lekin so'nggi soniyalar yo'qoladi
+    # (docs/adr/0002-postgres-primary-store.md).
+    command: >
+      redis-server --appendonly yes --appendfsync everysec
+      --requirepass ${REDIS_PASSWORD:?REDIS_PASSWORD kerak}
+    healthcheck:
+      test: ['CMD', 'redis-cli', '-a', '${REDIS_PASSWORD}', 'ping']
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  # --- Migratsiya: bir marta ishlaydi va TUGAYDI -----------------------------
+  #  Alohida xizmat, chunki app entrypoint'iga qo'shilsa ko'p replikada
+  #  ikki pod bir vaqtda migratsiya qilardi (docs/11 §8).
+  #
+  #  `deps` bosqichi: `runner` da `pnpm prune --prod` bajarilgan va
+  #  `node_modules/.bin/prisma` symlink'i o'chgan ("prisma: not found").
+  migrate:
+    build:
+      context: .
+      target: deps
+    image: farzin:migrate
+    container_name: farzin-migrate
+    restart: 'no'
+    networks: [farzin-net]
+    command: ['pnpm', 'prisma', 'migrate', 'deploy']
+    environment:
+      DATABASE_URL: ${DATABASE_URL:?DATABASE_URL kerak}
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  app:
+    build:
+      context: .
+      target: runner
+    image: farzin:api
+    container_name: farzin-app
+    restart: unless-stopped
+    networks: [farzin-net]
+    # Faqat LOKAL interfeysga bog'lanadi — tashqariga chiqish reverse
+    # proxy orqali (TLS o'sha yerda tugaydi).
+    ports:
+      - '127.0.0.1:${FARZIN_API_PORT:?FARZIN_API_PORT kerak}:3000'
+    env_file: [.env.prod]
+    environment: &app_env
+      NODE_ENV: production
+      PORT: '3000'
+      API_PREFIX: api
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+
+  # --- Worker: fair-play navbati (Stockfish shu image'da) --------------------
+  #  HTTP server ochmaydi (worker.ts: createApplicationContext) — port ham,
+  #  healthcheck ham yo'q.
+  worker:
+    build:
+      context: .
+      target: worker
+    image: farzin:worker
+    container_name: farzin-worker
+    restart: unless-stopped
+    networks: [farzin-net]
+    env_file: [.env.prod]
+    environment: *app_env
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+
+  # --- Frontend --------------------------------------------------------------
+  #  ⚠️  `NEXT_PUBLIC_WS_URL` — BUILD ARGUMENTI, runtime env EMAS.
+  #      U brauzerga ketadigan JS ichiga yoziladi, ya'ni uni ishga
+  #      tushirishda berish KECH bo'ladi. Qiymat o'zgarsa image QAYTA
+  #      QURILISHI kerak (web/Dockerfile izohi).
+  web:
+    build:
+      context: ./web
+      args:
+        NEXT_PUBLIC_WS_URL: ${PUBLIC_API_URL:?PUBLIC_API_URL kerak}
+    image: farzin:web
+    container_name: farzin-web
+    restart: unless-stopped
+    networks: [farzin-net]
+    ports:
+      - '127.0.0.1:${FARZIN_WEB_PORT:?FARZIN_WEB_PORT kerak}:3000'
+    environment:
+      NODE_ENV: production
+      # SERVER tomondagi fetch (RSC) — ichki tarmoq orqali, tashqi
+      # domenga chiqmasdan. Brauzer so'rovlari esa `/api/...` ga
+      # boradi va Next rewrite'i ularni shu manzilga uzatadi.
+      FARZIN_API_URL: http://app:3000
+    depends_on:
+      app:
+        condition: service_healthy

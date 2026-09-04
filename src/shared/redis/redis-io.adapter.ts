@@ -24,6 +24,7 @@ export class RedisIoAdapter extends IoAdapter {
   private adapterConstructor: ReturnType<typeof createAdapter> | null = null;
   private pubClient: Redis | null = null;
   private subClient: Redis | null = null;
+  private allowedOrigins: string[] | null = null;
 
   async connectToRedis(options: RedisOptions): Promise<void> {
     this.pubClient = new Redis({ ...options, lazyConnect: true });
@@ -32,8 +33,42 @@ export class RedisIoAdapter extends IoAdapter {
     this.adapterConstructor = createAdapter(this.pubClient, this.subClient);
   }
 
+  /**
+   * WebSocket CORS ro'yxatini o'rnatish.
+   *
+   * ═══════════════════════════════════════════════════════════════════════
+   *  NEGA GATEWAY DEKORATORIDA EMAS
+   *
+   *  `@WebSocketGateway({ cors: ... })` — STATIK qiymat, u konfiguratsiyani
+   *  ko'ra olmaydi. Shu sababli u yerda `origin: true` turibdi, ya'ni
+   *  "so'ragan origin'ni qaytar" — amalda HAR QANDAY sayt.
+   *
+   *  Xavf cheklangan (token brauzer xotirasidan o'qilmaydi, ya'ni begona
+   *  sayt faqat ANONIM tomoshabin ulana oladi), lekin prod'da ro'yxatni
+   *  ochiq qoldirishning sababi yo'q: bu yerda konfiguratsiya bor va
+   *  u dekoratordagi qiymatning USTIDAN yoziladi.
+   * ═══════════════════════════════════════════════════════════════════════
+   *
+   *  ⚠️  BO'SH ro'yxat E'TIBORSIZ qoldiriladi. `origin: []` socket.io'da
+   *      "hech kimga ruxsat yo'q" degani va u BUTUN jonli o'yinni
+   *      o'chirib qo'yardi. `CORS_ORIGINS` berilmagan muhit — bu odatda
+   *      lokal dev; u yerda dekoratordagi erkin qiymat qoladi.
+   *      Prod'da bo'sh ro'yxat main.ts da OGOHLANTIRISH beradi.
+   */
+  setAllowedOrigins(origins: string[]): void {
+    this.allowedOrigins = origins.length === 0 ? null : origins;
+  }
+
   override createIOServer(port: number, options?: ServerOptions): Server {
-    const server = super.createIOServer(port, options) as Server;
+    const server = super.createIOServer(
+      port,
+      this.allowedOrigins === null
+        ? options
+        : {
+            ...options,
+            cors: { origin: this.allowedOrigins, credentials: true },
+          },
+    ) as Server;
     if (this.adapterConstructor !== null) {
       server.adapter(this.adapterConstructor);
     }

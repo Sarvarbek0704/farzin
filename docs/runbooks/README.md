@@ -26,18 +26,18 @@ Alert faqat "nimadir buzildi" deydi. Runbook uchta savolga javob beradi:
 
 ## Alert → runbook xaritasi
 
-| Alert | Runbook | Jiddiylik |
-|---|---|---|
-| `FarzinApiErrorBudgetBurnFast` / `Slow` | [api-errors.md](api-errors.md) | page / ticket |
-| `FarzinPairingCriteriaViolation` | [pairing-violation.md](pairing-violation.md) | **page** |
-| `FarzinLedgerImbalance` | [ledger-imbalance.md](ledger-imbalance.md) | **page** |
-| `FarzinGlickoConvergenceFailure` | [glicko-convergence.md](glicko-convergence.md) | **page** |
-| `FarzinTargetDown` | [target-down.md](target-down.md) | **page** |
-| `FarzinRatingPeriodLagHigh` | [rating-period-lag.md](rating-period-lag.md) | ticket |
-| `FarzinPairingSlow` | [pairing-slow.md](pairing-slow.md) | ticket |
-| `FarzinClockDriftHigh` | [clock-drift.md](clock-drift.md) | ticket |
-| `FarzinPaymentFailureRateHigh` | [payment-failures.md](payment-failures.md) | ticket |
-| `FarzinMoveProcessingSlow` | [move-latency.md](move-latency.md) | ticket |
+| Alert                                   | Runbook                                        | Jiddiylik     |
+| --------------------------------------- | ---------------------------------------------- | ------------- |
+| `FarzinApiErrorBudgetBurnFast` / `Slow` | [api-errors.md](api-errors.md)                 | page / ticket |
+| `FarzinPairingCriteriaViolation`        | [pairing-violation.md](pairing-violation.md)   | **page**      |
+| `FarzinLedgerImbalance`                 | [ledger-imbalance.md](ledger-imbalance.md)     | **page**      |
+| `FarzinGlickoConvergenceFailure`        | [glicko-convergence.md](glicko-convergence.md) | **page**      |
+| `FarzinTargetDown`                      | [target-down.md](target-down.md)               | **page**      |
+| `FarzinRatingPeriodLagHigh`             | [rating-period-lag.md](rating-period-lag.md)   | ticket        |
+| `FarzinPairingSlow`                     | [pairing-slow.md](pairing-slow.md)             | ticket        |
+| `FarzinClockDriftHigh`                  | [clock-drift.md](clock-drift.md)               | ticket        |
+| `FarzinPaymentFailureRateHigh`          | [payment-failures.md](payment-failures.md)     | ticket        |
+| `FarzinMoveProcessingSlow`              | [move-latency.md](move-latency.md)             | ticket        |
 
 ## Jiddiylik nimani anglatadi
 
@@ -46,3 +46,11 @@ Alert faqat "nimadir buzildi" deydi. Runbook uchta savolga javob beradi:
 
 Bu ajratish ataylab qat'iy: hamma narsani "page" qilish navbatchini
 alertga befarq qiladi va HAQIQIY page o'tkazib yuboriladi.
+
+## Alertga bog'lanmagan runbook'lar
+
+Bular alertdan kelib chiqmaydi — ular **rejalashtirilgan ish** uchun.
+
+| Runbook                | Qachon                                                                                      |
+| ---------------------- | ------------------------------------------------------------------------------------------- |
+| [deploy.md](deploy.md) | Birinchi deploy, yangilanish, rollback, zaxira nusxa va **birinchi superadminni tayinlash** |

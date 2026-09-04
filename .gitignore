@@ -5,6 +5,8 @@
 .env
 .env.*
 !.env.example
+# Prod shabloni ham SHABLON — sir yo'q, faqat maydonlar ro'yxati.
+!.env.prod.example
 *.pem
 *.key
 *.p12

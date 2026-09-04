@@ -1,0 +1,25 @@
+# Build konteksti — `web/` papkasi (root EMAS, root .dockerignore da
+# `web/` chiqarilgan). Bu yerda faqat shu paketning keraksiz fayllari.
+
+node_modules
+.next
+out
+coverage
+playwright-report
+test-results
+
+.git
+.env
+.env.*
+!.env.example
+*.log
+
+Dockerfile
+.dockerignore
+
+# E2E va komponent testlari image'ga kerak emas — ular CI'da ishlaydi.
+e2e
+**/*.spec.ts
+**/*.spec.tsx
+playwright.config.ts
+vitest.config.mts

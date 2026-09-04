@@ -148,6 +148,22 @@ async function bootstrap(): Promise<void> {
     ...(redisCfg.password !== undefined && { password: redisCfg.password }),
     db: redisCfg.db,
   });
+
+  // WebSocket CORS — HTTP bilan AYNI ro'yxat.
+  //
+  // Gateway dekoratorida `origin: true` turibdi (statik qiymat
+  // konfiguratsiyani ko'ra olmaydi) va u har qanday saytga ulanishga
+  // ruxsat berardi. Prod'da brauzer soketni TO'G'RIDAN-TO'G'RI API
+  // domeniga ochadi (Next rewrite faqat HTTP uchun), ya'ni bu
+  // haqiqiy cross-origin yo'l va u ro'yxat bilan chegaralanishi kerak.
+  ioAdapter.setAllowedOrigins(corsOrigins);
+  if (isProduction && corsOrigins.length === 0) {
+    const logger: Logger = app.get(Logger);
+    logger.warn(
+      'CORS_ORIGINS berilmagan — WebSocket HAR QANDAY saytdan ulanishga ochiq. ' +
+        'Prod uchun frontend domenini ko`rsating.',
+    );
+  }
   app.useWebSocketAdapter(ioAdapter);
 
   // Kubernetes SIGTERM yuboradi — ochiq so'rovlar tugashi kerak.
